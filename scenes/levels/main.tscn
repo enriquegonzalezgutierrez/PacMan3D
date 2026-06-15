@@ -14,4 +14,4 @@ offset_bottom = 40.0
 script = ExtResource("2_2vj2h")
 
 [node name="DirectionalLight3D" type="DirectionalLight3D" parent="." unique_id=1997718309]
-transform = Transform3D(0.70710677, -0.49999997, 0.49999997, 0, 0.70710677, 0.70710677, -0.70710677, -0.49999997, 0.49999997, 0, 0, 0)
+transform = Transform3D(0.7071067, -0.49999994, 0.49999994, 0, 0.7071067, 0.7071067, -0.7071067, -0.49999994, 0.49999994, 0, 0, 0)
