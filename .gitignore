@@ -1,0 +1,21 @@
+# ==============================================================================
+# Description: Git ignore file for Godot 4 project. Prevents tracking local
+#              caches, import settings, and user-specific configurations.
+# Author: Enrique González Gutiérrez
+# Email: enrique.gonzalez.gutierrez@gmail.com
+# ==============================================================================
+
+# Godot-specific ignores
+.godot/
+*.translation
+
+# FreeDesktop-specific ignores
+.directory
+
+# Mono-specific ignores
+bin/
+obj/
+
+# Crash dumps
+core
+*.dmp
