@@ -2,7 +2,7 @@
 # Description: CharacterBody3D controller for Ghosts. Handles primitive capsule
 #              generation, color setting, collision-tested pathfinding, and
 #              assigns SOLID-compliant behavior strategy patterns.
-#              Includes arcade 'LEAVING' state with robust 2D foso exit detection.
+#              Features symmetric physical collisions and precise player detection.
 # Author: Enrique González Gutiérrez
 # Email: enrique.gonzalez.gutierrez@gmail.com
 # ==============================================================================
@@ -62,10 +62,11 @@ func _ready() -> void:
 	
 	current_direction = CARDINAL_DIRECTIONS.pick_random()
 
-# Configures collision layers to let ghosts pass through each other but collide with walls/player
+# Configures symmetric collision layers: Ghost is on Layer 3, blocks with Layer 1 (Walls) and Layer 2 (Player)
 func _configure_collision_layers() -> void:
-	# Ghost exists on Layer 3, collides with Layer 1 (Walls) and Layer 2 (Player)
+	# Exist on Layer 3 (Bit value 4)
 	collision_layer = 4
+	# Block physically with Layer 1 (Walls) and Layer 2 (Player) (Bit values 1 + 2 = 3)
 	collision_mask = 3
 
 # Instantiate strategy dynamically based on ghost type (SOLID - Open/Closed compliance)
@@ -123,17 +124,21 @@ func _build_ghost_visuals() -> void:
 	add_child(mesh_instance)
 	add_child(collision_shape)
 
-# Setup a dedicated trigger area to safely detect player intersection
+# Setup a dedicated trigger area to safely detect player intersection on Layer 2
 func _setup_player_detection() -> void:
 	var detection_area := Area3D.new()
 	var detection_shape := CollisionShape3D.new()
 	
 	var sphere_shape := SphereShape3D.new()
-	sphere_shape.radius = 0.8
+	sphere_shape.radius = 0.85 # Slightly wider to guarantee trigger
 	detection_shape.shape = sphere_shape
 	
 	detection_area.add_child(detection_shape)
 	add_child(detection_area)
+	
+	# Explicitly set the Area3D to ONLY monitor Layer 2 (where Pac-Man physically exists)
+	detection_area.collision_layer = 0
+	detection_area.collision_mask = 2
 	
 	detection_area.body_entered.connect(_on_player_detected)
 

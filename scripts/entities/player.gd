@@ -1,7 +1,7 @@
 # ==============================================================================
 # Description: CharacterBody3D controller for Pac-Man. Handles movement inputs,
 #              automatic camera setup, visual mesh rotation, and continuous 
-#              arcade-faithful movement. 
+#              arcade-faithful movement with symmetric collision layering. 
 # Author: Enrique González Gutiérrez
 # Email: enrique.gonzalez.gutierrez@gmail.com
 # ==============================================================================
@@ -26,9 +26,17 @@ func _ready() -> void:
 	# Crucial: Pellets and Ghosts look for this group on collision
 	add_to_group("player")
 	
+	_configure_collision_layers()
 	_initialize_material()
 	_build_player_visuals()
 	_setup_camera()
+
+# Configures symmetric collision layers: Player is on Layer 2, blocks with Layer 1 (Walls) and Layer 3 (Ghosts)
+func _configure_collision_layers() -> void:
+	# Exist on Layer 2 (Bit value 2)
+	collision_layer = 2
+	# Block physically with Layer 1 (Walls) and Layer 3 (Ghosts) (Bit values 1 + 4 = 5)
+	collision_mask = 5
 
 # Sets up the classic shiny yellow material for Pac-Man
 func _initialize_material() -> void:
