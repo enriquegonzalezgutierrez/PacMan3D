@@ -1,3 +1,5 @@
+# PacMan3D
+
 <!--
 ==============================================================================
 Description: Main documentation file for the PacMan3D project.
@@ -5,8 +7,6 @@ Author: Enrique González Gutiérrez
 Email: enrique.gonzalez.gutierrez@gmail.com
 ==============================================================================
 -->
-
-# PacMan3D
 
 ![PacMan3D Main Menu](assets/ui/images/main_menu_bg.png)
 
