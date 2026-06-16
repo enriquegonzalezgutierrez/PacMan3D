@@ -7,9 +7,9 @@
 #              - Collision Fix: Only physically blocks with Layer 1 (Walls).
 #              - Giant Arcade Proportions: Giant 1.7m diameter sphere.
 #              - Dynamic Cinematic Camera: Smoothly-interpolated Perspective Follow Camera.
-#              - Jump Mechanic: Implemented a robust virtual gravity and jump
-#                routine triggered by the Spacebar. Exposes `is_jumping_over()`
-#                for cooperative collision bypasses.
+#              - High Jump Mechanic: Implemented a high, snappy virtual jump
+#                (JUMP_VELOCITY = 14.5) to physically clear the 1.8m tall ghosts
+#                in 3D space.
 # Author: Enrique González Gutiérrez
 # Email: enrique.gonzalez.gutierrez@gmail.com
 # ==============================================================================
@@ -23,9 +23,9 @@ const SPEED : float = 7.0
 const CELL_SIZE : float = 2.0 
 const ALIGNMENT_FORCE : float = 15.0 
 
-# Jump & Gravity Constants (Virtual physics)
-const JUMP_VELOCITY : float = 11.0 # Snappy upward impulse
-const GRAVITY : float = 34.0 # Snappy falling gravity
+# Jump & Gravity Constants (Virtual physics - Calibrated for high clearance)
+const JUMP_VELOCITY : float = 14.5 # Increased from 11.0 to clear 1.8m tall ghosts
+const GRAVITY : float = 40.0 # Increased from 34.0 for a snappy, responsive descent
 
 # Injected Dependencies (DIP Compliance)
 var player_material : StandardMaterial3D
@@ -130,11 +130,6 @@ func play_eat_sound() -> void:
 	if munch_audio and munch_audio.stream:
 		munch_audio.stop()
 		munch_audio.play()
-
-# Public API helper (DIP Compliance)
-# Returns true if Pac-Man is significantly above his virtual floor (airborne)
-func is_jumping_over() -> bool:
-	return global_position.y > (virtual_floor_y + 0.5)
 
 # Public method: Initiates the sequential, gated death routine (SRP Compliance)
 func die() -> void:

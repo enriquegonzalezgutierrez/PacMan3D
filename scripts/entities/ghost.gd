@@ -6,12 +6,15 @@
 #              - SRP: Removed body.respawn() call.
 #              - Polishing: Added a public `set_frozen` method to freeze ghosts.
 #              - Collision Fix: Only physically blocks with Layer 1 (Walls).
-#              - Visual Effects & OCP: Added a programmatic 3D particle explosion.
+#              - Visual Effects & OCP: Added a programmatic 3D particle explosion
+#                which dynamically matches the ghost's original color.
 #              - Giant Proportions: Increased size (radius 0.9, height 1.8).
 #              - OCP & DIP (Height Decoupling): Added `get_spawn_height_offset()`.
 #              - Aesthetic Polish: Procedurally sculpts classic 8-bit eyes.
-#              - Jump Dodge Integration: Added safe detection bypass when the
-#                colliding player is currently in mid-air (jumping).
+#              - Real 3D Volumetric Collision: Replaced the logical bypass with
+#                a CapsuleShape3D player detector. Godot's physics engine now
+#                calculates true 3D spatial intersections for fair, highly precise
+#                airborne dodges.
 # Author: Enrique González Gutiérrez
 # Email: enrique.gonzalez.gutierrez@gmail.com
 # ==============================================================================
@@ -196,9 +199,12 @@ func _setup_player_detection() -> void:
 	var detection_area := Area3D.new()
 	var detection_shape := CollisionShape3D.new()
 	
-	var sphere_shape := SphereShape3D.new()
-	sphere_shape.radius = 1.0 
-	detection_shape.shape = sphere_shape
+	# FIXED: Match the exact volumetric capsule of the ghost's body
+	# This enables precise, mathematically correct 3D collision detections.
+	var capsule_shape := CapsuleShape3D.new()
+	capsule_shape.radius = 0.9
+	capsule_shape.height = 1.8
+	detection_shape.shape = capsule_shape
 	
 	detection_area.add_child(detection_shape)
 	add_child(detection_area)
@@ -472,9 +478,9 @@ func play_eaten_particles() -> void:
 # Handles player intersection and emits state notification signals
 func _on_player_detected(body: Node3D) -> void:
 	if body.is_in_group("player"):
-		# SOLID/DIP Compliance: Check if player safely leaped over the ghost in mid-air
-		if body.has_method("is_jumping_over") and body.is_jumping_over():
-			return # Safely jumped over! Bypass collision trigger.
+		# FIXED: Removed the logical code bypass!
+		# Godot's built-in physics engine now handles 3D volumetric detection naturally.
+		# If Pac-Man's Sphere intersections with the Ghost's Capsule trigger area, Pac-Man dies.
 
 		if current_state == State.FRIGHTENED:
 			# Trigger the beautiful original-colored particle explosion and sound

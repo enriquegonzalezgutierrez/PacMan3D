@@ -23,6 +23,8 @@
 #              - Infinite Wall Barriers: Configured physical wall box shapes to be
 #                20.0 meters tall (while visually remaining 2.0m tall), creating
 #                an invisible vertical barrier that prevents Player jump-overs.
+#              - Map Expansion (OCP): Support added for vertical top/bottom portal 
+#                warps by adding cases 8 and 9 to the spawn builder.
 # Author: Enrique González Gutiérrez
 # Email: enrique.gonzalez.gutierrez@gmail.com
 # ==============================================================================
@@ -163,7 +165,9 @@ func _build_environment() -> void:
 				5: _spawn_ghost(world_pos)
 				6: _create_portal(world_pos, "Portal_A", "Portal_B")
 				7: _create_portal(world_pos, "Portal_B", "Portal_A")
-				
+				8: _create_portal(world_pos, "Portal_C", "Portal_D") # FIXED: Top portal links to Bottom
+				9: _create_portal(world_pos, "Portal_D", "Portal_C") # FIXED: Bottom portal links to Top
+
 	# Post-spawn pass: Link portal pairs together directly (DIP Compliance)
 	for link_info in portals_to_link:
 		var my_portal : Portal = link_info["portal"]
@@ -177,25 +181,20 @@ func _create_wall(pos: Vector3) -> void:
 	var mesh_instance := MeshInstance3D.new()
 	var collision_shape := CollisionShape3D.new()
 	
-	# 1. Visual Mesh Setup (2.0m x 2.0m x 2.0m) - Rests flat on the floor (Y = 1.0 relative)
 	var box_mesh := BoxMesh.new()
 	box_mesh.size = Vector3(CELL_SIZE, WALL_HEIGHT, CELL_SIZE) 
 	mesh_instance.mesh = box_mesh
 	mesh_instance.material_override = wall_material
 	mesh_instance.position.y = WALL_HEIGHT / 2.0 
 	
-	# 2. Physical Collision Shape Setup (2.0m x 20.0m x 2.0m) (SRP/DIP Compliance)
-	# This creates an invisible vertical barrier that blocks any airborne jumps,
-	# preventing Pac-Man from jumping over the maze walls or landing on top of them.
 	var box_shape := BoxShape3D.new()
 	box_shape.size = Vector3(CELL_SIZE, 20.0, CELL_SIZE)
 	collision_shape.shape = box_shape
-	collision_shape.position.y = 10.0 # Bottom rests perfectly on the floor (Y = 0.0)
+	collision_shape.position.y = 10.0 
 	
 	static_body.add_child(mesh_instance)
 	static_body.add_child(collision_shape)
 	
-	# StaticBody rests flat on the floor plane
 	static_body.position = pos
 	add_child(static_body)
 
