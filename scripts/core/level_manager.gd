@@ -15,8 +15,9 @@
 #                freezing all ghosts during the death animation and subtracting
 #                lives only when the audio playback is complete.
 #              - Background Music: Integrates the level's procedural soundtrack.
-#              - Calibrations: Adjusted entity spawn Y-heights (0.85 for Player,
-#                0.9 for Ghosts) to match new giant arcade proportions perfectly.
+#              - OCP & DIP (Dynamic Height Decoupling): Removed all hardcoded
+#                spawning Y-heights. The manager queries Player and Ghost 
+#                instances dynamically in runtime for their physical spawn offsets.
 # Author: Enrique González Gutiérrez
 # Email: enrique.gonzalez.gutierrez@gmail.com
 # ==============================================================================
@@ -206,10 +207,12 @@ func _spawn_player(pos: Vector3) -> void:
 	player_instance = Player.new()
 	player_instance.spawn_position = pos
 	player_instance.position = pos
-	player_instance.position.y = 0.85 # FIXED: Calibrated from 0.5 to 0.85 to match new radius
 	
 	# Dependency Injection
 	player_instance.initialize(player_material, waka_audio_stream, death_audio_stream)
+	
+	# FIXED DYNAMIC CALCULATION: Query the player for its physical spawn height dynamically (OCP/DIP Compliance)
+	player_instance.position.y = player_instance.get_spawn_height_offset()
 	
 	# Listen to the decoupled death sequence completion event (SRP Compliance)
 	player_instance.death_completed.connect(_on_player_death_completed)
@@ -225,7 +228,6 @@ func _spawn_ghost(pos: Vector3) -> void:
 	spawned_ghosts_count += 1
 	
 	ghost.position = pos
-	ghost.position.y = 0.9 # FIXED: Calibrated from 0.7 to 0.9 to match new capsule height
 	
 	# Factory creation of concrete behavior strategies (OCP / DIP Compliance)
 	var strategy : GhostBehavior
@@ -243,6 +245,9 @@ func _spawn_ghost(pos: Vector3) -> void:
 	
 	# Inject dependencies
 	ghost.initialize(ghost_type, strategy, norm_mat, ghost_frightened_material, layout, grid_w, grid_h)
+	
+	# FIXED DYNAMIC CALCULATION: Query the ghost for its physical spawn height dynamically (OCP/DIP Compliance)
+	ghost.position.y = ghost.get_spawn_height_offset()
 	
 	# Listen to decoupled entity events (DIP Compliance)
 	ghost.player_caught.connect(_on_ghost_player_caught)

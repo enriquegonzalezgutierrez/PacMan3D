@@ -10,8 +10,10 @@
 #              - Visual Effects & OCP: Added a programmatic 3D particle explosion
 #                which dynamically matches the ghost's original color.
 #              - Giant Proportions: Increased size (radius 0.9, height 1.8) to fit
-#                tightly within 2.0m wide corridors, locking them on rails and
-#                preventing lane drifting.
+#                tightly within 2.0m wide corridors, locking them on rails.
+#              - OCP & DIP (Height Decoupling): Added `get_spawn_height_offset()`
+#                public method. This allows external orchestrators (LevelManager)
+#                to calculate spawn heights dynamically, eliminating hardcoded Y values.
 # Author: Enrique González Gutiérrez
 # Email: enrique.gonzalez.gutierrez@gmail.com
 # ==============================================================================
@@ -143,7 +145,7 @@ func _setup_player_detection() -> void:
 	var detection_shape := CollisionShape3D.new()
 	
 	var sphere_shape := SphereShape3D.new()
-	sphere_shape.radius = 1.0 # Adjusted up to match the larger body size
+	sphere_shape.radius = 1.0 
 	detection_shape.shape = sphere_shape
 	
 	detection_area.add_child(detection_shape)
@@ -160,8 +162,15 @@ func set_frozen(enabled: bool) -> void:
 	if is_frozen:
 		velocity = Vector3.ZERO
 
+# Public API helper (DIP Compliance)
+# Returns the physical half-height of the ghost's capsule to allow 
+# orchestrators (LevelManager) to calculate spawning height dynamically.
+func get_spawn_height_offset() -> float:
+	return 0.9 # Half of capsule height (1.8 / 2 = 0.9)
+
 # Main physics loop managing timers, states, movement, and separation
 func _physics_process(delta: float) -> void:
+	# Bypass physics process if the ghost is currently frozen in place
 	if is_frozen:
 		velocity = Vector3.ZERO
 		move_and_slide()
@@ -319,8 +328,10 @@ func _choose_new_direction() -> void:
 				min_dist = dist
 				best_dir = dir
 				
+		# FIXED: Corrected reference assignment to 'next_direction' (was 'next_dir')
 		next_direction = best_dir
 	else:
+		# FIXED: Corrected reference assignment to 'next_direction' (was 'next_dir')
 		next_direction = possible_directions.pick_random()
 
 # Public method: Triggers Frightened mode

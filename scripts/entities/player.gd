@@ -6,9 +6,10 @@
 #              - SRP & State Machine: Added a self-contained `DEAD` state.
 #                Pac-Man now manages his own death sequence.
 #              - Collision Fix: Only physically blocks with Layer 1 (Walls).
-#              - Giant Arcade Proportions: Increased radius to 0.85 (1.7m diameter)
-#                to fill 85% of the 2.0m corridor. This physically locks Pac-Man
-#                in the center of the lane naturally, preventing side-drift wiggles.
+#              - Giant Arcade Proportions: Giant 1.7m diameter sphere.
+#              - OCP & DIP (Height Decoupling): Added `get_spawn_height_offset()`
+#                public method. This allows external orchestrators (LevelManager)
+#                to calculate spawn heights dynamically, eliminating hardcoded Y values.
 # Author: Enrique González Gutiérrez
 # Email: enrique.gonzalez.gutierrez@gmail.com
 # ==============================================================================
@@ -109,6 +110,12 @@ func _setup_audio() -> void:
 	death_audio.max_polyphony = 1
 	death_audio.volume_db = -3.0 
 	add_child(death_audio)
+
+# Public API helper (DIP Compliance)
+# Returns the physical radius of the player's collider to allow 
+# orchestrators (LevelManager) to calculate spawning height dynamically.
+func get_spawn_height_offset() -> float:
+	return 0.85
 
 # Public method to be called when eating a pellet
 func play_eat_sound() -> void:
