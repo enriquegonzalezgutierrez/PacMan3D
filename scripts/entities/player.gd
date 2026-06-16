@@ -1,16 +1,17 @@
 # ==============================================================================
 # Description: CharacterBody3D controller for Pac-Man. Handles movement inputs,
 #              visual mesh rotation, and continuous arcade movement.
-#              Features an ORTHOGRAPHIC/DIORAMA top-down camera.
 #              SOLID Refactoring & Fixes:
-#              - DYNAMIC ALIGNMENT FIX: Calculates the exact grid offset dynamically 
+#              - SRP Refactoring (Step 2): Completely stripped all Camera3D setup, 
+#                tracking interpolation, and snapping routines out of this script.
+#                Camera tracking is now handled independently by DioramaCamera.
+#              - DYNAMIC ALIGNMENT FIX: Calculates grid offset dynamically 
 #                using GameManager map bounds. This permanently prevents Pac-Man 
 #                from clipping/freezing when switching between odd (31x31) and 
 #                even (32x32) map sizes.
 #              - SRP & State Machine: Added a self-contained `DEAD` state.
 #              - Collision Fix: Only physically blocks with Layer 1 (Walls).
 #              - Giant Arcade Proportions: Giant 1.7m diameter sphere.
-#              - OPTIMIZED PERSPECTIVE: Calibrated camera offsets.
 # Author: Enrique González Gutiérrez
 # Email: enrique.gonzalez.gutierrez@gmail.com
 # ==============================================================================
@@ -37,7 +38,6 @@ var death_stream : AudioStream
 var visual_mesh : MeshInstance3D 
 var munch_audio : AudioStreamPlayer
 var death_audio : AudioStreamPlayer
-var camera_holder : Node3D # Tilted independent pivot for smooth tracking
 
 # Gameplay State
 var spawn_position : Vector3
@@ -59,7 +59,6 @@ func _ready() -> void:
 	add_to_group("player")
 	_configure_collision_layers()
 	_build_player_visuals()
-	_setup_camera()
 	_setup_audio()
 	
 	# Automatically calibrate virtual floor based on injected height coordinate (SOLID DIP)
@@ -72,8 +71,8 @@ func _configure_collision_layers() -> void:
 	collision_mask = 1
 
 func _build_player_visuals() -> void:
-	visual_mesh = MeshInstance3D.new()
 	var collision_shape := CollisionShape3D.new()
+	visual_mesh = MeshInstance3D.new()
 	
 	var radius : float = 0.85
 	
@@ -89,27 +88,6 @@ func _build_player_visuals() -> void:
 	
 	add_child(visual_mesh)
 	add_child(collision_shape)
-
-# Set up an optimized dynamic perspective following camera (Diorama style)
-func _setup_camera() -> void:
-	camera_holder = Node3D.new()
-	camera_holder.top_level = true
-	
-	add_child(camera_holder)
-	camera_holder.global_position = global_position
-	
-	var camera := Camera3D.new()
-	camera.projection = Camera3D.PROJECTION_PERSPECTIVE
-	
-	# OPTIMIZED OPTICS: Narrower FOV + steeper tilt angle acts like a cinematic
-	# telephoto lens, rendering a clean, perfectly readable 3D diorama map view.
-	camera.fov = 48.0 
-	camera.position = Vector3(0.0, 15.0, 6.0)
-	camera.rotation_degrees = Vector3(-68.0, 0.0, 0.0)
-	
-	camera.current = true
-	
-	camera_holder.add_child(camera)
 
 # Sets up separate, non-overlapping audio channels
 func _setup_audio() -> void:
@@ -219,10 +197,6 @@ func _actual_respawn() -> void:
 	if visual_mesh:
 		visual_mesh.visible = true
 	
-	# Instant camera snap back to spawn coordinate to prevent sliding confusion
-	if is_instance_valid(camera_holder):
-		camera_holder.global_position = spawn_position
-		
 	is_dead = false
 
 # Public API helper
@@ -230,10 +204,6 @@ func get_spawn_height_offset() -> float:
 	return 0.85
 
 func _physics_process(delta: float) -> void:
-	# Keep the camera following smoothly even when Pac-Man is dead
-	if is_instance_valid(camera_holder):
-		camera_holder.global_position = camera_holder.global_position.lerp(global_position, 0.08)
-
 	if is_dead:
 		velocity = Vector3.ZERO
 		move_and_slide()
