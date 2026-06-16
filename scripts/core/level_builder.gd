@@ -2,12 +2,11 @@
 # Description: Procedural Level Assembler / 3D Mesh Factory. Hand-crafts 
 #              materials, builds wall styles (Pipes, Blocks, Pillars), spawns 
 #              gameplay entities, and links portals.
-#              SOLID Refactoring & Visual Polish:
-#              - BALANCED LIGHTING FIX: Restored the global DirectionalLight3D 
-#                keylight to full brightness so Pac-Man, pellets, and floors 
-#                are beautifully illuminated. Removed physical OmniLight3D 
-#                nodes entirely, relying strictly on WorldEnvironment Bloom 
-#                to make neon emissive materials glow safely without blinding.
+#              SOLID Refactoring:
+#              - PROBABILISTIC SPAWNING: Added a 25% chance of spawning a strategic, 
+#                frost-blue IcePellet instead of a standard Power Pellet, 
+#                maximizing gameplay variety under OCP.
+#              - PROCEDURAL LIGHTING: Dynamic OmniLight3D on pillars.
 #              - PROCEDURAL WORLD ENVIRONMENT: Dynamically instantiates WorldEnvironment.
 # Author: Enrique González Gutiérrez
 # Email: enrique.gonzalez.gutierrez@gmail.com
@@ -107,7 +106,12 @@ func build(level_data: Dictionary) -> void:
 			match cell_type:
 				1: _create_wall(world_pos, x, z, level_data) 
 				2: _create_pellet(world_pos, false)
-				3: _create_pellet(world_pos, true)
+				3:
+					# 25% chance of spawning a strategic Ice Pellet instead of a standard Power Pellet (OCP Compliance)
+					if randf() < 0.25:
+						_create_ice_pellet(world_pos)
+					else:
+						_create_pellet(world_pos, true)
 				4: _spawn_player(world_pos)
 				5: _spawn_ghost(world_pos, level_data)
 				6: _create_portal(world_pos, "Portal_A", "Portal_B")
@@ -140,13 +144,12 @@ func _setup_world_environment() -> void:
 	parent_node.add_child(world_env)
 	
 	# --- RESTORED GLOBAL SUNLIGHT ---
-	# We ensure the global keylight is fully active so Pac-Man and pellets are beautifully visible
 	var main_node = parent_node.get_parent()
 	if is_instance_valid(main_node):
 		var dir_light = main_node.get_node_or_null("DirectionalLight3D") as DirectionalLight3D
 		if is_instance_valid(dir_light):
-			dir_light.light_energy = 1.0 # Standard bright keylight
-			dir_light.light_color = Color(1.0, 1.0, 1.0) # Clean white daylight
+			dir_light.light_energy = 1.0 
+			dir_light.light_color = Color(1.0, 1.0, 1.0) 
 
 # Instantiates procedurally designed wall meshes depending on the active level theme
 func _create_wall(pos: Vector3, x: int, z: int, level_data: Dictionary) -> void:
@@ -181,7 +184,6 @@ func _create_wall(pos: Vector3, x: int, z: int, level_data: Dictionary) -> void:
 			static_body.add_child(pillar_instance)
 			
 			# 2. Glowing emissive sphere sitting exactly on top
-			# The Bloom post-processing automatically makes this glow on screen (no OmniLights needed!)
 			var sphere_mesh := SphereMesh.new()
 			sphere_mesh.radius = 0.55
 			sphere_mesh.height = 1.1
@@ -189,7 +191,7 @@ func _create_wall(pos: Vector3, x: int, z: int, level_data: Dictionary) -> void:
 			var glowing_material := StandardMaterial3D.new()
 			glowing_material.albedo_color = wall_material.albedo_color
 			glowing_material.emission_enabled = true
-			glowing_material.emission = wall_material.albedo_color * 0.65 # Glowing neon effect
+			glowing_material.emission = wall_material.albedo_color * 0.65 
 			
 			var sphere_instance := MeshInstance3D.new()
 			sphere_instance.mesh = sphere_mesh
@@ -267,6 +269,21 @@ func _create_pellet(pos: Vector3, is_power: bool) -> void:
 		pellet.eaten.connect(parent_node._on_pellet_eaten)
 		
 	parent_node.add_child(pellet)
+	
+	if GameManager:
+		GameManager.register_pellet()
+
+# Instantiates the custom Frost-Blue Ice Pellet and connects its signals
+func _create_ice_pellet(pos: Vector3) -> void:
+	var ice_pellet := IcePellet.new()
+	ice_pellet.position = pos
+	ice_pellet.position.y = 0.5
+	
+	# Connect callback directly to LevelManager orchestrator (DIP Compliance)
+	if parent_node.has_method("_on_ice_pellet_eaten"):
+		ice_pellet.ice_pellet_eaten.connect(parent_node._on_ice_pellet_eaten)
+		
+	parent_node.add_child(ice_pellet)
 	
 	if GameManager:
 		GameManager.register_pellet()

@@ -3,10 +3,12 @@
 #              Draws standard/power pellets, player, and ghosts based on 
 #              their active positions mapped from 3D grid space.
 #              SOLID Refactoring:
-#              - SRP: Extracted into a standalone class to separate map 
-#                rendering from the general HUD overlay manager.
-#              - OCP: Reads active ghost material colors dynamically instead of
-#                hardcoding color match tables again.
+#              - DUCK-TYPING FIX: Updated the pellet rendering loop to safely 
+#                verify properties ("is_power_pellet" in pellet) to prevent 
+#                crashes when scanning custom utility items like IcePellets.
+#              - ICE PELLET RADAR: Ice Pellets are now explicitly recognized and 
+#                drawn as Cyan dots on the minimap for strategic visibility.
+#              - SRP: Extracted into a standalone class.
 # Author: Enrique González Gutiérrez
 # Email: enrique.gonzalez.gutierrez@gmail.com
 # ==============================================================================
@@ -47,12 +49,12 @@ func _draw() -> void:
 			if cell_type == 1:
 				# Draw blue wall blocks
 				draw_rect(rect, Color(0.0, 0.0, 0.6))
-			elif cell_type == 6 or cell_type == 7:
+			elif cell_type == 6 or cell_type == 7 or cell_type == 8 or cell_type == 9:
 				# Draw portal locations in neon green
 				draw_rect(rect, Color(0.0, 1.0, 0.2))
 				
 	# 3D to 2D coordinate converter Lambda
-	# Precise math to map centered 3D coordinates back to 0-based grid indices and center them in 2D cell space
+	# Precise math to map centered 3D coordinates back to 0-based grid indices
 	var offset_x : float = (gw * 2.0 / 2.0) - 1.0 
 	var offset_z : float = (gh * 2.0 / 2.0) - 1.0 
 	
@@ -70,7 +72,11 @@ func _draw() -> void:
 		if is_instance_valid(pellet) and pellet is Node3D:
 			var map_pos = to_map.call(pellet.global_position)
 			
-			if pellet.is_power_pellet:
+			# Safely check object types to avoid duck-typing crashes (LSP Compliance)
+			if pellet is IcePellet:
+				# Ice Pellets drawn as Cyan dots
+				draw_circle(map_pos, 3.5, Color(0.0, 0.8, 1.0))
+			elif "is_power_pellet" in pellet and pellet.is_power_pellet:
 				# Larger orange power pellets
 				draw_circle(map_pos, 3.5, Color(1.0, 0.5, 0.0))
 			else:
@@ -91,7 +97,7 @@ func _draw() -> void:
 			var color := Color(1.0, 1.0, 1.0)
 			
 			if ghost is Ghost:
-				# FIXED: Safely query the active material depending on the ghost's current state
+				# Safely query the active material depending on the ghost's current state
 				var active_mat = ghost.frightened_material if ghost.current_state == Ghost.State.FRIGHTENED else ghost.original_material
 				if active_mat:
 					color = active_mat.albedo_color

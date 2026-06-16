@@ -2,10 +2,10 @@
 # Description: Parses the level JSON file, feeds the layout data to the global
 #              GameManager, and coordinates gameplay states and signals.
 #              SOLID Refactoring:
-#              - LAMBDA MEMORY FIX: Connected the fruit despawn timer directly to 
-#                fruit.queue_free. This lets Godot auto-disconnect the signal if 
-#                the fruit is eaten early, preventing lambda-capture null errors.
-#              - BONUS FRUIT TIMERS: Plays the bonus cherry on Pac-Man's starting coordinate.
+#              - DYNAMIC COLD FREEZE EFFECTS: Added _on_ice_pellet_eaten to freeze 
+#                all active ghosts, tint them frost-cyan with custom glowing 
+#                materials, and restore their states smoothly after 4.0 seconds.
+#              - BONUS FRUIT TIMERS: Plays the bonus cherry.
 #              - DYNAMIC SOUNDTRACK LOADING: Dynamically loads background music.
 # Author: Enrique González Gutiérrez
 # Email: enrique.gonzalez.gutierrez@gmail.com
@@ -146,8 +146,7 @@ func _spawn_fruit_bonus() -> void:
 	# Connect the custom points mutation callback
 	fruit.eaten.connect(_on_fruit_eaten)
 	
-	# --- DIRECT METHOD CONNECTION FIX ---
-	# Connecting directly to fruit.queue_free lets Godot auto-cleanup if the fruit is eaten early
+	# Despawn Timer: auto-destroys the node if not eaten after 10 seconds
 	get_tree().create_timer(FRUIT_LIFETIME).timeout.connect(fruit.queue_free)
 	
 	add_child(fruit)
@@ -159,10 +158,44 @@ func _on_fruit_eaten(points: int) -> void:
 		GameManager.add_score(points)
 		
 	var score_text := FloatingScore3D.new()
+	# Inject custom dynamic score string and golden colors before adding to the tree (SRP Compliance)
 	score_text.text = "+%d" % points
 	score_text.modulate = Color(1.0, 1.0, 0.0) # Golden yellow
 	add_child(score_text)
 	score_text.global_position = player_instance.spawn_position + Vector3(0.0, 1.5, 0.0)
+
+# Reward callback: freezes all active ghosts and tints them frosty blue for 4.0 seconds (SRP/OCP Compliance)
+func _on_ice_pellet_eaten() -> void:
+	if GameManager:
+		# Award +150 points for strategic utility collection
+		GameManager.add_score(150)
+		GameManager.pellet_eaten()
+		
+	# 1. Freeze all active ghosts instantly (SRP/OCP Compliance)
+	get_tree().call_group("ghosts", "set_frozen", true)
+	_apply_ghost_frost_effect(true)
+	
+	# 2. Start a 4.0 seconds unfreeze timer
+	get_tree().create_timer(4.0).timeout.connect(func():
+		# 3. Restore movement and normal original materials dynamically (OCP Compliance)
+		get_tree().call_group("ghosts", "set_frozen", false)
+		_apply_ghost_frost_effect(false)
+	)
+
+# Helper to dynamically compile and swap ghost materials to frosty blue on freeze states (SRP Compliance)
+func _apply_ghost_frost_effect(enabled: bool) -> void:
+	var ghosts = get_tree().get_nodes_in_group("ghosts")
+	for ghost in ghosts:
+		if ghost is Ghost:
+			if enabled:
+				var frost_mat := StandardMaterial3D.new()
+				frost_mat.albedo_color = Color(0.0, 0.8, 1.0) # Glowing Frost Cyan
+				frost_mat.emission_enabled = true
+				frost_mat.emission = Color(0.0, 0.4, 0.8) # Frost Glow
+				ghost._apply_material(frost_mat)
+			else:
+				# Restore normal original behavioral colors (SRP Compliance)
+				ghost._apply_material(ghost.original_material)
 
 # --- SIGNAL ROUTING & GAMEPLAY ORCHESTRATION ---
 
