@@ -2,8 +2,8 @@
 # Description: Lightweight Label3D component that displays a 3D score value 
 #              floating upwards in world space, smoothly fading out over time.
 #              SOLID Refactoring:
-#              - SRP: Completely isolated class dedicated to rendering and
-#                animating local 3D floating visual labels (Pac-Mania style).
+#              - SRP Compliance: Extracted hardcoded "200" values out of _ready() 
+#                to support dynamic text/scores (like +500 for fruit consumption).
 # Author: Enrique González Gutiérrez
 # Email: enrique.gonzalez.gutierrez@gmail.com
 # ==============================================================================
@@ -19,10 +19,12 @@ func _ready() -> void:
 	billboard = BaseMaterial3D.BILLBOARD_ENABLED
 	
 	# Design configuration
-	text = "200" # Classic Pac-Man score reward for eating ghosts
 	pixel_size = 0.012 # Adjust size to look crisp and clear in 3D space
-	modulate = Color(1.0, 1.0, 1.0, 1.0) # Bright white color
 	outline_modulate = Color(0.0, 0.0, 0.0, 1.0) # Black outline for maximum readability
+	
+	# Open Default: If no custom text has been injected, default to classic ghost score
+	if text == "":
+		text = "200"
 	
 	# Safety cleanup timer: guarantees node removal even if frame updates stall
 	var timer = get_tree().create_timer(1.0)

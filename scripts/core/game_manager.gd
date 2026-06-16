@@ -1,7 +1,7 @@
 # ==============================================================================
 # Description: Global singleton managing game state, score, lives, win/loss
-#              conditions, and event signals. Also stores the current level layout
-#              matrix to allow HUD components (like the Minimap) to query it.
+#              conditions, and event signals. Added persistent level index
+#              progression helpers (SRP/DIP compliance).
 # Author: Enrique González Gutiérrez
 # Email: enrique.gonzalez.gutierrez@gmail.com
 # ==============================================================================
@@ -23,6 +23,9 @@ var lives : int = 3
 var total_pellets : int = 0
 var pellets_eaten : int = 0
 
+# Persistent progression tracking
+var current_level : int = 1
+
 # Grid layout cache for the 2D Minimap (Filled by LevelManager)
 var level_layout : Array = []
 var grid_width : int = 0
@@ -31,12 +34,13 @@ var grid_height : int = 0
 func _ready() -> void:
 	reset_game()
 
-# Resets the game variables for a new playthrough
+# Resets the game variables for a completely new playthrough
 func reset_game() -> void:
 	score = 0
 	lives = 3
 	total_pellets = 0
 	pellets_eaten = 0
+	current_level = 1 # Reset to level 1 on full restart
 	
 	# Defer the signal emissions until the node tree is fully ready
 	call_deferred("_emit_initial_signals")
@@ -75,3 +79,14 @@ func pellet_eaten() -> void:
 # Triggers the Frightened state for all ghosts
 func activate_power_pellet() -> void:
 	power_pellet_activated.emit()
+
+# Dynamic check to see if another procedural JSON level exists in the folder
+func has_next_level() -> bool:
+	var next_level_path = "res://data/level_%02d.json" % (current_level + 1)
+	return FileAccess.file_exists(next_level_path)
+
+# Advances state tracking variables to prepare for the next level load
+func advance_level() -> void:
+	current_level += 1
+	total_pellets = 0
+	pellets_eaten = 0

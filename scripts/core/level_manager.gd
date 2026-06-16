@@ -2,30 +2,33 @@
 # Description: Parses the level JSON file, feeds the layout data to the global
 #              GameManager, and coordinates gameplay states and signals.
 #              SOLID Refactoring:
-#              - SRP Refactoring (Step 3): Completely removed 3D mesh instantiating,
-#                material compiling, and asset preloading. Delegated dynamically 
-#                to LevelBuilder.
-#              - SRP Refactoring (Step 1): Map validation delegated to MapValidator.
+#              - BONUS FRUIT TIMERS: Added an independent process loop tracking 
+#                level playtime to spawn the procedurally designed Double-Cherry 
+#                exactly 15s after startup on Pac-Man's starting coordinates.
+#              - DYNAMIC SOUNDTRACK LOADING: Dynamically loads background music tracks.
 # Author: Enrique González Gutiérrez
 # Email: enrique.gonzalez.gutierrez@gmail.com
 # ==============================================================================
 extends Node3D
 class_name LevelManager
 
-# Preloaded assets for orchestrating scene-level BGM (SRP Compliance)
-var bgm_stream : AudioStream = preload("res://assets/audio/bgm/level_1_bgm.mp3") 
-
 # Active entities and players tracking
 var player_instance : Player = null
 var bgm_player : AudioStreamPlayer = null
 
+# Persistent level configurations
 var level_data : Dictionary = {}
 var map_offset_x : float = 0.0
 var map_offset_z : float = 0.0
 
+# Fruit spawning state tracking variables
+var fruit_spawn_timer : float = 0.0
+const FRUIT_SPAWN_DELAY : float = 15.0 # Spawns 15 seconds after level start
+const FRUIT_LIFETIME : float = 10.0 # Despawns after 10 seconds if not eaten
+var fruit_has_spawned_this_level : bool = false
+
 func _ready() -> void:
 	_connect_game_manager_signals()
-	_setup_bgm() 
 	
 	var hud = get_parent().get_node_or_null("HUD") as HUD
 	if hud:
@@ -33,15 +36,37 @@ func _ready() -> void:
 	else:
 		_on_start_game()
 
+func _process(delta: float) -> void:
+	# Handle Bonus Fruit Spawning loop dynamically (SRP Compliance)
+	if is_instance_valid(player_instance) and not fruit_has_spawned_this_level:
+		fruit_spawn_timer += delta
+		if fruit_spawn_timer >= FRUIT_SPAWN_DELAY:
+			_spawn_fruit_bonus()
+
 # Connect LevelManager to receive global signal notifications
 func _connect_game_manager_signals() -> void:
 	if GameManager:
 		GameManager.power_pellet_activated.connect(_on_power_pellet_activated)
 		GameManager.player_killed.connect(_on_player_killed)
 
-# Programmatically configures and plays the loop background music
+# Programmatically configures and plays the BGM dynamically matched to the level
 func _setup_bgm() -> void:
+	var level_idx : int = 1
+	if GameManager:
+		level_idx = GameManager.current_level
+		
+	var bgm_path := "res://assets/audio/bgm/level_%d_bgm.mp3" % level_idx
+	
+	if not FileAccess.file_exists(bgm_path):
+		bgm_path = "res://assets/audio/bgm/level_1_bgm.mp3"
+		
+	var bgm_stream : AudioStream = load(bgm_path)
+	
 	if bgm_stream:
+		if is_instance_valid(bgm_player):
+			bgm_player.stop()
+			bgm_player.queue_free()
+			
 		bgm_player = AudioStreamPlayer.new()
 		bgm_player.stream = bgm_stream
 		bgm_player.volume_db = -12.0 
@@ -51,7 +76,17 @@ func _setup_bgm() -> void:
 
 # Triggered dynamically when the player clicks START GAME in the HUD Menu
 func _on_start_game() -> void:
-	if _load_level_data("res://data/level_01.json"):
+	# Reset local level fruit trackers
+	fruit_spawn_timer = 0.0
+	fruit_has_spawned_this_level = false
+	
+	var level_idx : int = 1
+	if GameManager:
+		level_idx = GameManager.current_level
+		
+	var level_path := "res://data/level_%02d.json" % level_idx
+	
+	if _load_level_data(level_path):
 		_setup_bgm() 
 		
 		# Instantiate our procedural LevelBuilder and assemble the 3D world (SRP Compliance)
@@ -98,6 +133,39 @@ func _spawn_floating_score(pos: Vector3) -> void:
 	add_child(score_text)
 	score_text.global_position = pos + Vector3(0.0, 1.2, 0.0)
 
+# Procedurally instantiates the custom double cherry fruit at Pac-Man's starting location
+func _spawn_fruit_bonus() -> void:
+	fruit_has_spawned_this_level = true
+	
+	var fruit := Fruit.new()
+	# Spawn exactly at Pac-Man's starting coordinate (Y offset is handled in fruit.gd)
+	fruit.position = player_instance.spawn_position
+	fruit.position.y = 0.5
+	
+	# Connect the custom points mutation callback
+	fruit.eaten.connect(_on_fruit_eaten)
+	
+	# Despawn Timer: auto-destroys the node if not eaten after 10 seconds
+	get_tree().create_timer(FRUIT_LIFETIME).timeout.connect(func():
+		if is_instance_valid(fruit):
+			fruit.queue_free()
+	)
+	
+	add_child(fruit)
+	print("BONUS FRUIT GENERATED AT PLAYER STARTING GRID COORDINATE!")
+
+# Reward callback: grants points and spawns a golden-yellow +500 floating text
+func _on_fruit_eaten(points: int) -> void:
+	if GameManager:
+		GameManager.add_score(points)
+		
+	var score_text := FloatingScore3D.new()
+	# Inject custom dynamic score string and golden colors before adding to the tree (SRP Compliance)
+	score_text.text = "+%d" % points
+	score_text.modulate = Color(1.0, 1.0, 0.0) # Golden yellow
+	add_child(score_text)
+	score_text.global_position = player_instance.spawn_position + Vector3(0.0, 1.5, 0.0)
+
 # --- SIGNAL ROUTING & GAMEPLAY ORCHESTRATION ---
 
 func _on_pellet_eaten(is_power: bool) -> void:
@@ -136,6 +204,10 @@ func _on_player_killed() -> void:
 	if bgm_player:
 		bgm_player.stream_paused = false
 		
+	# Reset level fruit timers on player death/reset (guarantees a fair chance to eat it again)
+	fruit_spawn_timer = 0.0
+	fruit_has_spawned_this_level = false
+	
 	for ghost in get_tree().get_nodes_in_group("ghosts"):
 		if ghost.has_method("reset_to_base"):
 			ghost.reset_to_base()

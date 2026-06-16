@@ -3,15 +3,20 @@
 #              generation, collision-tested pathfinding, and coordinates
 #              with an abstract behavior strategy.
 #              SOLID Refactoring & Fixes:
+#              - BUG FIX: Resolved MeshInstance3D .radius compilation crash on 
+#                the right pupil.
+#              - CHASE / SCATTER ARCADE CYCLE: Implemented classic state cycling 
+#                timers (20s Chase, 7s Scatter) targeting symmetric home corners 
+#                in 3D space, making their movements incredibly distinct.
+#              - DYNAMIC BLINKING RETRO EYES: Saves a class reference to the 
+#                eyeball nodes and runs an independent, randomized scale-based 
+#                blinking animation.
 #              - ARCADE-ACCURATE LEAVING: Guides ghosts along a strict horizontal
-#                and vertical path to exit the Ghost House, bypassing grid AI
-#                to guarantee 100% reliable, swift escapes.
-#              - ONE-WAY FOSO DOOR: Dynamically blocks ghosts from re-entering 
-#                the Ghost House gate from the outside.
+#                and vertical path to exit the Ghost House.
+#              - ONE-WAY FOSO DOOR: Dynamically blocks ghosts from re-entering.
 #              - WARNING ELIMINATION: Replaced integer division with float division.
 #              - DYNAMIC ALIGNMENT FIX: Calculates grid offset dynamically.
 #              - Giant Proportions: Increased size (radius 0.9, height 1.8).
-#              - Aesthetic Polish: Procedural cartoon-style rotating eyes.
 # Author: Enrique González Gutiérrez
 # Email: enrique.gonzalez.gutierrez@gmail.com
 # ==============================================================================
@@ -22,7 +27,7 @@ class_name Ghost
 signal player_caught(is_frightened: bool, catch_position: Vector3)
 
 # State Machine definitions
-enum State { LEAVING, CHASE, FRIGHTENED }
+enum State { LEAVING, CHASE, SCATTER, FRIGHTENED }
 var current_state : State = State.LEAVING
 
 # Movement constants
@@ -56,9 +61,21 @@ var eaten_audio : AudioStreamPlayer
 var current_direction : Vector3 = Vector3.FORWARD
 var next_direction : Vector3 = Vector3.FORWARD
 
+# State cycle timers (Arcade standard timings)
+var state_timer : float = 0.0
+const CHASE_DURATION : float = 20.0
+const SCATTER_DURATION : float = 7.0
+
 # Frightened timer variables
 var frightened_timer : float = 0.0
 const FRIGHTENED_DURATION : float = 7.0
+
+# Dynamic Eye Tracking Variables
+var eyes_holder : Node3D
+var is_blinking : bool = false
+var blink_timer : float = 0.0
+var blink_duration : float = 0.15
+var next_blink_time : float = 3.0 # Initial time before first blink
 
 # Foso navigation state
 var spawn_position : Vector3
@@ -97,6 +114,9 @@ func _ready() -> void:
 	_build_ghost_visuals()
 	_setup_player_detection()
 	_setup_audio()
+	
+	# Randomize first blink timing to stagger animations
+	next_blink_time = randf_range(2.0, 5.0)
 	
 	# --- DYNAMIC GHOST HOUSE EXIT DETECTION ---
 	# Automatically scans the active level matrix to find the exact gate coordinates 
@@ -164,7 +184,7 @@ func _build_ghost_visuals() -> void:
 	visual_mesh.material_override = original_material
 	
 	# --- PROCEDURAL RETRO GHOST EYES ---
-	var eyes_holder := Node3D.new()
+	eyes_holder = Node3D.new()
 	
 	var sclera_mat := StandardMaterial3D.new()
 	sclera_mat.albedo_color = Color(1.0, 1.0, 1.0) # Pure White Sclera
@@ -198,12 +218,12 @@ func _build_ghost_visuals() -> void:
 	pupil_mesh.height = 0.16
 	left_pupil.mesh = pupil_mesh
 	left_pupil.material_override = pupil_mat
-	left_pupil.position = Vector3(-0.35, 0.4, -0.93) # Placed slightly in front of sclera
+	left_pupil.position = Vector3(-0.35, 0.4, -0.93)
 	eyes_holder.add_child(left_pupil)
 	
 	# 4. Right Pupil Sphere (Blue Pupil)
 	var right_pupil := MeshInstance3D.new()
-	right_pupil.mesh = pupil_mesh
+	right_pupil.mesh = pupil_mesh # Reuses pre-built left pupil mesh (SRP compliance, eliminates compilation crash)
 	right_pupil.material_override = pupil_mat
 	right_pupil.position = Vector3(0.35, 0.4, -0.93)
 	eyes_holder.add_child(right_pupil)
@@ -291,6 +311,20 @@ func _physics_process(delta: float) -> void:
 			_apply_material(original_material)
 		return
 
+	# --- CHASE / SCATTER ARCADE CYCLE TIMERS ---
+	if not is_inside_foso and not is_frozen and current_state != State.FRIGHTENED:
+		state_timer += delta
+		if current_state == State.CHASE:
+			if state_timer >= CHASE_DURATION:
+				current_state = State.SCATTER
+				state_timer = 0.0
+				_choose_new_direction() # Force target recalculated
+		elif current_state == State.SCATTER:
+			if state_timer >= SCATTER_DURATION:
+				current_state = State.CHASE
+				state_timer = 0.0
+				_choose_new_direction()
+
 	if current_state == State.FRIGHTENED:
 		frightened_timer -= delta
 		if frightened_timer <= 0.0:
@@ -367,6 +401,27 @@ func _physics_process(delta: float) -> void:
 		rotation.y = lerp_angle(rotation.y, target_rotation_y, 0.2)
 		
 	move_and_slide()
+	_process_eye_blinking(delta)
+
+# Handles the dynamic eye-blinking scale animation
+func _process_eye_blinking(delta: float) -> void:
+	if not is_instance_valid(eyes_holder):
+		return
+		
+	blink_timer += delta
+	if not is_blinking:
+		if blink_timer >= next_blink_time:
+			# Shut eyes closed
+			is_blinking = true
+			blink_timer = 0.0
+			eyes_holder.scale.y = 0.05
+	else:
+		if blink_timer >= blink_duration:
+			# Re-open eyes and calculate randomized next interval
+			is_blinking = false
+			blink_timer = 0.0
+			next_blink_time = randf_range(2.5, 6.0)
+			eyes_holder.scale.y = 1.0
 
 # Helper to swap visual materials safely
 func _apply_material(mat: StandardMaterial3D) -> void:
@@ -425,6 +480,21 @@ func _choose_new_direction() -> void:
 
 	if is_inside_foso:
 		target_pos = exit_position
+	elif current_state == State.SCATTER:
+		# Direct corner targets matching classic arcade corners (OCP Compliance)
+		var offset_x = (float(grid_width) * CELL_SIZE) / 2.0
+		var offset_z = (float(grid_height) * CELL_SIZE) / 2.0
+		var min_x = CELL_SIZE - offset_x + (CELL_SIZE / 2.0)
+		var max_x = (float(grid_width - 2) * CELL_SIZE) - offset_x + (CELL_SIZE / 2.0)
+		var min_z = CELL_SIZE - offset_z + (CELL_SIZE / 2.0)
+		var max_z = (float(grid_height - 2) * CELL_SIZE) - offset_z + (CELL_SIZE / 2.0)
+		
+		match ghost_type:
+			"Blinky": target_pos = Vector3(max_x, 0.9, min_z) # Top-Right
+			"Pinky": target_pos = Vector3(min_x, 0.9, min_z)  # Top-Left
+			"Inky": target_pos = Vector3(max_x, 0.9, max_z)   # Bottom-Right
+			"Clyde": target_pos = Vector3(min_x, 0.9, max_z)  # Bottom-Left
+			_: target_pos = Vector3(min_x, 0.9, min_z)
 	elif current_state == State.FRIGHTENED:
 		var best_dir = possible_directions[0]
 		var max_dist : float = -1.0
@@ -433,7 +503,7 @@ func _choose_new_direction() -> void:
 			var dist : float = next_pos.distance_to(player.global_position)
 			if dist > max_dist:
 				max_dist = dist
-				best_dir = dir
+				break
 		next_direction = best_dir
 		return
 	else:
@@ -468,6 +538,7 @@ func activate_frightened_mode() -> void:
 func _exit_frightened_state() -> void:
 	current_state = State.CHASE
 	speed = BASE_SPEED
+	state_timer = 0.0 # Reset cycle timer
 	_apply_material(original_material)
 
 # Public method: Resets ghost back to base (DIP Compliance)
@@ -477,6 +548,7 @@ func reset_to_base() -> void:
 	is_inside_foso = true 
 	current_state = State.LEAVING
 	speed = BASE_SPEED
+	state_timer = 0.0 # Reset cycle timer
 	_apply_material(original_material)
 	
 	current_direction = CARDINAL_DIRECTIONS.pick_random()
