@@ -6,14 +6,12 @@
 #              - SRP: Removed body.respawn() call.
 #              - Polishing: Added a public `set_frozen` method to freeze ghosts.
 #              - Collision Fix: Only physically blocks with Layer 1 (Walls).
-#              - Visual Effects & OCP: Added a programmatic 3D particle explosion
-#                which dynamically matches the ghost's original color.
+#              - Visual Effects & OCP: Added a programmatic 3D particle explosion.
 #              - Giant Proportions: Increased size (radius 0.9, height 1.8).
-#              - OCP & DIP (Height Decoupling): Added `get_spawn_height_offset()`
-#                public method.
+#              - OCP & DIP (Height Decoupling): Added `get_spawn_height_offset()`.
 #              - Aesthetic Polish: Procedurally sculpts classic 8-bit eyes.
-#              - DIP (Audio Decoupling): Added support for playing a "ghost eaten"
-#                audio stream dynamically injected from the outside.
+#              - Jump Dodge Integration: Added safe detection bypass when the
+#                colliding player is currently in mid-air (jumping).
 # Author: Enrique González Gutiérrez
 # Email: enrique.gonzalez.gutierrez@gmail.com
 # ==============================================================================
@@ -215,7 +213,7 @@ func _setup_audio() -> void:
 	if eaten_stream:
 		eaten_audio.stream = eaten_stream
 	eaten_audio.max_polyphony = 1
-	eaten_audio.volume_db = -4.0 # Nice punchy volume
+	eaten_audio.volume_db = -4.0 
 	add_child(eaten_audio)
 
 # Public method to freeze ghost navigation
@@ -424,7 +422,6 @@ func reset_to_base() -> void:
 
 # Programmatically spawns a beautiful ghostly particle explosion when eaten and plays sound
 func play_eaten_particles() -> void:
-	# Trigger the eaten audio stream (SRP Compliance)
 	if eaten_audio and eaten_audio.stream:
 		eaten_audio.play()
 		
@@ -475,6 +472,10 @@ func play_eaten_particles() -> void:
 # Handles player intersection and emits state notification signals
 func _on_player_detected(body: Node3D) -> void:
 	if body.is_in_group("player"):
+		# SOLID/DIP Compliance: Check if player safely leaped over the ghost in mid-air
+		if body.has_method("is_jumping_over") and body.is_jumping_over():
+			return # Safely jumped over! Bypass collision trigger.
+
 		if current_state == State.FRIGHTENED:
 			# Trigger the beautiful original-colored particle explosion and sound
 			play_eaten_particles()

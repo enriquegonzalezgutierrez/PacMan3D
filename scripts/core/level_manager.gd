@@ -20,6 +20,9 @@
 #                instances dynamically in runtime for their physical spawn offsets.
 #              - Ghost Audio Injection: Preloads and injects the 'ghost_eaten.mp3'
 #                audio stream directly into instantiated Ghost controllers.
+#              - Infinite Wall Barriers: Configured physical wall box shapes to be
+#                20.0 meters tall (while visually remaining 2.0m tall), creating
+#                an invisible vertical barrier that prevents Player jump-overs.
 # Author: Enrique González Gutiérrez
 # Email: enrique.gonzalez.gutierrez@gmail.com
 # ==============================================================================
@@ -32,7 +35,7 @@ const WALL_HEIGHT : float = 2.0
 # Preloaded Audio Resources (DIP Compliance)
 var waka_audio_stream : AudioStream = preload("res://assets/audio/sfx/waka_waka.mp3")
 var death_audio_stream : AudioStream = preload("res://assets/audio/sfx/player_death.mp3")
-var ghost_eaten_audio_stream : AudioStream = preload("res://assets/audio/sfx/ghost_eaten.mp3") # Preloaded Ghost eaten SFX
+var ghost_eaten_audio_stream : AudioStream = preload("res://assets/audio/sfx/ghost_eaten.mp3") 
 var bgm_stream : AudioStream = preload("res://assets/audio/bgm/level_1_bgm.mp3") 
 
 # Centralized Materials (SRP Compliance)
@@ -168,25 +171,32 @@ func _build_environment() -> void:
 		if partner_portal:
 			my_portal.initialize(partner_portal)
 
-# Instantiates a 3D wall block
+# Instantiates a 3D wall block with an invisible giant vertical collision barrier
 func _create_wall(pos: Vector3) -> void:
 	var static_body := StaticBody3D.new()
 	var mesh_instance := MeshInstance3D.new()
 	var collision_shape := CollisionShape3D.new()
 	
+	# 1. Visual Mesh Setup (2.0m x 2.0m x 2.0m) - Rests flat on the floor (Y = 1.0 relative)
 	var box_mesh := BoxMesh.new()
-	box_mesh.size = Vector3(CELL_SIZE, WALL_HEIGHT, CELL_SIZE)
+	box_mesh.size = Vector3(CELL_SIZE, WALL_HEIGHT, CELL_SIZE) 
 	mesh_instance.mesh = box_mesh
 	mesh_instance.material_override = wall_material
+	mesh_instance.position.y = WALL_HEIGHT / 2.0 
 	
+	# 2. Physical Collision Shape Setup (2.0m x 20.0m x 2.0m) (SRP/DIP Compliance)
+	# This creates an invisible vertical barrier that blocks any airborne jumps,
+	# preventing Pac-Man from jumping over the maze walls or landing on top of them.
 	var box_shape := BoxShape3D.new()
-	box_shape.size = box_mesh.size
+	box_shape.size = Vector3(CELL_SIZE, 20.0, CELL_SIZE)
 	collision_shape.shape = box_shape
+	collision_shape.position.y = 10.0 # Bottom rests perfectly on the floor (Y = 0.0)
 	
 	static_body.add_child(mesh_instance)
 	static_body.add_child(collision_shape)
+	
+	# StaticBody rests flat on the floor plane
 	static_body.position = pos
-	static_body.position.y = WALL_HEIGHT / 2.0 
 	add_child(static_body)
 
 # Instantiates a standard or power pellet and connects its signals
@@ -246,7 +256,7 @@ func _spawn_ghost(pos: Vector3) -> void:
 	var grid_w : int = int(level_data.get("grid_width", 0))
 	var grid_h : int = int(level_data.get("grid_height", 0))
 	
-	# Inject dependencies (Now correctly includes preloaded ghost_eaten_audio_stream at position 8)
+	# Inject dependencies
 	ghost.initialize(ghost_type, strategy, norm_mat, ghost_frightened_material, layout, grid_w, grid_h, ghost_eaten_audio_stream)
 	
 	# Dynamic height offset calculation based on ghost physical size

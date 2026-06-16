@@ -4,12 +4,12 @@
 #              Features an ORTHOGRAPHIC top-down camera to prevent 3D perspective.
 #              SOLID Refactoring:
 #              - SRP & State Machine: Added a self-contained `DEAD` state.
-#                Pac-Man now manages his own death sequence.
 #              - Collision Fix: Only physically blocks with Layer 1 (Walls).
 #              - Giant Arcade Proportions: Giant 1.7m diameter sphere.
 #              - Dynamic Cinematic Camera: Smoothly-interpolated Perspective Follow Camera.
-#              - RESTORED: Returned Pac-Man to a perfect, solid, shiny sphere 
-#                for a clean, minimalist 3D aesthetic.
+#              - Jump Mechanic: Implemented a robust virtual gravity and jump
+#                routine triggered by the Spacebar. Exposes `is_jumping_over()`
+#                for cooperative collision bypasses.
 # Author: Enrique González Gutiérrez
 # Email: enrique.gonzalez.gutierrez@gmail.com
 # ==============================================================================
@@ -23,13 +23,17 @@ const SPEED : float = 7.0
 const CELL_SIZE : float = 2.0 
 const ALIGNMENT_FORCE : float = 15.0 
 
+# Jump & Gravity Constants (Virtual physics)
+const JUMP_VELOCITY : float = 11.0 # Snappy upward impulse
+const GRAVITY : float = 34.0 # Snappy falling gravity
+
 # Injected Dependencies (DIP Compliance)
 var player_material : StandardMaterial3D
 var munch_stream : AudioStream
 var death_stream : AudioStream
 
 # Internal Node Components
-var visual_mesh : MeshInstance3D # Restored to a single solid MeshInstance3D
+var visual_mesh : MeshInstance3D 
 var munch_audio : AudioStreamPlayer
 var death_audio : AudioStreamPlayer
 var camera_holder : Node3D # Tilted independent pivot for smooth tracking
@@ -39,6 +43,10 @@ var spawn_position : Vector3
 var current_direction : Vector3 = Vector3.ZERO
 var next_direction : Vector3 = Vector3.ZERO
 var is_dead : bool = false
+
+# Jump States
+var virtual_floor_y : float = 0.85 # Calibrated automatically on ready
+var is_jumping : bool = false
 
 # Dependency Injection initializer method
 func initialize(material: StandardMaterial3D, audio_stream: AudioStream, d_stream: AudioStream) -> void:
@@ -52,6 +60,9 @@ func _ready() -> void:
 	_build_player_visuals()
 	_setup_camera()
 	_setup_audio()
+	
+	# Automatically calibrate virtual floor based on injected height coordinate (SOLID DIP)
+	virtual_floor_y = global_position.y
 
 func _configure_collision_layers() -> void:
 	# Exist on Layer 2 (Player)
@@ -63,10 +74,8 @@ func _build_player_visuals() -> void:
 	visual_mesh = MeshInstance3D.new()
 	var collision_shape := CollisionShape3D.new()
 	
-	# GIANT RETRO SIZE: Fills the 2.0m corridor tightly (diameter 1.7)
 	var radius : float = 0.85
 	
-	# Restored to a single, beautiful solid sphere mesh
 	var sphere_mesh := SphereMesh.new()
 	sphere_mesh.radius = radius
 	sphere_mesh.height = radius * 2.0
@@ -121,6 +130,11 @@ func play_eat_sound() -> void:
 	if munch_audio and munch_audio.stream:
 		munch_audio.stop()
 		munch_audio.play()
+
+# Public API helper (DIP Compliance)
+# Returns true if Pac-Man is significantly above his virtual floor (airborne)
+func is_jumping_over() -> bool:
+	return global_position.y > (virtual_floor_y + 0.5)
 
 # Public method: Initiates the sequential, gated death routine (SRP Compliance)
 func die() -> void:
@@ -191,7 +205,7 @@ func play_death_particles() -> void:
 	var timer = get_tree().create_timer(1.0)
 	timer.timeout.connect(func(): particles.queue_free())
 
-# Teleports the player back to start (No particles, used for initial spawning / game resets)
+# Teleports the player back to start
 func respawn() -> void:
 	_actual_respawn()
 
@@ -201,6 +215,8 @@ func _actual_respawn() -> void:
 	velocity = Vector3.ZERO
 	current_direction = Vector3.ZERO
 	next_direction = Vector3.ZERO
+	is_jumping = false
+	
 	if visual_mesh:
 		visual_mesh.visible = true
 	
@@ -214,7 +230,7 @@ func _actual_respawn() -> void:
 func get_spawn_height_offset() -> float:
 	return 0.85
 
-func _physics_process(_delta: float) -> void:
+func _physics_process(delta: float) -> void:
 	# Keep the camera following smoothly even when Pac-Man is dead
 	if is_instance_valid(camera_holder):
 		camera_holder.global_position = camera_holder.global_position.lerp(global_position, 0.08)
@@ -223,7 +239,22 @@ func _physics_process(_delta: float) -> void:
 		velocity = Vector3.ZERO
 		move_and_slide()
 		return
+
+	# --- VIRTUAL JUMP PHYSICS (GRAVITY & LANDING) ---
+	if global_position.y > virtual_floor_y:
+		# Apply gravity downwards
+		velocity.y -= GRAVITY * delta
+	else:
+		# Clamp Pac-Man flat on the floor
+		velocity.y = 0.0
+		global_position.y = virtual_floor_y
+		is_jumping = false
 		
+	# Trigger Jump: spacebar (mapped to ui_select by default)
+	if Input.is_action_just_pressed("ui_select") and not is_jumping:
+		velocity.y = JUMP_VELOCITY
+		is_jumping = true
+
 	_handle_arcade_input()
 	_process_arcade_movement()
 
@@ -245,7 +276,10 @@ func _process_arcade_movement() -> void:
 			next_direction = Vector3.ZERO 
 			
 	if current_direction != Vector3.ZERO:
+		# Preserve the vertical jump velocity while moving horizontally
+		var y_vel = velocity.y
 		velocity = current_direction * SPEED
+		velocity.y = y_vel
 		
 		if current_direction.x != 0.0:
 			var target_z = round(global_position.z / CELL_SIZE) * CELL_SIZE
@@ -257,6 +291,8 @@ func _process_arcade_movement() -> void:
 		var target_rotation_y = atan2(-current_direction.x, -current_direction.z)
 		visual_mesh.rotation.y = lerp_angle(visual_mesh.rotation.y, target_rotation_y, 0.25)
 	else:
+		var y_vel = velocity.y
 		velocity = Vector3.ZERO
+		velocity.y = y_vel
 		
 	move_and_slide()
