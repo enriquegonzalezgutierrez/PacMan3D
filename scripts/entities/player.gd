@@ -7,9 +7,11 @@
 #                Pac-Man now manages his own death sequence.
 #              - Collision Fix: Only physically blocks with Layer 1 (Walls).
 #              - Giant Arcade Proportions: Giant 1.7m diameter sphere.
-#              - OCP & DIP (Height Decoupling): Added `get_spawn_height_offset()`
-#                public method. This allows external orchestrators (LevelManager)
-#                to calculate spawn heights dynamically, eliminating hardcoded Y values.
+#              - Dynamic Cinematic Camera: Replaced flat static camera with a 
+#                smoothly-interpolated Perspective Follow Camera, tilted at 
+#                -55 degrees (Pac-Mania style).
+#              - Bug Fix: Fixed the C++ tree transform error by calling `add_child`
+#                before adjusting 'camera_holder.global_position'.
 # Author: Enrique González Gutiérrez
 # Email: enrique.gonzalez.gutierrez@gmail.com
 # ==============================================================================
@@ -32,8 +34,8 @@ var death_stream : AudioStream
 var visual_mesh : MeshInstance3D 
 var munch_audio : AudioStreamPlayer
 var death_audio : AudioStreamPlayer
+var camera_holder : Node3D # Tilted independent pivot for smooth tracking
 
-# Gameplay State
 var spawn_position : Vector3
 var current_direction : Vector3 = Vector3.ZERO
 var next_direction : Vector3 = Vector3.ZERO
@@ -78,20 +80,27 @@ func _build_player_visuals() -> void:
 	add_child(visual_mesh)
 	add_child(collision_shape)
 
+# Set up a dynamic perspective following camera (Pac-Mania style)
 func _setup_camera() -> void:
-	var spring_arm := SpringArm3D.new()
-	spring_arm.top_level = true
-	spring_arm.position = Vector3(0.0, 30.0, 0.0)
-	spring_arm.rotation_degrees = Vector3(-90.0, 0.0, 0.0)
-	spring_arm.spring_length = 0.0
+	camera_holder = Node3D.new()
+	camera_holder.top_level = true
+	
+	# FIXED: Add the child to the scene tree FIRST so it is inside the tree,
+	# allowing global_position assignments to work without C++ engine errors.
+	add_child(camera_holder)
+	camera_holder.global_position = global_position
 	
 	var camera := Camera3D.new()
-	camera.projection = Camera3D.PROJECTION_ORTHOGONAL
-	camera.size = 46.0 
-	camera.current = true 
+	camera.projection = Camera3D.PROJECTION_PERSPECTIVE
+	camera.fov = 55.0 # Slightly narrow field of view for a more cinematic feel
 	
-	spring_arm.add_child(camera)
-	add_child(spring_arm)
+	# Angled Offset: 11 meters high, 7.5 meters behind (on Z axis)
+	camera.position = Vector3(0.0, 11.0, 7.5)
+	camera.rotation_degrees = Vector3(-55.0, 0.0, 0.0)
+	
+	camera.current = true
+	
+	camera_holder.add_child(camera)
 
 # Sets up separate, non-overlapping audio channels
 func _setup_audio() -> void:
@@ -110,12 +119,6 @@ func _setup_audio() -> void:
 	death_audio.max_polyphony = 1
 	death_audio.volume_db = -3.0 
 	add_child(death_audio)
-
-# Public API helper (DIP Compliance)
-# Returns the physical radius of the player's collider to allow 
-# orchestrators (LevelManager) to calculate spawning height dynamically.
-func get_spawn_height_offset() -> float:
-	return 0.85
 
 # Public method to be called when eating a pellet
 func play_eat_sound() -> void:
@@ -204,9 +207,23 @@ func _actual_respawn() -> void:
 	next_direction = Vector3.ZERO
 	if visual_mesh:
 		visual_mesh.visible = true
+	
+	# Instant camera snap back to spawn coordinate to prevent sliding confusion
+	if is_instance_valid(camera_holder):
+		camera_holder.global_position = spawn_position
+		
 	is_dead = false
 
+# Public API helper
+func get_spawn_height_offset() -> float:
+	return 0.85
+
 func _physics_process(_delta: float) -> void:
+	# Keep the camera following smoothly even when Pac-Man is dead
+	if is_instance_valid(camera_holder):
+		# Buttery-smooth LERP interpolation (0.08) creates elegant drag/damping inertia
+		camera_holder.global_position = camera_holder.global_position.lerp(global_position, 0.08)
+
 	if is_dead:
 		velocity = Vector3.ZERO
 		move_and_slide()

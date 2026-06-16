@@ -3,17 +3,17 @@
 #              generation, collision-tested pathfinding, and coordinates
 #              with an abstract behavior strategy.
 #              SOLID Refactoring:
-#              - SRP: Removed body.respawn() call. The ghost only reports the
-#                collision via signals, leaving orchestrators to handle the sequence.
+#              - SRP: Removed body.respawn() call.
 #              - Polishing: Added a public `set_frozen` method to freeze ghosts.
 #              - Collision Fix: Only physically blocks with Layer 1 (Walls).
 #              - Visual Effects & OCP: Added a programmatic 3D particle explosion
 #                which dynamically matches the ghost's original color.
-#              - Giant Proportions: Increased size (radius 0.9, height 1.8) to fit
-#                tightly within 2.0m wide corridors, locking them on rails.
+#              - Giant Proportions: Increased size (radius 0.9, height 1.8).
 #              - OCP & DIP (Height Decoupling): Added `get_spawn_height_offset()`
-#                public method. This allows external orchestrators (LevelManager)
-#                to calculate spawn heights dynamically, eliminating hardcoded Y values.
+#                public method.
+#              - Aesthetic Polish: Procedurally sculpts the classic 8-bit arcade
+#                protruding eyes (white sclera, blue pupils) that rotate naturally
+#                with the movement direction.
 # Author: Enrique González Gutiérrez
 # Email: enrique.gonzalez.gutierrez@gmail.com
 # ==============================================================================
@@ -111,7 +111,7 @@ func _configure_collision_layers() -> void:
 	# Only physically block with Layer 1 (Walls)
 	collision_mask = 1
 
-# Programmatically builds the capsule mesh and physical collision box
+# Programmatically builds the capsule mesh, physical collision box, and iconic eyes
 func _build_ghost_visuals() -> void:
 	visual_mesh = MeshInstance3D.new()
 	var collision_shape := CollisionShape3D.new()
@@ -132,6 +132,55 @@ func _build_ghost_visuals() -> void:
 		
 	visual_mesh.material_override = original_material
 	
+	# --- PROCEDURAL RETRO GHOST EYES ---
+	var eyes_holder := Node3D.new()
+	
+	var sclera_mat := StandardMaterial3D.new()
+	sclera_mat.albedo_color = Color(1.0, 1.0, 1.0) # Pure White Sclera
+	sclera_mat.roughness = 0.6
+	
+	var pupil_mat := StandardMaterial3D.new()
+	pupil_mat.albedo_color = Color(0.0, 0.2, 1.0) # Classic Pac-Man Blue pupils
+	pupil_mat.roughness = 0.4
+	
+	# 1. Left Sclera Sphere (White Eye)
+	var left_sclera := MeshInstance3D.new()
+	var sclera_mesh := SphereMesh.new()
+	sclera_mesh.radius = 0.2
+	sclera_mesh.height = 0.4
+	left_sclera.mesh = sclera_mesh
+	left_sclera.material_override = sclera_mat
+	left_sclera.position = Vector3(-0.35, 0.4, -0.75) # Forward on Z axis
+	eyes_holder.add_child(left_sclera)
+	
+	# 2. Right Sclera Sphere (White Eye)
+	var right_sclera := MeshInstance3D.new()
+	right_sclera.mesh = sclera_mesh
+	right_sclera.material_override = sclera_mat
+	right_sclera.position = Vector3(0.35, 0.4, -0.75)
+	eyes_holder.add_child(right_sclera)
+	
+	# 3. Left Pupil Sphere (Blue Pupil)
+	var left_pupil := MeshInstance3D.new()
+	var pupil_mesh := SphereMesh.new()
+	pupil_mesh.radius = 0.08
+	pupil_mesh.height = 0.16
+	left_pupil.mesh = pupil_mesh
+	left_pupil.material_override = pupil_mat
+	left_pupil.position = Vector3(-0.35, 0.4, -0.93) # Placed slightly in front of sclera
+	eyes_holder.add_child(left_pupil)
+	
+	# 4. Right Pupil Sphere (Blue Pupil)
+	var right_pupil := MeshInstance3D.new()
+	right_pupil.mesh = pupil_mesh
+	right_pupil.material_override = pupil_mat
+	right_pupil.position = Vector3(0.35, 0.4, -0.93)
+	eyes_holder.add_child(right_pupil)
+	
+	# Add the eyes holder to visual_mesh so they rotate automatically with the body orientation
+	visual_mesh.add_child(eyes_holder)
+	
+	# --- PHYSICAL COLLISION SHAPE ---
 	var capsule_shape := CapsuleShape3D.new()
 	capsule_shape.radius = radius
 	capsule_shape.height = height
@@ -162,15 +211,12 @@ func set_frozen(enabled: bool) -> void:
 	if is_frozen:
 		velocity = Vector3.ZERO
 
-# Public API helper (DIP Compliance)
-# Returns the physical half-height of the ghost's capsule to allow 
-# orchestrators (LevelManager) to calculate spawning height dynamically.
+# Public API helper
 func get_spawn_height_offset() -> float:
-	return 0.9 # Half of capsule height (1.8 / 2 = 0.9)
+	return 0.9 
 
 # Main physics loop managing timers, states, movement, and separation
 func _physics_process(delta: float) -> void:
-	# Bypass physics process if the ghost is currently frozen in place
 	if is_frozen:
 		velocity = Vector3.ZERO
 		move_and_slide()
@@ -239,7 +285,6 @@ func _physics_process(delta: float) -> void:
 	for g in all_ghosts:
 		if g != self and is_instance_valid(g) and not is_inside_foso:
 			var dist = global_position.distance_to(g.global_position)
-			# Adjusted repulsion distance to 1.9 to prevent wide mesh overlap
 			if dist > 0.0 and dist < 1.9:
 				var push_dir = (global_position - g.global_position).normalized()
 				separation += push_dir * (1.9 - dist) * 3.0
@@ -328,10 +373,8 @@ func _choose_new_direction() -> void:
 				min_dist = dist
 				best_dir = dir
 				
-		# FIXED: Corrected reference assignment to 'next_direction' (was 'next_dir')
 		next_direction = best_dir
 	else:
-		# FIXED: Corrected reference assignment to 'next_direction' (was 'next_dir')
 		next_direction = possible_directions.pick_random()
 
 # Public method: Triggers Frightened mode
