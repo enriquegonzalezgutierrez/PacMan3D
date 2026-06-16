@@ -3,6 +3,7 @@
 #              visual mesh rotation, and continuous arcade movement.
 #              Features an ORTHOGRAPHIC top-down camera to prevent 3D perspective
 #              optical illusions (walls hiding objects on the edges).
+#              UPDATED: Adjusted player radius to match the ghost's proportions.
 # Author: Enrique González Gutiérrez
 # Email: enrique.gonzalez.gutierrez@gmail.com
 # ==============================================================================
@@ -40,7 +41,9 @@ func _initialize_material() -> void:
 func _build_player_visuals() -> void:
 	visual_mesh = MeshInstance3D.new()
 	var collision_shape := CollisionShape3D.new()
-	var radius : float = 0.8
+	
+	# Reduced radius from 0.8 to 0.6 to match the ghosts' width (capsule radius is 0.6)
+	var radius : float = 0.6
 	
 	var sphere_mesh := SphereMesh.new()
 	sphere_mesh.radius = radius
@@ -65,11 +68,10 @@ func _setup_camera() -> void:
 	var camera := Camera3D.new()
 	
 	# =======================================================================
-	# LA CLAVE: Cámara Ortográfica. Elimina la perspectiva 3D, hace que 
-	# los muros sean rectos en toda la pantalla y nada quede oculto.
+	# Orthogonal Camera setup to remove 3D perspective hiding objects behind walls.
 	# =======================================================================
 	camera.projection = Camera3D.PROJECTION_ORTHOGONAL
-	# Tamaño para abarcar los 21x21 bloques (42 metros) más un pequeño margen
+	# Size to cover the 21x21 grid (42 meters) plus a small margin
 	camera.size = 46.0 
 	
 	camera.current = true 

@@ -3,6 +3,8 @@
 #              GameManager, and generates the 3D grid of Pac-Man entities.
 #              The floor has been completely removed to avoid rendering glitches,
 #              shadow cascade bugs with orthogonal cameras, and Z-fighting.
+#              UPDATED: Adjusted Ghost spawn Y position to 0.9 to match its new 
+#              height of 1.8.
 # Author: Enrique González Gutiérrez
 # Email: enrique.gonzalez.gutierrez@gmail.com
 # ==============================================================================
@@ -111,7 +113,7 @@ func _spawn_player(pos: Vector3) -> void:
 	var player := Player.new()
 	player.spawn_position = pos
 	player.position = pos
-	player.position.y = 0.8
+	player.position.y = 0.6 
 	add_child(player)
 
 # Instantiates a ghost character with sequential type assignment
@@ -121,7 +123,7 @@ func _spawn_ghost(pos: Vector3) -> void:
 	ghost.ghost_type = ghost_types[type_index]
 	spawned_ghosts_count += 1
 	ghost.position = pos
-	ghost.position.y = 0.8
+	ghost.position.y = 0.9 # <- ADJUSTED Y HEIGHT HERE (Was 0.8)
 	add_child(ghost)
 
 # Instantiates a warp portal

@@ -2,9 +2,8 @@
 # Description: CharacterBody3D controller for Ghosts. Handles primitive capsule
 #              generation, collision-tested pathfinding, and assigns SOLID
 #              compliant behavior strategy patterns.
-#              UPDATED: Uses buffered 'test_move' for buttery-smooth arcade turns
-#              without coordinate snapping (no stutters). Also includes Soft 
-#              Separation (Flocking) to prevent ghosts from perfectly overlapping.
+#              UPDATED: Increased Ghost visual and collision size to make them
+#              larger and more imposing than the standard Pac-Man sphere.
 # Author: Enrique González Gutiérrez
 # Email: enrique.gonzalez.gutierrez@gmail.com
 # ==============================================================================
@@ -78,10 +77,7 @@ func _ready() -> void:
 
 # Configures symmetric collision layers: Ghost is on Layer 3, blocks with Layer 1 (Walls) and Layer 2 (Player)
 func _configure_collision_layers() -> void:
-	# Exist on Layer 3 (Bit value 4)
 	collision_layer = 4
-	# Block physically with Layer 1 (Walls) and Layer 2 (Player)
-	# NOTE: Ghosts do NOT block each other physically here to prevent gridlock. Separation is handled by Soft Repulsion.
 	collision_mask = 3
 
 # Instantiate strategy dynamically based on ghost type (SOLID - Open/Closed compliance)
@@ -112,8 +108,9 @@ func _build_ghost_visuals() -> void:
 	var mesh_instance := MeshInstance3D.new()
 	var collision_shape := CollisionShape3D.new()
 	
-	var radius : float = 0.6
-	var height : float = 1.6
+	# INCREASED SIZE: Ghosts are now larger than Pac-Man (0.6 radius)
+	var radius : float = 0.75
+	var height : float = 1.8
 	
 	var capsule_mesh := CapsuleMesh.new()
 	capsule_mesh.radius = radius
@@ -135,7 +132,8 @@ func _setup_player_detection() -> void:
 	var detection_shape := CollisionShape3D.new()
 	
 	var sphere_shape := SphereShape3D.new()
-	sphere_shape.radius = 0.85 
+	# Scaled up detection area slightly to match new body size
+	sphere_shape.radius = 0.95 
 	detection_shape.shape = sphere_shape
 	
 	detection_area.add_child(detection_shape)
@@ -204,7 +202,7 @@ func _physics_process(delta: float) -> void:
 	if current_direction != Vector3.ZERO:
 		velocity = current_direction * speed
 		
-		# Pull ghosts smoothly to the centerline of corridors to perfectly align them without teleporting
+		# Pull ghosts smoothly to the centerline of corridors
 		if current_direction.x != 0.0:
 			var target_z = round(global_position.z / CELL_SIZE) * CELL_SIZE
 			velocity.z = (target_z - global_position.z) * ALIGNMENT_FORCE
@@ -215,18 +213,16 @@ func _physics_process(delta: float) -> void:
 		velocity = Vector3.ZERO
 		
 	# --- SOFT SEPARATION (FLOCKING REPULSION) ---
-	# Prevents ghosts from stacking perfectly on top of each other without blocking the corridors
 	var separation := Vector3.ZERO
 	var all_ghosts = get_tree().get_nodes_in_group("ghosts")
 	
 	for g in all_ghosts:
 		if g != self and is_instance_valid(g) and not is_inside_foso:
 			var dist = global_position.distance_to(g.global_position)
-			# If another ghost is closer than 1.2 meters, apply repulsion
-			if dist > 0.0 and dist < 1.2:
+			# Adjusted repulsion distance for the larger capsules
+			if dist > 0.0 and dist < 1.6:
 				var push_dir = (global_position - g.global_position).normalized()
-				# The closer they are, the stronger the push vector
-				separation += push_dir * (1.2 - dist) * 3.0
+				separation += push_dir * (1.6 - dist) * 3.0
 				
 	# Apply separation force to the final velocity
 	velocity += separation
@@ -265,7 +261,6 @@ func _choose_new_direction() -> void:
 	
 	var possible_directions = []
 	for dir in open_dirs:
-		# Pac-Man rule: Ghosts normally cannot voluntarily reverse their direction
 		if dir != -current_direction:
 			possible_directions.append(dir)
 			
@@ -284,7 +279,6 @@ func _choose_new_direction() -> void:
 	if is_inside_foso:
 		target_pos = exit_position
 	elif current_state == State.FRIGHTENED:
-		# Fleeing AI: Pick direction that maximizes distance to Player
 		var best_dir = possible_directions[0]
 		var max_dist : float = -1.0
 		for dir in possible_directions:
@@ -296,11 +290,9 @@ func _choose_new_direction() -> void:
 		next_direction = best_dir
 		return
 	else:
-		# Chase AI: Delegate calculation to active SOLID Behavior Strategy
 		if behavior_strategy:
 			target_pos = behavior_strategy.get_target_position(self, player)
 
-	# 85% chance to seek target, 15% chance to wander randomly
 	if randf() < 0.85:
 		var best_dir = possible_directions[0]
 		var min_dist : float = 999999.0
@@ -322,7 +314,6 @@ func _on_power_pellet_activated() -> void:
 	speed = FRIGHTENED_SPEED
 	frightened_timer = FRIGHTENED_DURATION
 	
-	# Instantly reverse direction upon power pellet activation
 	next_direction = -current_direction
 	
 	ghost_material.albedo_color = Color(0.0, 0.0, 1.0) 
