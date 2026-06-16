@@ -2,27 +2,24 @@
 # Description: CharacterBody3D controller for Ghosts. Handles primitive capsule
 #              generation, collision-tested pathfinding, and coordinates
 #              with an abstract behavior strategy.
-#              SOLID Refactoring:
-#              - SRP: Removed body.respawn() call.
-#              - Polishing: Added a public `set_frozen` method to freeze ghosts.
-#              - Collision Fix: Only physically blocks with Layer 1 (Walls).
-#              - Visual Effects & OCP: Added a programmatic 3D particle explosion
-#                which dynamically matches the ghost's original color.
+#              SOLID Refactoring & Fixes:
+#              - ARCADE-ACCURATE LEAVING: Guides ghosts along a strict horizontal
+#                and vertical path to exit the Ghost House, bypassing grid AI
+#                to guarantee 100% reliable, swift escapes.
+#              - ONE-WAY FOSO DOOR: Dynamically blocks ghosts from re-entering 
+#                the Ghost House gate from the outside.
+#              - WARNING ELIMINATION: Replaced integer division with float division.
+#              - DYNAMIC ALIGNMENT FIX: Calculates grid offset dynamically.
 #              - Giant Proportions: Increased size (radius 0.9, height 1.8).
-#              - OCP & DIP (Height Decoupling): Added `get_spawn_height_offset()`.
-#              - Aesthetic Polish: Procedurally sculpts classic 8-bit eyes.
-#              - Real 3D Volumetric Collision: Replaced the logical bypass with
-#                a CapsuleShape3D player detector. Godot's physics engine now
-#                calculates true 3D spatial intersections for fair, highly precise
-#                airborne dodges.
+#              - Aesthetic Polish: Procedural cartoon-style rotating eyes.
 # Author: Enrique González Gutiérrez
 # Email: enrique.gonzalez.gutierrez@gmail.com
 # ==============================================================================
 extends CharacterBody3D
 class_name Ghost
 
-# Signals to notify orchestrators of gameplay events (SRP Compliance)
-signal player_caught(is_frightened: bool)
+# Signals to notify orchestrators of gameplay events (Position is broadcasted)
+signal player_caught(is_frightened: bool, catch_position: Vector3)
 
 # State Machine definitions
 enum State { LEAVING, CHASE, FRIGHTENED }
@@ -65,7 +62,7 @@ const FRIGHTENED_DURATION : float = 7.0
 
 # Foso navigation state
 var spawn_position : Vector3
-var exit_position : Vector3 = Vector3(0.0, 0.8, -4.0) 
+var exit_position : Vector3 = Vector3(0.0, 0.9, -6.5) # Dynamic fallback default
 var is_inside_foso : bool = true 
 var is_frozen : bool = false # Freezes ghosts during Pac-Man's death sequence
 
@@ -101,6 +98,10 @@ func _ready() -> void:
 	_setup_player_detection()
 	_setup_audio()
 	
+	# --- DYNAMIC GHOST HOUSE EXIT DETECTION ---
+	# Automatically scans the active level matrix to find the exact gate coordinates 
+	_detect_exit_position_dynamically()
+	
 	# Initialize directions randomly
 	current_direction = CARDINAL_DIRECTIONS.pick_random()
 	next_direction = current_direction
@@ -110,6 +111,30 @@ func _ready() -> void:
 	var grid_x : int = int(round((global_position.x + offset) / CELL_SIZE))
 	var grid_z : int = int(round((global_position.z + offset) / CELL_SIZE))
 	last_grid_pos = Vector2i(grid_x, grid_z)
+
+# Automatically locates the foso door dynamically to prevent pathing issues
+func _detect_exit_position_dynamically() -> void:
+	if level_layout.is_empty() or grid_width <= 0 or grid_height <= 0:
+		return
+		
+	# WARNING FIXED: Cast to float before division to resolve Integer Division compiler warnings
+	var center_x : int = int(float(grid_width) / 2.0)
+	
+	# Scan rows 10 to 13 (where foso doors are strictly located in generator templates)
+	for r in range(10, 14):
+		if r < grid_height:
+			# Check the center column and its adjacent columns
+			for c in [center_x, center_x - 1, center_x + 1]:
+				if c >= 0 and c < grid_width:
+					# Find the open door tile (0: Empty or 2: Pellet)
+					if level_layout[r][c] == 0 or level_layout[r][c] == 2:
+						var offset_x : float = (float(grid_width) * CELL_SIZE) / 2.0
+						var offset_z : float = (float(grid_height) * CELL_SIZE) / 2.0
+						var gate_x : float = (c * CELL_SIZE) - offset_x + (CELL_SIZE / 2.0)
+						var gate_z : float = (r * CELL_SIZE) - offset_z + (CELL_SIZE / 2.0)
+						# Push target position slightly forward to ensure they fully cross the door threshold
+						exit_position = Vector3(gate_x, 0.9, gate_z - 0.5)
+						return
 
 func _configure_collision_layers() -> void:
 	# Exist on Layer 3 (Ghosts)
@@ -199,8 +224,6 @@ func _setup_player_detection() -> void:
 	var detection_area := Area3D.new()
 	var detection_shape := CollisionShape3D.new()
 	
-	# FIXED: Match the exact volumetric capsule of the ghost's body
-	# This enables precise, mathematically correct 3D collision detections.
 	var capsule_shape := CapsuleShape3D.new()
 	capsule_shape.radius = 0.9
 	capsule_shape.height = 1.8
@@ -239,17 +262,36 @@ func _physics_process(delta: float) -> void:
 		move_and_slide()
 		return
 
+	# --- ARCADE-ACCURATE LEAVING GUIDANCE ---
+	# Bypasses grid navigation entirely until they fully exit the Ghost House
 	if is_inside_foso:
+		var target_x = exit_position.x
+		# 1. Slide horizontally to line up with the door
+		if abs(global_position.x - target_x) > 0.05:
+			var dir_x = sign(target_x - global_position.x)
+			velocity = Vector3(dir_x * FRIGHTENED_SPEED, 0.0, 0.0)
+			
+			var target_rotation_y = atan2(-velocity.x, -velocity.z)
+			rotation.y = lerp_angle(rotation.y, target_rotation_y, 0.2)
+		else:
+			# 2. Once aligned, snap precisely and slide straight up through the gate
+			global_position.x = target_x
+			velocity = Vector3(0.0, 0.0, -FRIGHTENED_SPEED)
+			rotation.y = lerp_angle(rotation.y, 0.0, 0.2) # Face North
+			
+		move_and_slide()
+		
+		# Gate threshold check
 		var pos_2d := Vector2(global_position.x, global_position.z)
 		var exit_2d := Vector2(exit_position.x, exit_position.z)
 		if pos_2d.distance_to(exit_2d) < 1.0:
 			is_inside_foso = false
-			if current_state == State.LEAVING:
-				current_state = State.CHASE
-				speed = BASE_SPEED
-				_apply_material(original_material)
-				
-	elif current_state == State.FRIGHTENED:
+			current_state = State.CHASE
+			speed = BASE_SPEED
+			_apply_material(original_material)
+		return
+
+	if current_state == State.FRIGHTENED:
 		frightened_timer -= delta
 		if frightened_timer <= 0.0:
 			_exit_frightened_state()
@@ -286,11 +328,22 @@ func _physics_process(delta: float) -> void:
 	if current_direction != Vector3.ZERO:
 		velocity = current_direction * speed
 		
+		# --- DYNAMIC GRID OFFSET MATH ---
+		# Calculates offsets dynamically using global map bounds to prevent even/odd size mismatches
+		var offset_x : float = 32.0
+		var offset_z : float = 32.0
+		if GameManager and GameManager.grid_width > 0:
+			offset_x = (float(GameManager.grid_width) * CELL_SIZE) / 2.0
+		if GameManager and GameManager.grid_height > 0:
+			offset_z = (float(GameManager.grid_height) * CELL_SIZE) / 2.0
+		
 		if current_direction.x != 0.0:
-			var target_z = round(global_position.z / CELL_SIZE) * CELL_SIZE
+			var g_z = round((global_position.z + offset_z - (CELL_SIZE / 2.0)) / CELL_SIZE)
+			var target_z = g_z * CELL_SIZE - offset_z + (CELL_SIZE / 2.0)
 			velocity.z = (target_z - global_position.z) * ALIGNMENT_FORCE
 		elif current_direction.z != 0.0:
-			var target_x = round(global_position.x / CELL_SIZE) * CELL_SIZE
+			var g_x = round((global_position.x + offset_x - (CELL_SIZE / 2.0)) / CELL_SIZE)
+			var target_x = g_x * CELL_SIZE - offset_x + (CELL_SIZE / 2.0)
 			velocity.x = (target_x - global_position.x) * ALIGNMENT_FORCE
 	else:
 		velocity = Vector3.ZERO
@@ -330,11 +383,19 @@ func _get_matrix_open_directions() -> Array:
 	var grid_x : int = int(round((global_position.x + offset) / CELL_SIZE))
 	var grid_z : int = int(round((global_position.z + offset) / CELL_SIZE))
 	
+	# One-way foso gate coordinates
+	var gate_y = 12
+	var gate_x = int(float(grid_width) / 2.0)
+	
 	for dir in CARDINAL_DIRECTIONS:
 		var target_x : int = grid_x + int(dir.x)
 		var target_z : int = grid_z + int(dir.z)
 		
 		if target_x >= 0 and target_x < grid_width and target_z >= 0 and target_z < grid_height:
+			# ONE-WAY DOOR RULE: If outside the foso, treat the gate as a solid wall
+			if not is_inside_foso and target_x == gate_x and target_z == gate_y:
+				continue
+				
 			var cell_type : int = int(level_layout[target_z][target_x])
 			if cell_type != 1: 
 				open_dirs.append(dir)
@@ -478,16 +539,11 @@ func play_eaten_particles() -> void:
 # Handles player intersection and emits state notification signals
 func _on_player_detected(body: Node3D) -> void:
 	if body.is_in_group("player"):
-		# FIXED: Removed the logical code bypass!
-		# Godot's built-in physics engine now handles 3D volumetric detection naturally.
-		# If Pac-Man's Sphere intersections with the Ghost's Capsule trigger area, Pac-Man dies.
-
 		if current_state == State.FRIGHTENED:
-			# Trigger the beautiful original-colored particle explosion and sound
 			play_eaten_particles()
 			
-			# Notify listeners that a frightened ghost was eaten
-			player_caught.emit(true)
+			# Notify listeners with both the state and the exact 3D world coordinate (DIP Compliance)
+			player_caught.emit(true, global_position)
 			
 			global_position = spawn_position
 			is_inside_foso = true 
@@ -495,5 +551,5 @@ func _on_player_detected(body: Node3D) -> void:
 			speed = BASE_SPEED
 			_apply_material(original_material)
 		else:
-			# Notify listeners that a normal ghost caught Pac-Man
-			player_caught.emit(false)
+			# Notify listeners of player catch with coordinates
+			player_caught.emit(false, global_position)

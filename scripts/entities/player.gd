@@ -1,15 +1,16 @@
 # ==============================================================================
 # Description: CharacterBody3D controller for Pac-Man. Handles movement inputs,
 #              visual mesh rotation, and continuous arcade movement.
-#              Features an ORTHOGRAPHIC top-down camera to prevent 3D perspective.
-#              SOLID Refactoring:
+#              Features an ORTHOGRAPHIC/DIORAMA top-down camera.
+#              SOLID Refactoring & Fixes:
+#              - DYNAMIC ALIGNMENT FIX: Calculates the exact grid offset dynamically 
+#                using GameManager map bounds. This permanently prevents Pac-Man 
+#                from clipping/freezing when switching between odd (31x31) and 
+#                even (32x32) map sizes.
 #              - SRP & State Machine: Added a self-contained `DEAD` state.
 #              - Collision Fix: Only physically blocks with Layer 1 (Walls).
 #              - Giant Arcade Proportions: Giant 1.7m diameter sphere.
-#              - Dynamic Cinematic Camera: Smoothly-interpolated Perspective Follow Camera.
-#              - High Jump Mechanic: Implemented a high, snappy virtual jump
-#                (JUMP_VELOCITY = 14.5) to physically clear the 1.8m tall ghosts
-#                in 3D space.
+#              - OPTIMIZED PERSPECTIVE: Calibrated camera offsets.
 # Author: Enrique González Gutiérrez
 # Email: enrique.gonzalez.gutierrez@gmail.com
 # ==============================================================================
@@ -24,8 +25,8 @@ const CELL_SIZE : float = 2.0
 const ALIGNMENT_FORCE : float = 15.0 
 
 # Jump & Gravity Constants (Virtual physics - Calibrated for high clearance)
-const JUMP_VELOCITY : float = 14.5 # Increased from 11.0 to clear 1.8m tall ghosts
-const GRAVITY : float = 40.0 # Increased from 34.0 for a snappy, responsive descent
+const JUMP_VELOCITY : float = 14.5 
+const GRAVITY : float = 40.0 
 
 # Injected Dependencies (DIP Compliance)
 var player_material : StandardMaterial3D
@@ -89,6 +90,7 @@ func _build_player_visuals() -> void:
 	add_child(visual_mesh)
 	add_child(collision_shape)
 
+# Set up an optimized dynamic perspective following camera (Diorama style)
 func _setup_camera() -> void:
 	camera_holder = Node3D.new()
 	camera_holder.top_level = true
@@ -98,10 +100,12 @@ func _setup_camera() -> void:
 	
 	var camera := Camera3D.new()
 	camera.projection = Camera3D.PROJECTION_PERSPECTIVE
-	camera.fov = 55.0 
 	
-	camera.position = Vector3(0.0, 11.0, 7.5)
-	camera.rotation_degrees = Vector3(-55.0, 0.0, 0.0)
+	# OPTIMIZED OPTICS: Narrower FOV + steeper tilt angle acts like a cinematic
+	# telephoto lens, rendering a clean, perfectly readable 3D diorama map view.
+	camera.fov = 48.0 
+	camera.position = Vector3(0.0, 15.0, 6.0)
+	camera.rotation_degrees = Vector3(-68.0, 0.0, 0.0)
 	
 	camera.current = true
 	
@@ -245,7 +249,7 @@ func _physics_process(delta: float) -> void:
 		global_position.y = virtual_floor_y
 		is_jumping = false
 		
-	# Trigger Jump: spacebar (mapped to ui_select by default)
+	# Trigger Jump: spacebar
 	if Input.is_action_just_pressed("ui_select") and not is_jumping:
 		velocity.y = JUMP_VELOCITY
 		is_jumping = true
@@ -276,11 +280,22 @@ func _process_arcade_movement() -> void:
 		velocity = current_direction * SPEED
 		velocity.y = y_vel
 		
+		# --- DYNAMIC GRID OFFSET MATH ---
+		# Calculates offsets dynamically using global map bounds to prevent even/odd size mismatches
+		var offset_x : float = 32.0
+		var offset_z : float = 32.0
+		if GameManager and GameManager.grid_width > 0:
+			offset_x = (float(GameManager.grid_width) * CELL_SIZE) / 2.0
+		if GameManager and GameManager.grid_height > 0:
+			offset_z = (float(GameManager.grid_height) * CELL_SIZE) / 2.0
+		
 		if current_direction.x != 0.0:
-			var target_z = round(global_position.z / CELL_SIZE) * CELL_SIZE
+			var g_z = round((global_position.z + offset_z - (CELL_SIZE / 2.0)) / CELL_SIZE)
+			var target_z = g_z * CELL_SIZE - offset_z + (CELL_SIZE / 2.0)
 			velocity.z = (target_z - global_position.z) * ALIGNMENT_FORCE
 		elif current_direction.z != 0.0:
-			var target_x = round(global_position.x / CELL_SIZE) * CELL_SIZE
+			var g_x = round((global_position.x + offset_x - (CELL_SIZE / 2.0)) / CELL_SIZE)
+			var target_x = g_x * CELL_SIZE - offset_x + (CELL_SIZE / 2.0)
 			velocity.x = (target_x - global_position.x) * ALIGNMENT_FORCE
 			
 		var target_rotation_y = atan2(-current_direction.x, -current_direction.z)

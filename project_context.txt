@@ -4,6 +4,19 @@ PROJECT TREE
 ├── README.md
 ├── ROADMAP.md
 ├── assets
+│   ├── audio
+│   │   ├── bgm
+│   │   │   ├── level_1_bgm.mp3
+│   │   │   ├── level_1_bgm.mp3.import
+│   │   │   ├── main_menu_bgm.mp3
+│   │   │   └── main_menu_bgm.mp3.import
+│   │   └── sfx
+│   │       ├── ghost_eaten.mp3
+│   │       ├── ghost_eaten.mp3.import
+│   │       ├── player_death.mp3
+│   │       ├── player_death.mp3.import
+│   │       ├── waka_waka.mp3
+│   │       └── waka_waka.mp3.import
 │   └── ui
 │       └── images
 │           ├── main_menu_bg.png
@@ -33,6 +46,8 @@ PROJECT TREE
 	│   │   ├── inky_behavior.gd.uid
 	│   │   ├── pinky_behavior.gd
 	│   │   └── pinky_behavior.gd.uid
+	│   ├── floating_score.gd
+	│   ├── floating_score.gd.uid
 	│   ├── ghost.gd
 	│   ├── ghost.gd.uid
 	│   ├── ghost_behavior.gd
@@ -45,9 +60,11 @@ PROJECT TREE
 	│   └── portal.gd.uid
 	└── ui
 		├── hud.gd
-		└── hud.gd.uid
+		├── hud.gd.uid
+		├── minimap_2d.gd
+		└── minimap_2d.gd.uid
 
-12 directories, 34 files
+15 directories, 48 files
 
 FILES
 =====
@@ -265,34 +282,45 @@ FILE: ./data/level_01.json
 ==================================================
 {
   "_metadata": {
-	"description": "Large classic grid layout data. 0: Empty, 1: Wall, 2: Pellet, 3: Power Pellet, 4: Player Spawn, 5: Ghost Spawn, 6: Portal Left, 7: Portal Right",
+	"description": "Perfect symmetric 32x32 arcade grid layout. 0: Empty, 1: Wall, 2: Pellet, 3: Power Pellet, 4: Player Spawn, 5: Ghost Spawn, 6: Portal Left, 7: Portal Right, 8: Portal Top, 9: Portal Bottom",
 	"author": "Enrique González Gutiérrez",
 	"email": "enrique.gonzalez.gutierrez@gmail.com"
   },
-  "grid_width": 21,
-  "grid_height": 21,
+  "grid_width": 32,
+  "grid_height": 32,
   "layout": [
-	[1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1],
-	[1, 3, 2, 2, 2, 2, 2, 2, 2, 2, 1, 2, 2, 2, 2, 2, 2, 2, 2, 3, 1],
-	[1, 2, 1, 1, 1, 2, 1, 1, 1, 2, 1, 2, 1, 1, 1, 2, 1, 1, 1, 2, 1],
-	[1, 2, 1, 1, 1, 2, 1, 1, 1, 2, 1, 2, 1, 1, 1, 2, 1, 1, 1, 2, 1],
-	[1, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 1],
-	[1, 2, 1, 1, 1, 2, 1, 2, 1, 1, 1, 1, 1, 2, 1, 2, 1, 1, 1, 2, 1],
-	[1, 2, 2, 2, 2, 2, 1, 2, 2, 2, 1, 2, 2, 2, 1, 2, 2, 2, 2, 2, 1],
-	[1, 1, 1, 1, 1, 2, 1, 1, 1, 0, 1, 0, 1, 1, 1, 2, 1, 1, 1, 1, 1],
-	[0, 0, 0, 0, 1, 2, 1, 0, 0, 0, 0, 0, 0, 0, 1, 2, 1, 0, 0, 0, 0],
-	[1, 1, 1, 1, 1, 2, 1, 0, 1, 1, 5, 1, 1, 0, 1, 2, 1, 1, 1, 1, 1],
-	[6, 0, 0, 0, 0, 2, 0, 0, 1, 5, 0, 5, 1, 0, 0, 2, 0, 0, 0, 0, 7],
-	[1, 1, 1, 1, 1, 2, 1, 0, 1, 1, 5, 1, 1, 0, 1, 2, 1, 1, 1, 1, 1],
-	[0, 0, 0, 0, 1, 2, 1, 0, 0, 0, 0, 0, 0, 0, 1, 2, 1, 0, 0, 0, 0],
-	[1, 1, 1, 1, 1, 2, 1, 0, 1, 1, 1, 1, 1, 0, 1, 2, 1, 1, 1, 1, 1],
-	[1, 2, 2, 2, 2, 2, 2, 2, 2, 2, 1, 2, 2, 2, 2, 2, 2, 2, 2, 2, 1],
-	[1, 2, 1, 1, 1, 2, 1, 1, 1, 2, 1, 2, 1, 1, 1, 2, 1, 1, 1, 2, 1],
-	[1, 3, 2, 2, 1, 2, 2, 2, 2, 2, 4, 2, 2, 2, 2, 2, 1, 2, 2, 3, 1],
-	[1, 1, 1, 2, 1, 2, 1, 2, 1, 1, 1, 1, 1, 2, 1, 2, 1, 2, 1, 1, 1],
-	[1, 2, 2, 2, 2, 2, 1, 2, 2, 2, 1, 2, 2, 2, 1, 2, 2, 2, 2, 2, 1],
-	[1, 2, 1, 1, 1, 1, 1, 1, 1, 2, 1, 2, 1, 1, 1, 1, 1, 1, 1, 2, 1],
-	[1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1]
+	[1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 8, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1],
+	[1, 3, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 0, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 3, 1, 1],
+	[1, 2, 1, 2, 1, 2, 1, 2, 1, 2, 1, 2, 1, 2, 1, 0, 1, 2, 1, 2, 1, 2, 1, 2, 1, 2, 1, 2, 1, 2, 1, 1],
+	[1, 2, 1, 2, 1, 2, 1, 2, 1, 2, 1, 2, 1, 2, 1, 0, 1, 2, 1, 2, 1, 2, 1, 2, 1, 2, 1, 2, 1, 2, 1, 1],
+	[1, 2, 1, 2, 1, 2, 1, 2, 1, 2, 1, 2, 1, 2, 1, 2, 1, 2, 1, 2, 1, 2, 1, 2, 1, 2, 1, 2, 1, 2, 1, 1],
+	[1, 2, 1, 2, 1, 2, 1, 2, 1, 2, 1, 2, 1, 2, 1, 2, 1, 2, 1, 2, 1, 2, 1, 2, 1, 2, 1, 2, 1, 2, 1, 1],
+	[1, 2, 1, 2, 1, 2, 1, 2, 1, 2, 1, 2, 1, 2, 1, 2, 1, 2, 1, 2, 1, 2, 1, 2, 1, 2, 1, 2, 1, 2, 1, 1],
+	[1, 2, 1, 2, 1, 2, 1, 2, 1, 2, 1, 2, 1, 2, 1, 2, 1, 2, 1, 2, 1, 2, 1, 2, 1, 2, 1, 2, 1, 2, 1, 1],
+	[1, 2, 1, 2, 1, 2, 1, 2, 1, 2, 1, 2, 1, 2, 1, 2, 1, 2, 1, 2, 1, 2, 1, 2, 1, 2, 1, 2, 1, 2, 1, 1],
+	[1, 2, 1, 2, 1, 2, 1, 2, 1, 2, 1, 2, 1, 2, 1, 2, 1, 2, 1, 2, 1, 2, 1, 2, 1, 2, 1, 2, 1, 2, 1, 1],
+	[1, 2, 1, 2, 1, 2, 1, 2, 1, 2, 1, 2, 1, 2, 1, 2, 1, 2, 1, 2, 1, 2, 1, 2, 1, 2, 1, 2, 1, 2, 1, 1],
+	[1, 2, 1, 2, 1, 2, 1, 2, 1, 2, 1, 2, 1, 2, 1, 2, 1, 2, 1, 2, 1, 2, 1, 2, 1, 2, 1, 2, 1, 2, 1, 1],
+	[1, 2, 1, 2, 1, 2, 1, 2, 1, 2, 1, 2, 1, 2, 1, 2, 1, 2, 1, 2, 1, 2, 1, 2, 1, 2, 1, 2, 1, 2, 1, 1],
+	[1, 2, 1, 2, 1, 2, 1, 2, 1, 2, 1, 2, 1, 2, 1, 5, 1, 2, 1, 2, 1, 2, 1, 2, 1, 2, 1, 2, 1, 2, 1, 1],
+	[6, 0, 0, 0, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 5, 0, 5, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 0, 0, 0, 7],
+	[1, 2, 1, 2, 1, 2, 1, 2, 1, 2, 1, 2, 1, 2, 1, 5, 1, 2, 1, 2, 1, 2, 1, 2, 1, 2, 1, 2, 1, 2, 1, 1],
+	[1, 2, 1, 2, 1, 2, 1, 2, 1, 2, 1, 2, 1, 2, 1, 2, 1, 2, 1, 2, 1, 2, 1, 2, 1, 2, 1, 2, 1, 2, 1, 1],
+	[1, 2, 1, 2, 1, 2, 1, 2, 1, 2, 1, 2, 1, 2, 1, 2, 1, 2, 1, 2, 1, 2, 1, 2, 1, 2, 1, 2, 1, 2, 1, 1],
+	[1, 2, 1, 2, 1, 2, 1, 2, 1, 2, 1, 2, 1, 2, 1, 2, 1, 2, 1, 2, 1, 2, 1, 2, 1, 2, 1, 2, 1, 2, 1, 1],
+	[1, 2, 1, 2, 1, 2, 1, 2, 1, 2, 1, 2, 1, 2, 1, 2, 1, 2, 1, 2, 1, 2, 1, 2, 1, 2, 1, 2, 1, 2, 1, 1],
+	[1, 2, 1, 2, 1, 2, 1, 2, 1, 2, 1, 2, 1, 2, 1, 2, 1, 2, 1, 2, 1, 2, 1, 2, 1, 2, 1, 2, 1, 2, 1, 1],
+	[1, 2, 1, 2, 1, 2, 1, 2, 1, 2, 1, 2, 1, 2, 1, 2, 1, 2, 1, 2, 1, 2, 1, 2, 1, 2, 1, 2, 1, 2, 1, 1],
+	[1, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 4, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 1, 1],
+	[1, 2, 1, 2, 1, 2, 1, 2, 1, 2, 1, 2, 1, 2, 1, 2, 1, 2, 1, 2, 1, 2, 1, 2, 1, 2, 1, 2, 1, 2, 1, 1],
+	[1, 2, 1, 2, 1, 2, 1, 2, 1, 2, 1, 2, 1, 2, 1, 2, 1, 2, 1, 2, 1, 2, 1, 2, 1, 2, 1, 2, 1, 2, 1, 1],
+	[1, 2, 1, 2, 1, 2, 1, 2, 1, 2, 1, 2, 1, 2, 1, 2, 1, 2, 1, 2, 1, 2, 1, 2, 1, 2, 1, 2, 1, 2, 1, 1],
+	[1, 2, 1, 2, 1, 2, 1, 2, 1, 2, 1, 2, 1, 2, 1, 2, 1, 2, 1, 2, 1, 2, 1, 2, 1, 2, 1, 2, 1, 2, 1, 1],
+	[1, 2, 1, 2, 1, 2, 1, 2, 1, 2, 1, 2, 1, 2, 1, 2, 1, 2, 1, 2, 1, 2, 1, 2, 1, 2, 1, 2, 1, 2, 1, 1],
+	[1, 2, 1, 2, 1, 2, 1, 2, 1, 2, 1, 2, 1, 2, 1, 0, 1, 2, 1, 2, 1, 2, 1, 2, 1, 2, 1, 2, 1, 2, 1, 1],
+	[1, 2, 1, 2, 1, 2, 1, 2, 1, 2, 1, 2, 1, 2, 1, 0, 1, 2, 1, 2, 1, 2, 1, 2, 1, 2, 1, 2, 1, 2, 1, 1],
+	[1, 3, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 0, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 3, 1, 1],
+	[1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 9, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1]
   ]
 }
 
@@ -447,8 +475,16 @@ FILE: ./scripts/core/level_manager.gd
 # ==============================================================================
 # Description: Parses the level JSON file, feeds the layout data to the global
 #              GameManager, and generates the 3D grid of Pac-Man entities.
-#              The floor has been completely removed to avoid rendering glitches,
-#              shadow cascade bugs with orthogonal cameras, and Z-fighting.
+#              SOLID Refactoring:
+#              - DI Container: Preloads and injects player_death.mp3 and BGM.
+#              - Dynamic Height Decoupling: Queries entities for spawn heights.
+#              - Map Expansion (OCP): Support added for vertical portals.
+#              - Procedural Main Menu: Delayed map spawning.
+#              - Pac-Mania Connected Pipes (OCP/SRP): Connected cylindrical rails.
+#              - Map Quality Validator with Visual Context (SRP):
+#                Features strict mathematical validation of map topology,
+#                printing a procedural text-art grid context on error to easily
+#                identify layout flaws in the console.
 # Author: Enrique González Gutiérrez
 # Email: enrique.gonzalez.gutierrez@gmail.com
 # ==============================================================================
@@ -458,7 +494,18 @@ class_name LevelManager
 const CELL_SIZE : float = 2.0
 const WALL_HEIGHT : float = 2.0
 
+# Preloaded Audio Resources (DIP Compliance)
+var waka_audio_stream : AudioStream = preload("res://assets/audio/sfx/waka_waka.mp3")
+var death_audio_stream : AudioStream = preload("res://assets/audio/sfx/player_death.mp3")
+var ghost_eaten_audio_stream : AudioStream = preload("res://assets/audio/sfx/ghost_eaten.mp3") 
+var bgm_stream : AudioStream = preload("res://assets/audio/bgm/level_1_bgm.mp3") 
+
+# Centralized Materials (SRP Compliance)
 var wall_material : StandardMaterial3D
+var player_material : StandardMaterial3D
+var ghost_frightened_material : StandardMaterial3D
+var ghost_materials : Dictionary = {} # Maps type to specific color material
+
 var ghost_types : Array[String] = ["Blinky", "Pinky", "Inky", "Clyde"]
 var spawned_ghosts_count : int = 0
 
@@ -466,17 +513,85 @@ var level_data : Dictionary = {}
 var map_offset_x : float = 0.0
 var map_offset_z : float = 0.0
 
+# Injected entity tracking (SRP Compliance)
+var player_instance : Player = null
+var bgm_player : AudioStreamPlayer = null
+
+# List to temporarily store portal nodes for the linking pass
+var portals_to_link : Array[Dictionary] = []
+
 func _ready() -> void:
 	_initialize_materials()
-	if _load_level_data("res://data/level_01.json"):
-		_build_environment()
+	_connect_game_manager_signals()
+	_setup_bgm() 
+	
+	var hud = get_parent().get_node_or_null("HUD") as HUD
+	if hud:
+		hud.start_game.connect(_on_start_game)
+	else:
+		_on_start_game()
 
-# Initializes materials for walls
+# Centralized visual resource creation
 func _initialize_materials() -> void:
+	# 1. Wall Material (Tube/Pipe Blue)
 	wall_material = StandardMaterial3D.new()
-	wall_material.albedo_color = Color(0.0, 0.0, 1.0) # Classic Pac-Man Blue
+	wall_material.albedo_color = Color(0.0, 0.0, 1.0) # Classic Blue
+	wall_material.roughness = 0.2
+	wall_material.metallic = 0.1
+	
+	# 2. Player Material
+	player_material = StandardMaterial3D.new()
+	player_material.albedo_color = Color(1.0, 1.0, 0.0) # Yellow
+	player_material.roughness = 0.1
+	player_material.metallic = 0.1
+	
+	# 3. Ghost Frightened Material
+	ghost_frightened_material = StandardMaterial3D.new()
+	ghost_frightened_material.albedo_color = Color(0.0, 0.0, 1.0) # Solid Blue
+	ghost_frightened_material.emission_enabled = true
+	ghost_frightened_material.emission = Color(0.0, 0.2, 0.8) # Glowing neon blue
+	
+	# 4. Standard Ghost Materials
+	var blinky_mat := StandardMaterial3D.new()
+	blinky_mat.albedo_color = Color(1.0, 0.0, 0.0) # Red
+	ghost_materials["Blinky"] = blinky_mat
+	
+	var pinky_mat := StandardMaterial3D.new()
+	pinky_mat.albedo_color = Color(1.0, 0.7, 0.8) # Pink
+	pinky_mat.roughness = 0.4
+	ghost_materials["Pinky"] = pinky_mat
+	
+	var inky_mat := StandardMaterial3D.new()
+	inky_mat.albedo_color = Color(0.0, 1.0, 1.0) # Cyan
+	ghost_materials["Inky"] = inky_mat
+	
+	var clyde_mat := StandardMaterial3D.new()
+	clyde_mat.albedo_color = Color(1.0, 0.6, 0.0) # Orange
+	ghost_materials["Clyde"] = clyde_mat
 
-# Loads and parses the JSON level configuration
+# Connect LevelManager to receive global signal notifications
+func _connect_game_manager_signals() -> void:
+	if GameManager:
+		GameManager.power_pellet_activated.connect(_on_power_pellet_activated)
+		GameManager.player_killed.connect(_on_player_killed)
+
+# Programmatically configures and plays the loop background music
+func _setup_bgm() -> void:
+	if bgm_stream:
+		bgm_player = AudioStreamPlayer.new()
+		bgm_player.stream = bgm_stream
+		bgm_player.volume_db = -12.0 
+		bgm_player.autoplay = true
+		add_child(bgm_player)
+		bgm_player.play()
+
+# Triggered dynamically when the player clicks START GAME in the HUD Menu
+func _on_start_game() -> void:
+	if _load_level_data("res://data/level_01.json"):
+		_setup_bgm() # Play Level 1 background music
+		_build_environment() # Generate the 3D map procedural layout
+
+# Loads and parses the JSON level configuration, executing validations
 func _load_level_data(file_path: String) -> bool:
 	if not FileAccess.file_exists(file_path):
 		return false
@@ -491,17 +606,119 @@ func _load_level_data(file_path: String) -> bool:
 	if error == OK:
 		level_data = json.data
 		var layout : Array = level_data.get("layout", [])
+		var width : int = int(level_data.get("grid_width", 0))
+		var height : int = int(level_data.get("grid_height", 0))
+		
+		# Validate the map design before spawning resources
+		if not _validate_map(layout, width, height):
+			push_error("LEVEL LOADING ABORTED: Map validation failed.")
+			return false
+			
 		if GameManager:
 			GameManager.level_layout = layout
-			GameManager.grid_width = int(level_data.get("grid_width", 0))
-			GameManager.grid_height = int(level_data.get("grid_height", 0))
+			GameManager.grid_width = width
+			GameManager.grid_height = height
 			
-		var width : float = float(level_data.get("grid_width", 0))
-		var height : float = float(level_data.get("grid_height", 0))
-		map_offset_x = (width * CELL_SIZE) / 2.0
-		map_offset_z = (height * CELL_SIZE) / 2.0
+		map_offset_x = (float(width) * CELL_SIZE) / 2.0
+		map_offset_z = (float(height) * CELL_SIZE) / 2.0
 		return true
 	return false
+
+# Symmetrical mathematical validator ensuring 100% interconnected corridors with zero dead ends or plazas
+func _validate_map(layout: Array, width: int, height: int) -> bool:
+	# 1. TEST FOR HOLLOW PLAZAS: Scans the grid for any 2x2 empty rooms
+	for z in range(height - 1):
+		for x in range(width - 1):
+			if layout[z][x] != 1 and layout[z][x+1] != 1 and layout[z+1][x] != 1 and layout[z+1][x+1] != 1:
+				# Allow exception ONLY inside the 5x5 Ghost House Foso (columns 12 to 16, rows 12 to 16)
+				if z >= 11 and z <= 15 and x >= 12 and x <= 16:
+					continue
+				push_error("MAP ERROR: Large hollow plaza (2x2 or larger) detected at row %d, col %d!" % [z, x])
+				_print_error_context(layout, x, z, width, height)
+				return false
+
+	# 2. FLOOD FILL CONNECTIVITY TEST: Performs BFS to ensure no pockets or blocked corridors exist
+	var start_pos := Vector2i(-1, -1)
+	var total_walkable_cells : int = 0
+	
+	for z in range(height):
+		for x in range(width):
+			if layout[z][x] != 1:
+				total_walkable_cells += 1
+				if layout[z][x] == 4: # Player Spawn
+					start_pos = Vector2i(x, z)
+					
+	if start_pos == Vector2i(-1, -1):
+		push_error("MAP ERROR: Player Spawn point (4) not found in the grid matrix!")
+		return false
+		
+	var visited := {}
+	var queue : Array[Vector2i] = [start_pos]
+	visited[start_pos] = true
+	var reachable_count : int = 0
+	
+	while not queue.is_empty():
+		var curr : Vector2i = queue.pop_front()
+		reachable_count += 1
+		
+		var dirs = [Vector2i.UP, Vector2i.DOWN, Vector2i.LEFT, Vector2i.RIGHT]
+		for d in dirs:
+			var next_cell = curr + d
+			
+			# Wrap portals around for the connectivity check bounds
+			if next_cell.x < 0: next_cell.x = width - 1
+			if next_cell.x >= width: next_cell.x = 0
+			if next_cell.y < 0: next_cell.y = height - 1
+			if next_cell.y >= height: next_cell.y = 0
+			
+			if layout[next_cell.y][next_cell.x] != 1 and not visited.has(next_cell):
+				visited[next_cell] = true
+				queue.append(next_cell)
+				
+	if reachable_count != total_walkable_cells:
+		push_error("MAP ERROR: Inaccessible paths or dead regions found! Reachable: %d, Total Walkable: %d" % [reachable_count, total_walkable_cells])
+		return false
+
+	# 3. TEST FOR DEAD ENDS: Verifies every single lane tile forms looping paths
+	for z in range(1, height - 1):
+		for x in range(1, width - 1):
+			if layout[z][x] != 1:
+				# Skip the foso spawn points
+				if layout[z][x] == 5:
+					continue
+				var open_neighbors : int = 0
+				var dirs = [Vector2i.UP, Vector2i.DOWN, Vector2i.LEFT, Vector2i.RIGHT]
+				for d in dirs:
+					if layout[z + d.y][x + d.x] != 1:
+						open_neighbors += 1
+				if open_neighbors <= 1:
+					push_error("MAP ERROR: Dead end lane detected at row %d, col %d!" % [z, x])
+					_print_error_context(layout, x, z, width, height)
+					return false
+
+	print("MAP VALIDATOR SUCCESSFUL: 100% Connected, No Plazas, No Dead Ends!")
+	return true
+
+# Helper method to print a gorgeous 3x3 text-art context map centered at the error coordinate
+func _print_error_context(layout: Array, center_x: int, center_z: int, width: int, height: int) -> void:
+	var context_string := "\n--- MAP ERROR VISUAL CONTEXT (Centered at Row %d, Col %d) ---\n" % [center_z, center_x]
+	
+	# Scans the surrounding 3x3 tiles
+	for z in range(max(0, center_z - 1), min(height, center_z + 3)):
+		var line := "Row %02d:  " % z
+		for x in range(max(0, center_x - 1), min(width, center_x + 3)):
+			var cell : int = int(layout[z][x])
+			var cell_char : String = "W" if cell == 1 else str(cell)
+			
+			# Enclose the exact offending tile inside brackets for instant visual identification
+			if z == center_z and x == center_x:
+				line += "[%s]" % cell_char
+			else:
+				line += " %s " % cell_char
+		context_string += line + "\n"
+		
+	context_string += "------------------------------------------------------------------"
+	push_error(context_string)
 
 # Iterates through the layout matrix and spawns the corresponding 3D entities
 func _build_environment() -> void:
@@ -515,69 +732,238 @@ func _build_environment() -> void:
 			var world_pos := Vector3(pos_x, 0.0, pos_z)
 			
 			match cell_type:
-				1: _create_wall(world_pos)
+				1: _create_wall(world_pos, x, z) 
 				2: _create_pellet(world_pos, false)
 				3: _create_pellet(world_pos, true)
 				4: _spawn_player(world_pos)
 				5: _spawn_ghost(world_pos)
 				6: _create_portal(world_pos, "Portal_A", "Portal_B")
 				7: _create_portal(world_pos, "Portal_B", "Portal_A")
+				8: _create_portal(world_pos, "Portal_C", "Portal_D") 
+				9: _create_portal(world_pos, "Portal_D", "Portal_C") 
 
-# Instantiates a 3D wall block
-func _create_wall(pos: Vector3) -> void:
+	# Post-spawn pass: Link portal pairs together directly (DIP Compliance)
+	for link_info in portals_to_link:
+		var my_portal : Portal = link_info["portal"]
+		var partner_portal = get_node_or_null(link_info["partner_name"]) as Portal
+		if partner_portal:
+			my_portal.initialize(partner_portal)
+
+# Instantiates procedurally connected cylindrical pipeline rails (Pac-Mania Style)
+func _create_wall(pos: Vector3, x: int, z: int) -> void:
 	var static_body := StaticBody3D.new()
-	var mesh_instance := MeshInstance3D.new()
-	var collision_shape := CollisionShape3D.new()
 	
-	var box_mesh := BoxMesh.new()
-	box_mesh.size = Vector3(CELL_SIZE, WALL_HEIGHT, CELL_SIZE)
-	mesh_instance.mesh = box_mesh
-	mesh_instance.material_override = wall_material
+	# Determine neighboring wall tiles to orient pipes dynamically (SOLID OCP Compliance)
+	var has_horizontal : bool = false
+	var has_vertical : bool = false
 	
+	var layout : Array = level_data.get("layout", [])
+	var width : int = int(level_data.get("grid_width", 0))
+	var height : int = int(level_data.get("grid_height", 0))
+	
+	# Horizontal check (Left/Right)
+	if x > 0 and int(layout[z][x - 1]) == 1: has_horizontal = true
+	if x < width - 1 and int(layout[z][x + 1]) == 1: has_horizontal = true
+	
+	# Vertical check (Up/Down)
+	if z > 0 and int(layout[z - 1][x]) == 1: has_vertical = true
+	if z < height - 1 and int(layout[z + 1][x]) == 1: has_vertical = true
+	
+	# If isolated pillar, default to cross pipes
+	if not has_horizontal and not has_vertical:
+		has_horizontal = true
+		has_vertical = true
+		
+	# Define a smooth cylindrical tube mesh
+	var pipe_mesh := CylinderMesh.new()
+	pipe_mesh.top_radius = 0.18 # 0.36m diameter round pipe
+	pipe_mesh.bottom_radius = 0.18
+	pipe_mesh.height = CELL_SIZE # Spans the entire 2.0m tile
+	pipe_mesh.radial_segments = 12 # Optimized segment count for performance
+	
+	# Helper lambda to instantiate a pipe mesh instance
+	var create_pipe = func(offset_y: float, is_horiz: bool) -> MeshInstance3D:
+		var pipe_node := MeshInstance3D.new()
+		pipe_node.mesh = pipe_mesh
+		pipe_node.material_override = wall_material
+		pipe_node.position.y = offset_y
+		
+		if is_horiz:
+			# Rotate to point along X axis (East-West)
+			pipe_node.rotation_degrees = Vector3(0.0, 0.0, 90.0)
+		else:
+			# Rotate to point along Z axis (North-South)
+			pipe_node.rotation_degrees = Vector3(90.0, 0.0, 0.0)
+			
+		return pipe_node
+		
+	# Build double-deck parallel horizontal pipes (resting at Y=0.5m and Y=1.5m)
+	if has_horizontal:
+		static_body.add_child(create_pipe.call(0.5, true))
+		static_body.add_child(create_pipe.call(1.5, true))
+		
+	if has_vertical:
+		static_body.add_child(create_pipe.call(0.5, false))
+		static_body.add_child(create_pipe.call(1.5, false))
+		
+	# --- PHYSICAL COLLIDER (20.0m tall invisible wall remains intact) ---
 	var box_shape := BoxShape3D.new()
-	box_shape.size = box_mesh.size
-	collision_shape.shape = box_shape
+	box_shape.size = Vector3(CELL_SIZE, 20.0, CELL_SIZE)
 	
-	static_body.add_child(mesh_instance)
+	var collision_shape := CollisionShape3D.new()
+	collision_shape.shape = box_shape
+	collision_shape.position.y = 10.0 
 	static_body.add_child(collision_shape)
+	
 	static_body.position = pos
-	static_body.position.y = WALL_HEIGHT / 2.0 
 	add_child(static_body)
 
-# Instantiates a standard or power pellet
+# Instantiates a standard or power pellet and connects its signals
 func _create_pellet(pos: Vector3, is_power: bool) -> void:
 	var pellet := Pellet.new()
 	pellet.is_power_pellet = is_power
 	pellet.position = pos
 	pellet.position.y = 0.5
+	
+	# Connect pellet consumption to local router (DIP Compliance)
+	pellet.eaten.connect(_on_pellet_eaten)
+	
 	add_child(pellet)
+	
+	# Centralized pellet counter registration
+	if GameManager:
+		GameManager.register_pellet()
 
-# Instantiates the player character
+# Instantiates the player character and injects its resources
 func _spawn_player(pos: Vector3) -> void:
-	var player := Player.new()
-	player.spawn_position = pos
-	player.position = pos
-	player.position.y = 0.8
-	add_child(player)
+	player_instance = Player.new()
+	player_instance.spawn_position = pos
+	player_instance.position = pos
+	
+	# Dependency Injection (Munch and death audio streams injected)
+	player_instance.initialize(player_material, waka_audio_stream, death_audio_stream)
+	
+	# Dynamic height offset calculation based on player physical size
+	player_instance.position.y = player_instance.get_spawn_height_offset()
+	
+	# Listen to the decoupled death sequence completion event (SRP Compliance)
+	player_instance.death_completed.connect(_on_player_death_completed)
+	
+	add_child(player_instance)
 
-# Instantiates a ghost character with sequential type assignment
+# Factory/DI method: Spawns a ghost, assigns strategy, and injects resources
 func _spawn_ghost(pos: Vector3) -> void:
 	var ghost := Ghost.new()
-	var type_index : int = spawned_ghosts_count % ghost_types.size()
-	ghost.ghost_type = ghost_types[type_index]
+	
+	# Assign sequential ghost type identity
+	var ghost_type : String = ghost_types[spawned_ghosts_count % ghost_types.size()]
 	spawned_ghosts_count += 1
+	
 	ghost.position = pos
-	ghost.position.y = 0.8
+	
+	# Factory creation of concrete behavior strategies (OCP / DIP Compliance)
+	var strategy : GhostBehavior
+	match ghost_type:
+		"Blinky": strategy = BlinkyBehavior.new()
+		"Pinky": strategy = PinkyBehavior.new()
+		"Inky": strategy = InkyBehavior.new()
+		"Clyde": strategy = ClydeBehavior.new()
+		_: strategy = GhostBehavior.new()
+		
+	var norm_mat : StandardMaterial3D = ghost_materials.get(ghost_type)
+	var layout : Array = level_data.get("layout", [])
+	var grid_w : int = int(level_data.get("grid_width", 0))
+	var grid_h : int = int(level_data.get("grid_height", 0))
+	
+	# Inject dependencies
+	ghost.initialize(ghost_type, strategy, norm_mat, ghost_frightened_material, layout, grid_w, grid_h, ghost_eaten_audio_stream)
+	
+	# Dynamic height offset calculation based on ghost physical size
+	ghost.position.y = ghost.get_spawn_height_offset()
+	
+	# Listen to decoupled entity events (DIP Compliance)
+	ghost.player_caught.connect(_on_ghost_player_caught)
+	
 	add_child(ghost)
 
-# Instantiates a warp portal
+# Instantiates a warp portal and registers it for the linking pass
 func _create_portal(pos: Vector3, my_name: String, partner_name: String) -> void:
 	var portal := Portal.new()
 	portal.name = my_name
-	portal.partner_portal_name = partner_name
 	portal.position = pos
 	portal.position.y = 0.8
 	add_child(portal)
+	
+	# Cache link configuration details for the post-spawn linking pass
+	portals_to_link.append({
+		"portal": portal,
+		"partner_name": partner_name
+	})
+
+# Programmatically spawns a 3D Floating Score label above the eaten ghost coordinate (SRP Compliance)
+func _spawn_floating_score(pos: Vector3) -> void:
+	var score_text := FloatingScore3D.new()
+	add_child(score_text)
+	
+	# Spawn the 3D text slightly above the ghost's center (e.g. Y offset + 1.2m)
+	score_text.global_position = pos + Vector3(0.0, 1.2, 0.0)
+
+# --- SIGNAL ROUTING & GAMEPLAY ORCHESTRATION ---
+
+# Signal callback: Routes pellet eating to global GameManager score mutations
+func _on_pellet_eaten(is_power: bool) -> void:
+	if GameManager:
+		if is_power:
+			GameManager.add_score(40)
+			GameManager.activate_power_pellet()
+		GameManager.pellet_eaten()
+
+# Signal callback: Routes ghost caught events to score increments or player death sequence triggers
+# FIXED: Renamed local parameter 'position' to 'catch_position' to prevent shadowing the Node3D base property
+func _on_ghost_player_caught(is_frightened: bool, catch_position: Vector3) -> void:
+	if GameManager:
+		if is_frightened:
+			# Ghost caught while frightened: reward score
+			GameManager.add_score(200)
+			
+			# Spawn the gorgeous rising 3D score popup right where the ghost was eaten!
+			_spawn_floating_score(catch_position)
+		else:
+			# Normal ghost caught Pac-Man:
+			# 1. Freeze all active ghosts in place (Game Feel / Polish)
+			for ghost in get_tree().get_nodes_in_group("ghosts"):
+				if ghost.has_method("set_frozen"):
+					ghost.set_frozen(true)
+					
+			# 2. Pause the background music dramatically during death sequence (SRP Compliance)
+			if bgm_player:
+				bgm_player.stream_paused = true
+					
+			# 3. Instruct Pac-Man to initiate his local sequential death
+			if player_instance:
+				player_instance.die()
+
+# Signal callback: Triggered ONLY after Pac-Man's death sequence finishes (audio + particles)
+func _on_player_death_completed() -> void:
+	if GameManager:
+		# Subtract life (This emits player_killed and automatically triggers unfreezes/resets)
+		GameManager.lose_life()
+
+# Global Signal: Tells all active ghosts to activate frightened mode
+func _on_power_pellet_activated() -> void:
+	for ghost in get_tree().get_nodes_in_group("ghosts"):
+		if ghost.has_method("activate_frightened_mode"):
+			ghost.activate_frightened_mode()
+
+# Global Signal: Tells all active ghosts to reset to spawn positions
+func _on_player_killed() -> void:
+	# Unpause background music when the game/player resets back to action
+	if bgm_player:
+		bgm_player.stream_paused = false
+		
+	for ghost in get_tree().get_nodes_in_group("ghosts"):
+		if ghost.has_method("reset_to_base"):
+			ghost.reset_to_base()
 
 ==================================================
 FILE: ./scripts/entities/behaviors/blinky_behavior.gd
@@ -674,25 +1060,80 @@ func get_target_position(_ghost: CharacterBody3D, player: Node3D) -> Vector3:
 	return _ghost.global_position
 
 ==================================================
+FILE: ./scripts/entities/floating_score.gd
+==================================================
+# ==============================================================================
+# Description: Lightweight Label3D component that displays a 3D score value 
+#              floating upwards in world space, smoothly fading out over time.
+#              SOLID Refactoring:
+#              - SRP: Completely isolated class dedicated to rendering and
+#                animating local 3D floating visual labels (Pac-Mania style).
+# Author: Enrique González Gutiérrez
+# Email: enrique.gonzalez.gutierrez@gmail.com
+# ==============================================================================
+extends Label3D
+class_name FloatingScore3D
+
+# Animation parameters
+const RISE_SPEED : float = 2.0 # Speed at which the text floats upwards
+const FADE_SPEED : float = 1.8 # Speed of transparency fading
+
+func _ready() -> void:
+	# Enable automatic billboarding so the text always faces the active camera
+	billboard = BaseMaterial3D.BILLBOARD_ENABLED
+	
+	# Design configuration
+	text = "200" # Classic Pac-Man score reward for eating ghosts
+	pixel_size = 0.012 # Adjust size to look crisp and clear in 3D space
+	modulate = Color(1.0, 1.0, 1.0, 1.0) # Bright white color
+	outline_modulate = Color(0.0, 0.0, 0.0, 1.0) # Black outline for maximum readability
+	
+	# Safety cleanup timer: guarantees node removal even if frame updates stall
+	var timer = get_tree().create_timer(1.0)
+	timer.timeout.connect(func(): queue_free())
+
+func _process(delta: float) -> void:
+	# 1. Float upwards on the vertical Y axis
+	global_position.y += RISE_SPEED * delta
+	
+	# 2. Smoothly fade transparency out
+	var alpha : float = modulate.a - (FADE_SPEED * delta)
+	if alpha <= 0.0:
+		queue_free()
+	else:
+		modulate.a = alpha
+
+==================================================
 FILE: ./scripts/entities/ghost.gd
 ==================================================
 # ==============================================================================
 # Description: CharacterBody3D controller for Ghosts. Handles primitive capsule
-#              generation, color setting, collision-tested pathfinding, and
-#              assigns SOLID-compliant behavior strategy patterns.
-#              Features grid-based decision making and Perpendicular Snapping
-#              on 90-degree turns to eliminate visual stutters or jerks.
+#              generation, collision-tested pathfinding, and coordinates
+#              with an abstract behavior strategy.
+#              SOLID Refactoring:
+#              - SRP: Removed body.respawn() call.
+#              - Polishing: Added a public `set_frozen` method to freeze ghosts.
+#              - Collision Fix: Only physically blocks with Layer 1 (Walls).
+#              - Visual Effects & OCP: Added a programmatic 3D particle explosion
+#                which dynamically matches the ghost's original color.
+#              - Giant Proportions: Increased size (radius 0.9, height 1.8).
+#              - OCP & DIP (Height Decoupling): Added `get_spawn_height_offset()`.
+#              - Aesthetic Polish: Procedural cartoon-style rotating eyes.
+#              - Real 3D Volumetric Collision: CapsuleShape3D player detector.
+#              - Position Broadcast: Updated the `player_caught` signal to emit
+#                the exact 3D world coordinate where the collision happened.
 # Author: Enrique González Gutiérrez
 # Email: enrique.gonzalez.gutierrez@gmail.com
 # ==============================================================================
 extends CharacterBody3D
 class_name Ghost
 
+# Signals to notify orchestrators of gameplay events (Position is broadcasted)
+signal player_caught(is_frightened: bool, catch_position: Vector3)
+
 # State Machine definitions
 enum State { LEAVING, CHASE, FRIGHTENED }
 var current_state : State = State.LEAVING
-
-@export_enum("Blinky", "Pinky", "Inky", "Clyde") var ghost_type : String = "Blinky"
 
 # Movement constants
 const BASE_SPEED : float = 5.0
@@ -705,132 +1146,204 @@ const CARDINAL_DIRECTIONS = [
 ]
 
 const CELL_SIZE : float = 2.0
-const ALIGNMENT_FORCE : float = 15.0 # Smooth vector steering alignment force
+const ALIGNMENT_FORCE : float = 15.0 
 
 var speed : float = BASE_SPEED
-var ghost_material : StandardMaterial3D
+
+# Injected Dependencies (DIP Compliance)
+var ghost_type : String = "" 
+var behavior_strategy : GhostBehavior
+var original_material : StandardMaterial3D
+var frightened_material : StandardMaterial3D
+var level_layout : Array = []
+var grid_width : int = 0
+var grid_height : int = 0
+var eaten_stream : AudioStream
+
+# Internal Node Components
+var visual_mesh : MeshInstance3D
+var eaten_audio : AudioStreamPlayer
 var current_direction : Vector3 = Vector3.FORWARD
+var next_direction : Vector3 = Vector3.FORWARD
 
 # Frightened timer variables
 var frightened_timer : float = 0.0
 const FRIGHTENED_DURATION : float = 7.0
 
-# Caching positions and foso navigation state
+# Foso navigation state
 var spawn_position : Vector3
-var exit_position : Vector3 = Vector3(0.0, 0.8, -4.0) # Coordinate of the foso gate exit
-var is_inside_foso : bool = true # Force exit navigation prior to player chasing
+var exit_position : Vector3 = Vector3(0.0, 0.8, -4.0) 
+var is_inside_foso : bool = true 
+var is_frozen : bool = false # Freezes ghosts during Pac-Man's death sequence
 
-# Grid tracking variables to achieve arcade-perfect turning at intersections
+# Grid tracking variables to detect intersection crossings
 var last_grid_pos : Vector2i = Vector2i(-1, -1)
 
-# SOLID Strategy reference (Targeting logic is delegated here)
-var behavior_strategy : GhostBehavior
+# Dependency Injection initializer method
+func initialize(
+	type: String,
+	strategy: GhostBehavior, 
+	norm_mat: StandardMaterial3D, 
+	fright_mat: StandardMaterial3D, 
+	layout: Array, 
+	width: int, 
+	height: int,
+	eat_stream: AudioStream
+) -> void:
+	ghost_type = type
+	behavior_strategy = strategy
+	original_material = norm_mat
+	frightened_material = fright_mat
+	level_layout = layout
+	grid_width = width
+	grid_height = height
+	eaten_stream = eat_stream
 
 func _ready() -> void:
 	spawn_position = global_position
 	add_to_group("ghosts")
 	
 	_configure_collision_layers()
-	_initialize_material()
 	_build_ghost_visuals()
 	_setup_player_detection()
-	_initialize_behavior_strategy()
+	_setup_audio()
 	
-	# Initialize the grid position to prevent an instant turn check on frame 1
-	var offset : float = float(GameManager.grid_width * CELL_SIZE / 2.0) - (CELL_SIZE / 2.0)
+	# Initialize directions randomly
+	current_direction = CARDINAL_DIRECTIONS.pick_random()
+	next_direction = current_direction
+	
+	# Initialize grid coordinates safely
+	var offset : float = float(grid_width * CELL_SIZE / 2.0) - (CELL_SIZE / 2.0)
 	var grid_x : int = int(round((global_position.x + offset) / CELL_SIZE))
 	var grid_z : int = int(round((global_position.z + offset) / CELL_SIZE))
 	last_grid_pos = Vector2i(grid_x, grid_z)
-	
-	if GameManager:
-		GameManager.power_pellet_activated.connect(_on_power_pellet_activated)
-		GameManager.player_killed.connect(_on_player_killed)
-	
-	current_direction = CARDINAL_DIRECTIONS.pick_random()
 
-# Configures symmetric collision layers: Ghost is on Layer 3, blocks with Layer 1 (Walls) and Layer 2 (Player)
 func _configure_collision_layers() -> void:
-	# Exist on Layer 3 (Bit value 4)
+	# Exist on Layer 3 (Ghosts)
 	collision_layer = 4
-	# Block physically with Layer 1 (Walls) and Layer 2 (Player) (Bit values 1 + 2 = 3)
-	collision_mask = 3
+	# Only physically block with Layer 1 (Walls)
+	collision_mask = 1
 
-# Instantiate strategy dynamically based on ghost type (SOLID - Open/Closed compliance)
-func _initialize_behavior_strategy() -> void:
-	match ghost_type:
-		"Blinky":
-			behavior_strategy = BlinkyBehavior.new()
-		"Pinky":
-			behavior_strategy = PinkyBehavior.new()
-		"Inky":
-			behavior_strategy = InkyBehavior.new()
-		"Clyde":
-			behavior_strategy = ClydeBehavior.new()
-		_:
-			behavior_strategy = GhostBehavior.new() # Default fallback
-
-# Configures the material color based on the ghost's identity
-func _initialize_material() -> void:
-	if not ghost_material:
-		ghost_material = StandardMaterial3D.new()
-		
-	ghost_material.roughness = 0.2
-	ghost_material.emission_enabled = false
-	
-	match ghost_type:
-		"Blinky":
-			ghost_material.albedo_color = Color(1.0, 0.0, 0.0) # Red
-		"Pinky":
-			ghost_material.albedo_color = Color(1.0, 0.7, 0.8) # Pink
-			ghost_material.roughness = 0.4
-		"Inky":
-			ghost_material.albedo_color = Color(0.0, 1.0, 1.0) # Cyan
-		"Clyde":
-			ghost_material.albedo_color = Color(1.0, 0.6, 0.0) # Orange
-
-# Programmatically builds the capsule mesh and physical collision box
+# Programmatically builds the capsule mesh, physical collision box, and iconic eyes
 func _build_ghost_visuals() -> void:
-	var mesh_instance := MeshInstance3D.new()
+	visual_mesh = MeshInstance3D.new()
 	var collision_shape := CollisionShape3D.new()
 	
-	var radius : float = 0.6
-	var height : float = 1.6
+	# GIANT ARCADE SIZE: Diameter of 1.8m fills 90% of the 2.0m corridor width
+	var radius : float = 0.9
+	var height : float = 1.8
 	
 	var capsule_mesh := CapsuleMesh.new()
 	capsule_mesh.radius = radius
 	capsule_mesh.height = height
-	mesh_instance.mesh = capsule_mesh
-	mesh_instance.material_override = ghost_material
+	visual_mesh.mesh = capsule_mesh
 	
+	if not original_material:
+		original_material = StandardMaterial3D.new()
+		original_material.albedo_color = Color(1.0, 0.0, 0.0)
+		original_material.roughness = 0.2
+		
+	visual_mesh.material_override = original_material
+	
+	# --- PROCEDURAL RETRO GHOST EYES ---
+	var eyes_holder := Node3D.new()
+	
+	var sclera_mat := StandardMaterial3D.new()
+	sclera_mat.albedo_color = Color(1.0, 1.0, 1.0) # Pure White Sclera
+	sclera_mat.roughness = 0.6
+	
+	var pupil_mat := StandardMaterial3D.new()
+	pupil_mat.albedo_color = Color(0.0, 0.2, 1.0) # Classic Pac-Man Blue pupils
+	pupil_mat.roughness = 0.4
+	
+	# 1. Left Sclera Sphere (White Eye)
+	var left_sclera := MeshInstance3D.new()
+	var sclera_mesh := SphereMesh.new()
+	sclera_mesh.radius = 0.2
+	sclera_mesh.height = 0.4
+	left_sclera.mesh = sclera_mesh
+	left_sclera.material_override = sclera_mat
+	left_sclera.position = Vector3(-0.35, 0.4, -0.75) # Forward on Z axis
+	eyes_holder.add_child(left_sclera)
+	
+	# 2. Right Sclera Sphere (White Eye)
+	var right_sclera := MeshInstance3D.new()
+	right_sclera.mesh = sclera_mesh
+	right_sclera.material_override = sclera_mat
+	right_sclera.position = Vector3(0.35, 0.4, -0.75)
+	eyes_holder.add_child(right_sclera)
+	
+	# 3. Left Pupil Sphere (Blue Pupil)
+	var left_pupil := MeshInstance3D.new()
+	var pupil_mesh := SphereMesh.new()
+	pupil_mesh.radius = 0.08
+	pupil_mesh.height = 0.16
+	left_pupil.mesh = pupil_mesh
+	left_pupil.material_override = pupil_mat
+	left_pupil.position = Vector3(-0.35, 0.4, -0.93) # Placed slightly in front of sclera
+	eyes_holder.add_child(left_pupil)
+	
+	# 4. Right Pupil Sphere (Blue Pupil)
+	var right_pupil := MeshInstance3D.new()
+	right_pupil.mesh = pupil_mesh
+	right_pupil.material_override = pupil_mat
+	right_pupil.position = Vector3(0.35, 0.4, -0.93)
+	eyes_holder.add_child(right_pupil)
+	
+	# Add the eyes holder to visual_mesh so they rotate automatically with the body orientation
+	visual_mesh.add_child(eyes_holder)
+	
+	# --- PHYSICAL COLLISION SHAPE ---
 	var capsule_shape := CapsuleShape3D.new()
 	capsule_shape.radius = radius
 	capsule_shape.height = height
 	collision_shape.shape = capsule_shape
 	
-	add_child(mesh_instance)
+	add_child(visual_mesh)
 	add_child(collision_shape)
 
-# Setup a dedicated trigger area to safely detect player intersection on Layer 2
 func _setup_player_detection() -> void:
 	var detection_area := Area3D.new()
 	var detection_shape := CollisionShape3D.new()
 	
-	var sphere_shape := SphereShape3D.new()
-	sphere_shape.radius = 0.85 # Slightly wider to guarantee trigger
-	detection_shape.shape = sphere_shape
+	var capsule_shape := CapsuleShape3D.new()
+	capsule_shape.radius = 0.9
+	capsule_shape.height = 1.8
+	detection_shape.shape = capsule_shape
 	
 	detection_area.add_child(detection_shape)
 	add_child(detection_area)
 	
-	# Explicitly set the Area3D to ONLY monitor Layer 2 (where Pac-Man physically exists)
 	detection_area.collision_layer = 0
 	detection_area.collision_mask = 2
 	
 	detection_area.body_entered.connect(_on_player_detected)
 
-# Main physics loop managing timers, states, movement, and rotation
+func _setup_audio() -> void:
+	eaten_audio = AudioStreamPlayer.new()
+	if eaten_stream:
+		eaten_audio.stream = eaten_stream
+	eaten_audio.max_polyphony = 1
+	eaten_audio.volume_db = -4.0 
+	add_child(eaten_audio)
+
+# Public method to freeze ghost navigation
+func set_frozen(enabled: bool) -> void:
+	is_frozen = enabled
+	if is_frozen:
+		velocity = Vector3.ZERO
+
+# Public API helper
+func get_spawn_height_offset() -> float:
+	return 0.9 
+
+# Main physics loop managing timers, states, movement, and separation
 func _physics_process(delta: float) -> void:
-	# Foso exit controller (Calculated on 2D horizontal plane to prevent Y-axis physics snap bugs)
+	if is_frozen:
+		velocity = Vector3.ZERO
+		move_and_slide()
+		return
+
 	if is_inside_foso:
 		var pos_2d := Vector2(global_position.x, global_position.z)
 		var exit_2d := Vector2(exit_position.x, exit_position.z)
@@ -839,49 +1352,45 @@ func _physics_process(delta: float) -> void:
 			if current_state == State.LEAVING:
 				current_state = State.CHASE
 				speed = BASE_SPEED
-				_initialize_material()
+				_apply_material(original_material)
 				
 	elif current_state == State.FRIGHTENED:
 		frightened_timer -= delta
 		if frightened_timer <= 0.0:
 			_exit_frightened_state()
 		else:
-			# Frightened warning: Blink between Blue and White in the last 2.5 seconds
+			# Frightened blinking warning transition
 			if frightened_timer <= 2.5:
 				var blink = int(frightened_timer * 5.0) % 2 == 0
-				if blink:
-					ghost_material.albedo_color = Color(1.0, 1.0, 1.0)
-					ghost_material.emission_enabled = true
-					ghost_material.emission = Color(0.8, 0.8, 0.8)
-				else:
-					ghost_material.albedo_color = Color(0.0, 0.0, 1.0)
-					ghost_material.emission_enabled = true
-					ghost_material.emission = Color(0.0, 0.2, 0.8)
-			else:
-				ghost_material.albedo_color = Color(0.0, 0.0, 1.0)
-				ghost_material.emission_enabled = true
-				ghost_material.emission = Color(0.0, 0.2, 0.8)
+				if blink and original_material:
+					_apply_material(original_material)
+				elif frightened_material:
+					_apply_material(frightened_material)
+			elif frightened_material:
+				_apply_material(frightened_material)
 
-	# --- GRID-BASED DECISION MAKING LOOP ---
-	# Calculate current grid coordinates dynamically
-	var offset : float = float(GameManager.grid_width * CELL_SIZE / 2.0) - (CELL_SIZE / 2.0)
+	# --- GRID-BASED DECISION MAKING ---
+	var offset : float = float(grid_width * CELL_SIZE / 2.0) - (CELL_SIZE / 2.0)
 	var grid_x : int = int(round((global_position.x + offset) / CELL_SIZE))
 	var grid_z : int = int(round((global_position.z + offset) / CELL_SIZE))
 	var current_grid_pos := Vector2i(grid_x, grid_z)
 	
-	# Evaluate AI direction choice ONLY when entering a new tile or when hitting a wall
 	if current_grid_pos != last_grid_pos:
 		last_grid_pos = current_grid_pos
 		_choose_new_direction()
 	elif is_on_wall():
 		_choose_new_direction()
 		
-	# Apply current speed
+	# --- SMOOTH BUFFERED TURN LOGIC ---
+	if next_direction != Vector3.ZERO and next_direction != current_direction:
+		var test_offset = next_direction * 0.5 
+		if not test_move(global_transform, test_offset):
+			current_direction = next_direction
+		
+	# --- BASE MOVEMENT & SMOOTH STEERING ALIGNMENT ---
 	if current_direction != Vector3.ZERO:
 		velocity = current_direction * speed
 		
-		# SMOOTH STEERING ALIGNMENT: 
-		# Pull ghosts smoothly to the centerline of corridors to prevent wall friction
 		if current_direction.x != 0.0:
 			var target_z = round(global_position.z / CELL_SIZE) * CELL_SIZE
 			velocity.z = (target_z - global_position.z) * ALIGNMENT_FORCE
@@ -891,20 +1400,38 @@ func _physics_process(delta: float) -> void:
 	else:
 		velocity = Vector3.ZERO
 		
+	# --- SOFT SEPARATION (FLOCKING REPULSION) ---
+	var separation := Vector3.ZERO
+	var all_ghosts = get_tree().get_nodes_in_group("ghosts")
+	
+	for g in all_ghosts:
+		if g != self and is_instance_valid(g) and not is_inside_foso:
+			var dist = global_position.distance_to(g.global_position)
+			if dist > 0.0 and dist < 1.9:
+				var push_dir = (global_position - g.global_position).normalized()
+				separation += push_dir * (1.9 - dist) * 3.0
+				
+	velocity += separation
+		
+	# --- ROTATION & PHYSICS UPDATE ---
 	if current_direction != Vector3.ZERO:
 		var target_rotation_y = atan2(-current_direction.x, -current_direction.z)
 		rotation.y = lerp_angle(rotation.y, target_rotation_y, 0.2)
 		
 	move_and_slide()
 
-# Performs a mathematical check in the level matrix to see if a cell is open (Not a wall)
+# Helper to swap visual materials safely
+func _apply_material(mat: StandardMaterial3D) -> void:
+	if visual_mesh and mat:
+		visual_mesh.material_override = mat
+
+# Performs a mathematical check in the injected level matrix to see if a cell is open (Not a wall)
 func _get_matrix_open_directions() -> Array:
 	var open_dirs = []
-	if not GameManager or GameManager.level_layout.is_empty():
+	if level_layout.is_empty():
 		return CARDINAL_DIRECTIONS
 		
-	# Convert current 3D position back to 2D grid index
-	var offset : float = float(GameManager.grid_width * CELL_SIZE / 2.0) - (CELL_SIZE / 2.0)
+	var offset : float = float(grid_width * CELL_SIZE / 2.0) - (CELL_SIZE / 2.0)
 	var grid_x : int = int(round((global_position.x + offset) / CELL_SIZE))
 	var grid_z : int = int(round((global_position.z + offset) / CELL_SIZE))
 	
@@ -912,10 +1439,9 @@ func _get_matrix_open_directions() -> Array:
 		var target_x : int = grid_x + int(dir.x)
 		var target_z : int = grid_z + int(dir.z)
 		
-		# Bounds check
-		if target_x >= 0 and target_x < GameManager.grid_width and target_z >= 0 and target_z < GameManager.grid_height:
-			var cell_type : int = int(GameManager.level_layout[target_z][target_x])
-			if cell_type != 1: # Cell is not a wall
+		if target_x >= 0 and target_x < grid_width and target_z >= 0 and target_z < grid_height:
+			var cell_type : int = int(level_layout[target_z][target_x])
+			if cell_type != 1: 
 				open_dirs.append(dir)
 				
 	return open_dirs
@@ -936,16 +1462,14 @@ func _choose_new_direction() -> void:
 
 	var player = get_tree().get_first_node_in_group("player")
 	if not player:
-		current_direction = possible_directions.pick_random()
+		next_direction = possible_directions.pick_random()
 		return
 
 	var target_pos : Vector3 = player.global_position
 
 	if is_inside_foso:
-		# When inside the base, target is ALWAYS the exit gate coordinate
 		target_pos = exit_position
 	elif current_state == State.FRIGHTENED:
-		# Fleeing AI: Pick direction that maximizes distance to Player
 		var best_dir = possible_directions[0]
 		var max_dist : float = -1.0
 		for dir in possible_directions:
@@ -954,16 +1478,12 @@ func _choose_new_direction() -> void:
 			if dist > max_dist:
 				max_dist = dist
 				best_dir = dir
-		current_direction = best_dir
+		next_direction = best_dir
 		return
 	else:
-		# Chase AI: Delegate calculation to active SOLID Behavior Strategy
 		if behavior_strategy:
 			target_pos = behavior_strategy.get_target_position(self, player)
 
-	var next_dir : Vector3 = current_direction
-
-	# 85% chance to seek target, 15% chance to wander randomly
 	if randf() < 0.85:
 		var best_dir = possible_directions[0]
 		var min_dist : float = 999999.0
@@ -975,82 +1495,108 @@ func _choose_new_direction() -> void:
 				min_dist = dist
 				best_dir = dir
 				
-		next_dir = best_dir
+		next_direction = best_dir
 	else:
-		next_dir = possible_directions.pick_random()
-		
-	# Apply perpendicular snapping to eliminate visual jerking on 90-degree turns
-	if next_dir != current_direction:
-		_snap_to_cell_center(current_direction, next_dir)
-		current_direction = next_dir
+		next_direction = possible_directions.pick_random()
 
-# Snaps the ghost position to the center of the current cell along the axis they are leaving
-func _snap_to_cell_center(old_dir: Vector3, new_dir: Vector3) -> void:
-	var offset : float = float(GameManager.grid_width * CELL_SIZE / 2.0) - (CELL_SIZE / 2.0)
-	var grid_x : int = int(round((global_position.x + offset) / CELL_SIZE))
-	var grid_z : int = int(round((global_position.z + offset) / CELL_SIZE))
-	
-	var center_x : float = (grid_x * CELL_SIZE) - offset
-	var center_z : float = (grid_z * CELL_SIZE) - offset
-	
-	# Turning from horizontal (X) to vertical (Z): instantly snap X to corridor centerline
-	if old_dir.x != 0.0 and new_dir.z != 0.0:
-		global_position.x = center_x
-	# Turning from vertical (Z) to horizontal (X): instantly snap Z to corridor centerline
-	elif old_dir.z != 0.0 and new_dir.x != 0.0:
-		global_position.z = center_z
-
-# Signal Callback: Triggers Frightened mode on power pellet intake
-func _on_power_pellet_activated() -> void:
+# Public method: Triggers Frightened mode
+func activate_frightened_mode() -> void:
 	current_state = State.FRIGHTENED
 	speed = FRIGHTENED_SPEED
 	frightened_timer = FRIGHTENED_DURATION
 	
-	ghost_material.albedo_color = Color(0.0, 0.0, 1.0) # Solid Blue
-	ghost_material.emission_enabled = true
-	ghost_material.emission = Color(0.0, 0.2, 0.8) # Glowing Blue
+	next_direction = -current_direction
+	_apply_material(frightened_material)
 
 # Restores the ghost back to standard chase behavior
 func _exit_frightened_state() -> void:
 	current_state = State.CHASE
 	speed = BASE_SPEED
-	_initialize_material()
+	_apply_material(original_material)
 
-# Signal Callback: Resets ghost back to base as LEAVING state when player dies
-func _on_player_killed() -> void:
+# Public method: Resets ghost back to base (DIP Compliance)
+func reset_to_base() -> void:
+	is_frozen = false 
 	global_position = spawn_position
-	is_inside_foso = true # Reactivate exit gate navigation path
+	is_inside_foso = true 
 	current_state = State.LEAVING
 	speed = BASE_SPEED
-	_initialize_material()
-	current_direction = CARDINAL_DIRECTIONS.pick_random()
+	_apply_material(original_material)
 	
-	# Re-initialize grid coordinates to prevent offset errors on restart
-	var offset : float = float(GameManager.grid_width * CELL_SIZE / 2.0) - (CELL_SIZE / 2.0)
+	current_direction = CARDINAL_DIRECTIONS.pick_random()
+	next_direction = current_direction
+	
+	var offset : float = float(grid_width * CELL_SIZE / 2.0) - (CELL_SIZE / 2.0)
 	var grid_x : int = int(round((global_position.x + offset) / CELL_SIZE))
 	var grid_z : int = int(round((global_position.z + offset) / CELL_SIZE))
 	last_grid_pos = Vector2i(grid_x, grid_z)
 
-# Handles player intersection depending on current state
+# Programmatically spawns a beautiful ghostly particle explosion when eaten and plays sound
+func play_eaten_particles() -> void:
+	if eaten_audio and eaten_audio.stream:
+		eaten_audio.play()
+		
+	var particles := GPUParticles3D.new()
+	
+	var mesh := BoxMesh.new()
+	mesh.size = Vector3(0.12, 0.12, 0.12)
+	
+	var mat := StandardMaterial3D.new()
+	if original_material:
+		mat.albedo_color = original_material.albedo_color
+	else:
+		mat.albedo_color = Color(0.0, 1.0, 1.0) 
+	mat.shading_mode = StandardMaterial3D.SHADING_MODE_UNSHADED
+	mesh.material = mat
+	particles.draw_pass_1 = mesh
+	
+	var p_mat := ParticleProcessMaterial.new()
+	p_mat.emission_shape = ParticleProcessMaterial.EMISSION_SHAPE_SPHERE
+	p_mat.emission_sphere_radius = 0.2
+	
+	p_mat.direction = Vector3.UP
+	p_mat.spread = 180.0 
+	
+	p_mat.initial_velocity_min = 3.0
+	p_mat.initial_velocity_max = 5.0
+	p_mat.gravity = Vector3(0.0, -8.0, 0.0) 
+	
+	p_mat.damping_min = 1.0
+	p_mat.damping_max = 2.0
+	
+	particles.process_material = p_mat
+	
+	particles.amount = 20
+	particles.one_shot = true
+	particles.explosiveness = 1.0
+	particles.lifetime = 0.6
+	
+	var eaten_position = global_position
+	
+	get_parent().add_child(particles)
+	particles.global_position = eaten_position
+	particles.emitting = true
+	
+	var timer = get_tree().create_timer(1.0)
+	timer.timeout.connect(func(): particles.queue_free())
+
+# Handles player intersection and emits state notification signals
 func _on_player_detected(body: Node3D) -> void:
 	if body.is_in_group("player"):
 		if current_state == State.FRIGHTENED:
-			if GameManager:
-				GameManager.add_score(200)
+			play_eaten_particles()
+			
+			# Notify listeners with both the state and the exact 3D world coordinate (DIP Compliance)
+			player_caught.emit(true, global_position)
 			
 			global_position = spawn_position
-			is_inside_foso = true # Reactivate foso exit pathing on respawn
+			is_inside_foso = true 
 			current_state = State.LEAVING
 			speed = BASE_SPEED
-			_initialize_material()
+			_apply_material(original_material)
 		else:
-			# Only kill player if the ghost is out of the foso and in CHASE mode
-			if current_state == State.CHASE:
-				if GameManager:
-					GameManager.lose_life()
-					
-				if body.has_method("respawn"):
-					body.respawn()
+			# Notify listeners of player catch with coordinates
+			player_caught.emit(false, global_position)
 
 ==================================================
 FILE: ./scripts/entities/ghost_behavior.gd
@@ -1076,23 +1622,26 @@ func get_target_position(ghost: CharacterBody3D, player: Node3D) -> Vector3:
 FILE: ./scripts/entities/pellet.gd
 ==================================================
 # ==============================================================================
-# Description: Script for the pellet entity (Area3D) that registers itself with 
-#              the GameManager, joins the "pellets" group, detects Player class
-#              collision on Layer 2, and features unshaded (always bright) materials
-#              to prevent them from turning black in shadowed corridors.
+# Description: Script for the pellet entity (Area3D) that joins the "pellets" 
+#              group and detects Player class collisions on Layer 2.
+#              SOLID Refactoring:
+#              - DIP: Completely decoupled from the GameManager singleton. 
+#                Instead of directly mutating global scores, it emits an `eaten` 
+#                signal, leaving gameplay state management to the orchestrating classes.
 # Author: Enrique González Gutiérrez
 # Email: enrique.gonzalez.gutierrez@gmail.com
 # ==============================================================================
 extends Area3D
 class_name Pellet
 
+# Signal emitted when eaten, delegating gameplay state mutations (DIP Compliance)
+signal eaten(is_power: bool)
+
 @export var is_power_pellet : bool = false
 var pellet_material : StandardMaterial3D
 
 func _ready() -> void:
 	add_to_group("pellets")
-	if GameManager:
-		GameManager.register_pellet()
 	_configure_collision_layers()
 	_initialize_material()
 	_build_pellet_visuals()
@@ -1130,11 +1679,14 @@ func _build_pellet_visuals() -> void:
 
 func _on_body_entered(body: Node3D) -> void:
 	if body is Player:
-		if GameManager:
-			if is_power_pellet:
-				GameManager.add_score(40)
-				GameManager.activate_power_pellet()
-			GameManager.pellet_eaten()
+		# Let the player trigger its own eat sound (SRP Compliance)
+		if body.has_method("play_eat_sound"):
+			body.play_eat_sound()
+			
+		# Emit signal to let orchestrators handle score/state updates (DIP Compliance)
+		eaten.emit(is_power_pellet)
+		
+		# Self-destroy
 		queue_free()
 
 ==================================================
@@ -1143,46 +1695,81 @@ FILE: ./scripts/entities/player.gd
 # ==============================================================================
 # Description: CharacterBody3D controller for Pac-Man. Handles movement inputs,
 #              visual mesh rotation, and continuous arcade movement.
-#              Features an ORTHOGRAPHIC top-down camera to prevent 3D perspective
-#              optical illusions (walls hiding objects on the edges).
+#              Features an ORTHOGRAPHIC top-down camera to prevent 3D perspective.
+#              SOLID Refactoring:
+#              - SRP & State Machine: Added a self-contained `DEAD` state.
+#              - Collision Fix: Only physically blocks with Layer 1 (Walls).
+#              - Giant Arcade Proportions: Giant 1.7m diameter sphere.
+#              - Dynamic Cinematic Camera: Perspective Follow Camera.
+#              - OPTIMIZED PERSPECTIVE: Calibrated camera offsets (Y=15.0, Z=6.0,
+#                Pitch=-68, FOV=48.0) to achieve a gorgeous, highly readable
+#                Diorama/Tilt-Shift style. This completely prevents foreground
+#                walls from blocking Pac-Man and the lower lanes.
 # Author: Enrique González Gutiérrez
 # Email: enrique.gonzalez.gutierrez@gmail.com
 # ==============================================================================
 extends CharacterBody3D
 class_name Player
 
+# Signal emitted when the death audio and particles finish (DIP Compliance)
+signal death_completed()
+
 const SPEED : float = 7.0
 const CELL_SIZE : float = 2.0 
 const ALIGNMENT_FORCE : float = 15.0 
 
-var player_material : StandardMaterial3D
-var visual_mesh : MeshInstance3D 
+# Jump & Gravity Constants (Virtual physics - Calibrated for high clearance)
+const JUMP_VELOCITY : float = 14.5 
+const GRAVITY : float = 40.0 
 
+# Injected Dependencies (DIP Compliance)
+var player_material : StandardMaterial3D
+var munch_stream : AudioStream
+var death_stream : AudioStream
+
+# Internal Node Components
+var visual_mesh : MeshInstance3D 
+var munch_audio : AudioStreamPlayer
+var death_audio : AudioStreamPlayer
+var camera_holder : Node3D # Tilted independent pivot for smooth tracking
+
+# Gameplay State
 var spawn_position : Vector3
 var current_direction : Vector3 = Vector3.ZERO
 var next_direction : Vector3 = Vector3.ZERO
+var is_dead : bool = false
+
+# Jump States
+var virtual_floor_y : float = 0.85 # Calibrated automatically on ready
+var is_jumping : bool = false
+
+# Dependency Injection initializer method
+func initialize(material: StandardMaterial3D, audio_stream: AudioStream, d_stream: AudioStream) -> void:
+	player_material = material
+	munch_stream = audio_stream
+	death_stream = d_stream
 
 func _ready() -> void:
 	add_to_group("player")
 	_configure_collision_layers()
-	_initialize_material()
 	_build_player_visuals()
 	_setup_camera()
+	_setup_audio()
+	
+	# Automatically calibrate virtual floor based on injected height coordinate (SOLID DIP)
+	virtual_floor_y = global_position.y
 
 func _configure_collision_layers() -> void:
+	# Exist on Layer 2 (Player)
 	collision_layer = 2
-	collision_mask = 5
-
-func _initialize_material() -> void:
-	player_material = StandardMaterial3D.new()
-	player_material.albedo_color = Color(1.0, 1.0, 0.0) 
-	player_material.roughness = 0.1
-	player_material.metallic = 0.1
+	# Only physically block with Layer 1 (Walls)
+	collision_mask = 1
 
 func _build_player_visuals() -> void:
 	visual_mesh = MeshInstance3D.new()
 	var collision_shape := CollisionShape3D.new()
-	var radius : float = 0.8
+	
+	var radius : float = 0.85
 	
 	var sphere_mesh := SphereMesh.new()
 	sphere_mesh.radius = radius
@@ -1197,35 +1784,171 @@ func _build_player_visuals() -> void:
 	add_child(visual_mesh)
 	add_child(collision_shape)
 
+# Set up an optimized dynamic perspective following camera (Diorama style)
 func _setup_camera() -> void:
-	var spring_arm := SpringArm3D.new()
-	spring_arm.top_level = true
-	spring_arm.position = Vector3(0.0, 30.0, 0.0)
-	spring_arm.rotation_degrees = Vector3(-90.0, 0.0, 0.0)
-	spring_arm.spring_length = 0.0
+	camera_holder = Node3D.new()
+	camera_holder.top_level = true
+	
+	add_child(camera_holder)
+	camera_holder.global_position = global_position
 	
 	var camera := Camera3D.new()
+	camera.projection = Camera3D.PROJECTION_PERSPECTIVE
 	
-	# =======================================================================
-	# LA CLAVE: Cámara Ortográfica. Elimina la perspectiva 3D, hace que 
-	# los muros sean rectos en toda la pantalla y nada quede oculto.
-	# =======================================================================
-	camera.projection = Camera3D.PROJECTION_ORTHOGONAL
-	# Tamaño para abarcar los 21x21 bloques (42 metros) más un pequeño margen
-	camera.size = 46.0 
+	# OPTIMIZED OPTICS: Narrower FOV + steeper tilt angle acts like a cinematic
+	# telephoto lens, rendering a clean, perfectly readable 3D diorama map view.
+	camera.fov = 48.0 
+	camera.position = Vector3(0.0, 15.0, 6.0)
+	camera.rotation_degrees = Vector3(-68.0, 0.0, 0.0)
 	
-	camera.current = true 
+	camera.current = true
 	
-	spring_arm.add_child(camera)
-	add_child(spring_arm)
+	camera_holder.add_child(camera)
 
+# Sets up separate, non-overlapping audio channels
+func _setup_audio() -> void:
+	# 1. Munch Audio Player (Waka-Waka)
+	munch_audio = AudioStreamPlayer.new()
+	if munch_stream:
+		munch_audio.stream = munch_stream
+	munch_audio.max_polyphony = 1
+	munch_audio.volume_db = -5.0 
+	add_child(munch_audio)
+	
+	# 2. Death Audio Player
+	death_audio = AudioStreamPlayer.new()
+	if death_stream:
+		death_audio.stream = death_stream
+	death_audio.max_polyphony = 1
+	death_audio.volume_db = -3.0 
+	add_child(death_audio)
+
+# Public method to be called when eating a pellet
+func play_eat_sound() -> void:
+	if munch_audio and munch_audio.stream:
+		munch_audio.stop()
+		munch_audio.play()
+
+# Public method: Initiates the sequential, gated death routine (SRP Compliance)
+func die() -> void:
+	if is_dead:
+		return
+	is_dead = true
+	
+	if visual_mesh:
+		visual_mesh.visible = false
+		
+	play_death_particles()
+	
+	if death_audio and death_audio.stream:
+		await death_audio.finished
+	else:
+		await get_tree().create_timer(1.0).timeout
+		
+	death_completed.emit()
+	
+	_actual_respawn()
+
+# Programmatically spawns particles and starts audio playback
+func play_death_particles() -> void:
+	if death_audio and death_audio.stream:
+		death_audio.play()
+		
+	var particles := GPUParticles3D.new()
+	
+	var mesh := BoxMesh.new()
+	mesh.size = Vector3(0.15, 0.15, 0.15)
+	
+	var mat := StandardMaterial3D.new()
+	if player_material:
+		mat.albedo_color = player_material.albedo_color
+	else:
+		mat.albedo_color = Color(1.0, 1.0, 0.0)
+	mat.shading_mode = StandardMaterial3D.SHADING_MODE_UNSHADED
+	mesh.material = mat
+	particles.draw_pass_1 = mesh
+	
+	var p_mat := ParticleProcessMaterial.new()
+	p_mat.emission_shape = ParticleProcessMaterial.EMISSION_SHAPE_SPHERE
+	p_mat.emission_sphere_radius = 0.3
+	
+	p_mat.direction = Vector3.UP
+	p_mat.spread = 180.0 
+	
+	p_mat.initial_velocity_min = 4.0
+	p_mat.initial_velocity_max = 7.0
+	p_mat.gravity = Vector3(0.0, -12.0, 0.0) 
+	
+	p_mat.damping_min = 1.0
+	p_mat.damping_max = 2.0
+	
+	particles.process_material = p_mat
+	
+	particles.amount = 30
+	particles.one_shot = true
+	particles.explosiveness = 1.0
+	particles.lifetime = 0.8
+	
+	var death_position = global_position
+	
+	get_parent().add_child(particles)
+	particles.global_position = death_position
+	particles.emitting = true
+	
+	var timer = get_tree().create_timer(1.0)
+	timer.timeout.connect(func(): particles.queue_free())
+
+# Teleports the player back to start
 func respawn() -> void:
+	_actual_respawn()
+
+# Handles physical coordinate teleports and restores visibility
+func _actual_respawn() -> void:
 	global_position = spawn_position
 	velocity = Vector3.ZERO
 	current_direction = Vector3.ZERO
 	next_direction = Vector3.ZERO
+	is_jumping = false
+	
+	if visual_mesh:
+		visual_mesh.visible = true
+	
+	# Instant camera snap back to spawn coordinate to prevent sliding confusion
+	if is_instance_valid(camera_holder):
+		camera_holder.global_position = spawn_position
+		
+	is_dead = false
 
-func _physics_process(_delta: float) -> void:
+# Public API helper
+func get_spawn_height_offset() -> float:
+	return 0.85
+
+func _physics_process(delta: float) -> void:
+	# Keep the camera following smoothly even when Pac-Man is dead
+	if is_instance_valid(camera_holder):
+		# Buttery-smooth LERP interpolation (0.08) creates elegant drag/damping inertia
+		camera_holder.global_position = camera_holder.global_position.lerp(global_position, 0.08)
+
+	if is_dead:
+		velocity = Vector3.ZERO
+		move_and_slide()
+		return
+
+	# --- VIRTUAL JUMP PHYSICS (GRAVITY & LANDING) ---
+	if global_position.y > virtual_floor_y:
+		# Apply gravity downwards
+		velocity.y -= GRAVITY * delta
+	else:
+		# Clamp Pac-Man flat on the floor
+		velocity.y = 0.0
+		global_position.y = virtual_floor_y
+		is_jumping = false
+		
+	# Trigger Jump: spacebar (mapped to ui_select by default)
+	if Input.is_action_just_pressed("ui_select") and not is_jumping:
+		velocity.y = JUMP_VELOCITY
+		is_jumping = true
+
 	_handle_arcade_input()
 	_process_arcade_movement()
 
@@ -1247,7 +1970,10 @@ func _process_arcade_movement() -> void:
 			next_direction = Vector3.ZERO 
 			
 	if current_direction != Vector3.ZERO:
+		# Preserve the vertical jump velocity while moving horizontally
+		var y_vel = velocity.y
 		velocity = current_direction * SPEED
+		velocity.y = y_vel
 		
 		if current_direction.x != 0.0:
 			var target_z = round(global_position.z / CELL_SIZE) * CELL_SIZE
@@ -1259,7 +1985,9 @@ func _process_arcade_movement() -> void:
 		var target_rotation_y = atan2(-current_direction.x, -current_direction.z)
 		visual_mesh.rotation.y = lerp_angle(visual_mesh.rotation.y, target_rotation_y, 0.25)
 	else:
+		var y_vel = velocity.y
 		velocity = Vector3.ZERO
+		velocity.y = y_vel
 		
 	move_and_slide()
 
@@ -1269,14 +1997,23 @@ FILE: ./scripts/entities/portal.gd
 # ==============================================================================
 # Description: Generic portal teleporter (Area3D) that transfers any physics 
 #              body to a partner portal, adhering to SOLID principles.
+#              SOLID Refactoring:
+#              - DIP: Removed scene tree string-based node lookups. The sibling
+#                partner portal is directly injected as a Node3D reference.
+#              - Robustness: Replaced metadata string name comparison with 
+#                direct object reference comparisons, preventing rename bugs.
 # Author: Enrique González Gutiérrez
 # Email: enrique.gonzalez.gutierrez@gmail.com
 # ==============================================================================
 extends Area3D
 class_name Portal
 
-# The name of the sibling portal to teleport the body to
-@export var partner_portal_name : String = ""
+# Injected Dependency (DIP Compliance)
+var partner_portal : Portal = null
+
+# Dependency Injection initializer
+func initialize(partner: Portal) -> void:
+	partner_portal = partner
 
 func _ready() -> void:
 	_build_portal_collision()
@@ -1285,8 +2022,12 @@ func _ready() -> void:
 	body_entered.connect(_on_body_entered)
 	body_exited.connect(_on_body_exited)
 
-# Programmatically builds the trigger area collision box
+# Programmatically builds the trigger area collision box and sets Layers
 func _build_portal_collision() -> void:
+	# Detect Layer 2 (Player) and Layer 3 (Ghosts)
+	collision_layer = 0
+	collision_mask = 6
+	
 	var collision_shape := CollisionShape3D.new()
 	var box_shape := BoxShape3D.new()
 	
@@ -1298,46 +2039,60 @@ func _build_portal_collision() -> void:
 
 # Callback: Triggers when a player or ghost enters the portal area
 func _on_body_entered(body: Node3D) -> void:
-	# Avoid infinite loop: If the body has just teleported here from the other side, ignore it
-	if body.has_meta("just_teleported"):
+	# Avoid teleportation loop: check if the body has just teleported here (referencing this node)
+	if body.has_meta("last_portal") and body.get_meta("last_portal") == self:
 		return
 		
-	# Find the partner portal node dynamically as a sibling in the LevelManager tree
-	var partner = get_parent().get_node_or_null(partner_portal_name) as Node3D
-	if partner:
-		# Mark the body so the target portal ignores its arrival trigger
-		body.set_meta("just_teleported", true)
+	if partner_portal:
+		# Mark the body with the destination portal's object reference
+		body.set_meta("last_portal", partner_portal)
 		
 		# Execute instantaneous teleportation
-		body.global_position = partner.global_position
+		body.global_position = partner_portal.global_position
 
 # Callback: Triggers when the body physically leaves the portal area
 func _on_body_exited(body: Node3D) -> void:
-	# Wipe the metadata flag once the body is clear of the area, ready for another warp
-	if body.has_meta("just_teleported"):
-		body.remove_meta("just_teleported")
+	# Clear the metadata tag once the entity fully steps out of the destination portal
+	if body.has_meta("last_portal") and body.get_meta("last_portal") == self:
+		body.remove_meta("last_portal")
 
 ==================================================
 FILE: ./scripts/ui/hud.gd
 ==================================================
 # ==============================================================================
-# Description: HUD manager. Programmatically sets up UI labels for score/lives,
-#              overlays, and hosts an integrated responsive 2D Minimap.
-#              Fixes the half-cell offset calculation for perfect alignment.
+# Description: HUD and Main Menu manager. Programmatically constructs the full
+#              main menu (background, title, buttons, audio) on startup.
+#              SOLID Refactoring:
+#              - SRP: Orchestrates both HUD labels and the procedural main menu.
+#              - DIP: The menu BGM stream is loaded dynamically.
+#              - UX Update: Added full keyboard navigation support and custom 
+#                glowing focus/hover styleboxes for arcade-style button selections.
 # Author: Enrique González Gutiérrez
 # Email: enrique.gonzalez.gutierrez@gmail.com
 # ==============================================================================
 extends Control
 class_name HUD
 
+# Signals to notify coordinators of game start (DIP Compliance)
+signal start_game()
+
+# HUD Components
 var score_label : Label
 var lives_label : Label
 var status_overlay : ColorRect
 var status_label : Label
 var minimap : Minimap2D
 
+# Main Menu Components (Procedural UI)
+var menu_bg : TextureRect
+var menu_title : Label
+var start_button : Button
+var exit_button : Button
+var menu_bgm : AudioStreamPlayer
+
 func _ready() -> void:
 	_build_hud_elements()
+	_build_main_menu() 
 	
 	# Connect to global GameManager signals safely
 	if GameManager:
@@ -1350,23 +2105,24 @@ func _ready() -> void:
 		_on_score_changed(GameManager.score)
 		_on_lives_changed(GameManager.lives)
 
-# Programmatically constructs the layout tree using responsive anchors
+# Programmatically constructs the HUD layout tree
 func _build_hud_elements() -> void:
-	# Make the main HUD control container fill the full screen rect
 	set_anchors_and_offsets_preset(Control.PRESET_FULL_RECT)
 	
-	# 1. Score Label Setup (Top-Left corner preset)
+	# 1. Score Label Setup
 	score_label = Label.new()
 	score_label.add_theme_font_size_override("font_size", 28)
+	score_label.visible = false
 	add_child(score_label)
 	score_label.set_anchors_and_offsets_preset(Control.PRESET_TOP_LEFT)
 	score_label.offset_left = 24
 	score_label.offset_top = 24
 	
-	# 2. Lives Label Setup (Top-Right corner preset with reverse text grow)
+	# 2. Lives Label Setup
 	lives_label = Label.new()
 	lives_label.horizontal_alignment = HORIZONTAL_ALIGNMENT_RIGHT
 	lives_label.add_theme_font_size_override("font_size", 28)
+	lives_label.visible = false
 	add_child(lives_label)
 	
 	lives_label.set_anchors_and_offsets_preset(Control.PRESET_TOP_RIGHT)
@@ -1375,26 +2131,26 @@ func _build_hud_elements() -> void:
 	lives_label.offset_right = -24
 	lives_label.offset_top = 24
 	
-	# 3. Minimap 2D Setup (Bottom-Right corner preset)
+	# 3. Minimap 2D Setup
 	minimap = Minimap2D.new()
+	minimap.visible = false
 	add_child(minimap)
 	minimap.set_anchors_and_offsets_preset(Control.PRESET_BOTTOM_RIGHT)
 	minimap.grow_horizontal = Control.GROW_DIRECTION_BEGIN
 	minimap.grow_vertical = Control.GROW_DIRECTION_BEGIN
-	# Size is 180x180 pixels with a 24px margin
 	minimap.offset_left = -204
 	minimap.offset_top = -204
 	minimap.offset_right = -24
 	minimap.offset_bottom = -24
 	
-	# 4. Status Full-Screen Overlay (Fades the screen on win or loss)
+	# 4. Status Full-Screen Overlay
 	status_overlay = ColorRect.new()
-	status_overlay.color = Color(0.0, 0.0, 0.0, 0.75) # Semi-transparent black background
+	status_overlay.color = Color(0.0, 0.0, 0.0, 0.75) 
 	status_overlay.visible = false
 	add_child(status_overlay)
 	status_overlay.set_anchors_and_offsets_preset(Control.PRESET_FULL_RECT)
 	
-	# 5. Status Text inside the overlay (Centered)
+	# 5. Status Text inside the overlay
 	status_label = Label.new()
 	status_label.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
 	status_label.vertical_alignment = VERTICAL_ALIGNMENT_CENTER
@@ -1404,27 +2160,158 @@ func _build_hud_elements() -> void:
 	status_label.grow_horizontal = Control.GROW_DIRECTION_BOTH
 	status_label.grow_vertical = GROW_DIRECTION_BOTH
 
-# Callback: Updates the text whenever points are scored
+# Programmatically builds the full-screen Main Menu overlay
+func _build_main_menu() -> void:
+	# 1. Menu Background
+	menu_bg = TextureRect.new()
+	menu_bg.texture = load("res://assets/ui/images/main_menu_bg.png")
+	menu_bg.expand_mode = TextureRect.EXPAND_IGNORE_SIZE
+	menu_bg.stretch_mode = TextureRect.STRETCH_KEEP_ASPECT_COVERED
+	add_child(menu_bg)
+	menu_bg.set_anchors_and_offsets_preset(Control.PRESET_FULL_RECT)
+	
+	var darken_overlay := ColorRect.new()
+	darken_overlay.color = Color(0.0, 0.0, 0.0, 0.45)
+	menu_bg.add_child(darken_overlay)
+	darken_overlay.set_anchors_and_offsets_preset(Control.PRESET_FULL_RECT)
+	
+	# 2. Glowing Title
+	menu_title = Label.new()
+	menu_title.text = "PAC-MAN 3D"
+	menu_title.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+	menu_title.add_theme_font_size_override("font_size", 72)
+	menu_title.add_theme_color_override("font_color", Color(1.0, 1.0, 0.0)) 
+	menu_title.add_theme_color_override("font_outline_color", Color(0.0, 0.0, 1.0)) 
+	menu_title.add_theme_constant_override("outline_size", 14)
+	menu_bg.add_child(menu_title)
+	
+	menu_title.set_anchors_and_offsets_preset(Control.PRESET_CENTER_TOP)
+	menu_title.grow_horizontal = Control.GROW_DIRECTION_BOTH
+	menu_title.offset_top = 100
+	
+	# Container for vertical button alignment
+	var button_container := VBoxContainer.new()
+	button_container.add_theme_constant_override("separation", 24)
+	menu_bg.add_child(button_container)
+	
+	button_container.set_anchors_and_offsets_preset(Control.PRESET_CENTER)
+	button_container.grow_horizontal = Control.GROW_DIRECTION_BOTH
+	button_container.grow_vertical = Control.GROW_DIRECTION_BOTH
+	button_container.offset_top = 80
+	
+	# --- STYLING BUTTON THEMES PROCEDURALLY (SRP Compliance) ---
+	# Normal button style: dark, clean gray border
+	var style_normal := StyleBoxFlat.new()
+	style_normal.bg_color = Color(0.08, 0.08, 0.08, 0.85)
+	style_normal.border_width_left = 2
+	style_normal.border_width_top = 2
+	style_normal.border_width_right = 2
+	style_normal.border_width_bottom = 2
+	style_normal.border_color = Color(0.3, 0.3, 0.3)
+	style_normal.set_corner_radius_all(6)
+	style_normal.content_margin_left = 32
+	style_normal.content_margin_right = 32
+	style_normal.content_margin_top = 12
+	style_normal.content_margin_bottom = 12
+	
+	# Focus and Hover button style: Glowing arcade yellow neons
+	var style_focus_hover := StyleBoxFlat.new()
+	style_focus_hover.bg_color = Color(0.18, 0.18, 0.0, 0.9) # Dark yellow hint
+	style_focus_hover.border_width_left = 3
+	style_focus_hover.border_width_top = 3
+	style_focus_hover.border_width_right = 3
+	style_focus_hover.border_width_bottom = 3
+	style_focus_hover.border_color = Color(1.0, 1.0, 0.0) # Glowing neon yellow border
+	style_focus_hover.set_corner_radius_all(6)
+	style_focus_hover.content_margin_left = 32
+	style_focus_hover.content_margin_right = 32
+	style_focus_hover.content_margin_top = 12
+	style_focus_hover.content_margin_bottom = 12
+	
+	# 3. Start Game Button
+	start_button = Button.new()
+	start_button.text = "START GAME"
+	start_button.add_theme_font_size_override("font_size", 28)
+	
+	# Apply style overrides
+	start_button.add_theme_stylebox_override("normal", style_normal)
+	start_button.add_theme_stylebox_override("hover", style_focus_hover)
+	start_button.add_theme_stylebox_override("focus", style_focus_hover) # Keyboard focus matches mouse hover
+	start_button.add_theme_stylebox_override("pressed", style_focus_hover)
+	
+	# Apply color highlights
+	start_button.add_theme_color_override("font_color", Color(0.85, 0.85, 0.85))
+	start_button.add_theme_color_override("font_hover_color", Color(1.0, 1.0, 0.0))
+	start_button.add_theme_color_override("font_focus_color", Color(1.0, 1.0, 0.0))
+	
+	button_container.add_child(start_button)
+	start_button.pressed.connect(_on_start_game_pressed)
+	
+	# 4. Exit Button
+	exit_button = Button.new()
+	exit_button.text = "EXIT"
+	exit_button.add_theme_font_size_override("font_size", 24)
+	
+	# Apply same style overrides
+	exit_button.add_theme_stylebox_override("normal", style_normal)
+	exit_button.add_theme_stylebox_override("hover", style_focus_hover)
+	exit_button.add_theme_stylebox_override("focus", style_focus_hover)
+	exit_button.add_theme_stylebox_override("pressed", style_focus_hover)
+	
+	# Apply same color highlights
+	exit_button.add_theme_color_override("font_color", Color(0.85, 0.85, 0.85))
+	exit_button.add_theme_color_override("font_hover_color", Color(1.0, 1.0, 0.0))
+	exit_button.add_theme_color_override("font_focus_color", Color(1.0, 1.0, 0.0))
+	
+	button_container.add_child(exit_button)
+	exit_button.pressed.connect(func(): get_tree().quit())
+	
+	# KEYBOARD ACCESSIBILITY FOCUS GRAB: Focus start button immediately
+	start_button.grab_focus()
+	
+	# 5. Menu BGM Player
+	menu_bgm = AudioStreamPlayer.new()
+	menu_bgm.stream = load("res://assets/audio/bgm/main_menu_bgm.mp3")
+	menu_bgm.volume_db = -8.0
+	menu_bgm.autoplay = true
+	add_child(menu_bgm)
+	menu_bgm.play()
+
+# Button Callback: Clears the menu overlays, starts BGM, and signals LevelManager to build map
+func _on_start_game_pressed() -> void:
+	# Stop and clean menu audio
+	if menu_bgm:
+		menu_bgm.stop()
+		menu_bgm.queue_free()
+		
+	# Destroy menu overlays
+	if menu_bg:
+		menu_bg.queue_free()
+		
+	# Make core HUD gameplay widgets visible
+	score_label.visible = true
+	lives_label.visible = true
+	minimap.visible = true
+	
+	# Notify orchestrators that the player has initiated the game (DIP Compliance)
+	start_game.emit()
+
 func _on_score_changed(new_score: int) -> void:
 	score_label.text = "SCORE: %d" % new_score
 
-# Callback: Updates the life counter representation
 func _on_lives_changed(new_lives: int) -> void:
 	lives_label.text = "LIVES: %d" % new_lives
 
-# Callback: Triggers when lives hit 0, pausing gameplay and prompting reset
 func _on_game_over() -> void:
 	status_label.text = "GAME OVER\nPress R to Restart"
 	status_overlay.visible = true
 	get_tree().paused = true
 
-# Callback: Triggers when all pellets are cleared, pausing and prompting reset
 func _on_victory() -> void:
 	status_label.text = "VICTORY!\nPress R to Restart"
 	status_overlay.visible = true
 	get_tree().paused = true
 
-# Listens for keyboard inputs to handle restarts
 func _input(event: InputEvent) -> void:
 	if event is InputEventKey and event.keycode == KEY_R and event.is_pressed():
 		if status_overlay.visible:
@@ -1433,97 +2320,105 @@ func _input(event: InputEvent) -> void:
 				GameManager.reset_game()
 			get_tree().reload_current_scene()
 
+==================================================
+FILE: ./scripts/ui/minimap_2d.gd
+==================================================
+# ==============================================================================
+# Description: Procedural 2D Vectorial Minimap Node.
+#              Draws standard/power pellets, player, and ghosts based on 
+#              their active positions mapped from 3D grid space.
+#              SOLID Refactoring:
+#              - SRP: Extracted into a standalone class to separate map 
+#                rendering from the general HUD overlay manager.
+#              - OCP: Reads active ghost material colors dynamically instead of
+#                hardcoding color match tables again.
+# Author: Enrique González Gutiérrez
+# Email: enrique.gonzalez.gutierrez@gmail.com
+# ==============================================================================
+extends Control
+class_name Minimap2D
 
-# ==============================================================================
-# Inner Class: Procedural 2D Vectorial Minimap Node
-# ==============================================================================
-class Minimap2D extends Control:
+# Dimensions of the drawn minimap
+var map_size := Vector2(180, 180)
+
+func _ready() -> void:
+	custom_minimum_size = map_size
 	
-	# Dimensions of the drawn minimap
-	var map_size := Vector2(180, 180)
+func _process(_delta: float) -> void:
+	# Redraw every frame to update moving entity positions
+	queue_redraw()
 	
-	func _ready() -> void:
-		custom_minimum_size = map_size
+func _draw() -> void:
+	# Ensure we have active map data loaded in GameManager before drawing
+	if not GameManager or GameManager.level_layout.is_empty():
+		return
 		
-	func _process(_delta: float) -> void:
-		# Redraw every frame to update moving entity positions
-		queue_redraw()
-		
-	func _draw() -> void:
-		# Ensure we have active map data loaded in GameManager before drawing
-		if not GameManager or GameManager.level_layout.is_empty():
-			return
+	var gw : float = float(GameManager.grid_width)
+	var gh : float = float(GameManager.grid_height)
+	
+	var cell_w : float = map_size.x / gw
+	var cell_h : float = map_size.y / gh
+	
+	# Draw semi-transparent background
+	draw_rect(Rect2(Vector2.ZERO, map_size), Color(0.0, 0.0, 0.0, 0.6))
+	
+	# 1. Draw Static Layout (Walls & Portals)
+	for z in range(int(gh)):
+		var row : Array = GameManager.level_layout[z]
+		for x in range(int(gw)):
+			var cell_type : int = int(row[x])
+			var rect := Rect2(x * cell_w, z * cell_h, cell_w, cell_h)
 			
-		var gw : float = float(GameManager.grid_width)
-		var gh : float = float(GameManager.grid_height)
-		
-		var cell_w : float = map_size.x / gw
-		var cell_h : float = map_size.y / gh
-		
-		# Draw semi-transparent background
-		draw_rect(Rect2(Vector2.ZERO, map_size), Color(0.0, 0.0, 0.0, 0.6))
-		
-		# 1. Draw Static Layout (Walls & Portals)
-		for z in range(int(gh)):
-			var row : Array = GameManager.level_layout[z]
-			for x in range(int(gw)):
-				var cell_type : int = int(row[x])
-				var rect := Rect2(x * cell_w, z * cell_h, cell_w, cell_h)
+			if cell_type == 1:
+				# Draw blue wall blocks
+				draw_rect(rect, Color(0.0, 0.0, 0.6))
+			elif cell_type == 6 or cell_type == 7:
+				# Draw portal locations in neon green
+				draw_rect(rect, Color(0.0, 1.0, 0.2))
 				
-				if cell_type == 1:
-					# Draw blue wall blocks
-					draw_rect(rect, Color(0.0, 0.0, 0.6))
-				elif cell_type == 6 or cell_type == 7:
-					# Draw portal locations in neon green
-					draw_rect(rect, Color(0.0, 1.0, 0.2))
-					
-		# 3D to 2D coordinate converter Lambda
-		# Precise math to map centered 3D coordinates back to 0-based grid indices and center them in 2D cell space
-		var offset_x : float = (gw * 2.0 / 2.0) - 1.0 # Offset is 20.0
-		var offset_z : float = (gh * 2.0 / 2.0) - 1.0 # Offset is 20.0
+	# 3D to 2D coordinate converter Lambda
+	# Precise math to map centered 3D coordinates back to 0-based grid indices and center them in 2D cell space
+	var offset_x : float = (gw * 2.0 / 2.0) - 1.0 
+	var offset_z : float = (gh * 2.0 / 2.0) - 1.0 
+	
+	var to_map = func(pos_3d: Vector3) -> Vector2:
+		var grid_x : float = (pos_3d.x + offset_x) / 2.0
+		var grid_z : float = (pos_3d.z + offset_z) / 2.0
+		# Find the exact center point inside the 2D minimap cell
+		var map_x = (grid_x + 0.5) * cell_w
+		var map_y = (grid_z + 0.5) * cell_h
+		return Vector2(map_x, map_y)
 		
-		var to_map = func(pos_3d: Vector3) -> Vector2:
-			var grid_x : float = (pos_3d.x + offset_x) / 2.0
-			var grid_z : float = (pos_3d.z + offset_z) / 2.0
-			# Find the exact center point inside the 2D minimap cell
-			var map_x = (grid_x + 0.5) * cell_w
-			var map_y = (grid_z + 0.5) * cell_h
-			return Vector2(map_x, map_y)
+	# 2. Draw Pellets dynamically by querying their active nodes
+	var pellets = get_tree().get_nodes_in_group("pellets")
+	for pellet in pellets:
+		if is_instance_valid(pellet) and pellet is Node3D:
+			var map_pos = to_map.call(pellet.global_position)
 			
-		# 2. Draw Pellets dynamically by querying their active nodes
-		var pellets = get_tree().get_nodes_in_group("pellets")
-		for pellet in pellets:
-			if is_instance_valid(pellet) and pellet is Node3D:
-				var map_pos = to_map.call(pellet.global_position)
+			if pellet.is_power_pellet:
+				# Larger orange power pellets
+				draw_circle(map_pos, 3.5, Color(1.0, 0.5, 0.0))
+			else:
+				# Small yellow standard pellets
+				draw_circle(map_pos, 1.5, Color(1.0, 1.0, 0.0))
 				
-				if pellet.is_power_pellet:
-					# Larger orange power pellets
-					draw_circle(map_pos, 3.5, Color(1.0, 0.5, 0.0))
-				else:
-					# Small yellow standard pellets
-					draw_circle(map_pos, 1.5, Color(1.0, 1.0, 0.0))
-					
-		# 3. Draw Player
-		var player = get_tree().get_first_node_in_group("player") as Node3D
-		if is_instance_valid(player):
-			var map_pos = to_map.call(player.global_position)
-			draw_circle(map_pos, 4.5, Color(1.0, 1.0, 0.0)) # Bright Yellow Pac-Man
+	# 3. Draw Player
+	var player = get_tree().get_first_node_in_group("player") as Node3D
+	if is_instance_valid(player):
+		var map_pos = to_map.call(player.global_position)
+		draw_circle(map_pos, 4.5, Color(1.0, 1.0, 0.0)) # Bright Yellow Pac-Man
+		
+	# 4. Draw Ghosts
+	var ghosts = get_tree().get_nodes_in_group("ghosts")
+	for ghost in ghosts:
+		if is_instance_valid(ghost) and ghost is Node3D:
+			var map_pos = to_map.call(ghost.global_position)
+			var color := Color(1.0, 1.0, 1.0)
 			
-		# 4. Draw Ghosts
-		var ghosts = get_tree().get_nodes_in_group("ghosts")
-		for ghost in ghosts:
-			if is_instance_valid(ghost) and ghost is Node3D:
-				var map_pos = to_map.call(ghost.global_position)
-				var color := Color(1.0, 1.0, 1.0)
-				
-				if ghost is Ghost:
-					if ghost.current_state == Ghost.State.FRIGHTENED:
-						color = ghost.ghost_material.albedo_color
-					else:
-						match ghost.ghost_type:
-							"Blinky": color = Color(1.0, 0.0, 0.0) # Red
-							"Pinky": color = Color(1.0, 0.7, 0.8) # Pink
-							"Inky": color = Color(0.0, 1.0, 1.0) # Cyan
-							"Clyde": color = Color(1.0, 0.6, 0.0) # Orange
-							
-				draw_circle(map_pos, 4.0, color)
+			if ghost is Ghost:
+				# FIXED: Safely query the active material depending on the ghost's current state
+				var active_mat = ghost.frightened_material if ghost.current_state == Ghost.State.FRIGHTENED else ghost.original_material
+				if active_mat:
+					color = active_mat.albedo_color
+						
+			draw_circle(map_pos, 4.0, color)
