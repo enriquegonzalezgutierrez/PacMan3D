@@ -1,21 +1,55 @@
 # ==============================================================================
-# Description: Git ignore file for Godot 4 project. Prevents tracking local
-#              caches, import settings, and user-specific configurations.
+# Description: Comprehensive Git ignore file for Godot 4 projects.
+#              Prevents tracking of local editor metadata, binary builds,
+#              OS-specific garbage, and resolves conflicts with project folders.
 # Author: Enrique González Gutiérrez
 # Email: enrique.gonzalez.gutierrez@gmail.com
 # ==============================================================================
 
-# Godot-specific ignores
+# ------------------------------------------------------------------------------
+# Godot Engine Core Ignores
+# ------------------------------------------------------------------------------
+# Ignore the local .godot/ folder which contains import caches and local settings.
+# This folder is auto-generated and should never be committed.
 .godot/
+
+# Ignore auto-generated translation files.
 *.translation
 
-# FreeDesktop-specific ignores
-.directory
+# ------------------------------------------------------------------------------
+# Platform-Specific Builds & Exports
+# ------------------------------------------------------------------------------
+# It is recommended to keep binary exports out of the repository.
+*.exe
+*.dll
+*.so
+*.dylib
+*.pck
+*.apk
+*.aab
+*.ipa
+build/
+exports/
 
-# Mono-specific ignores
+# ------------------------------------------------------------------------------
+# Mono / C# Specific Ignores (If applicable in the future)
+# ------------------------------------------------------------------------------
+.mono/
 bin/
 obj/
 
-# Crash dumps
-core
+# ------------------------------------------------------------------------------
+# OS-Specific Garbage Files
+# ------------------------------------------------------------------------------
+.DS_Store
+Thumbs.db
+desktop.ini
+.directory
+
+# ------------------------------------------------------------------------------
+# Crash Dumps & System Diagnostics
+# ------------------------------------------------------------------------------
+# FIX: Added a leading slash '/' to ensure Git only ignores a 'core' file at the 
+# root of the repository, preventing it from ignoring folders like 'scripts/core/'.
+/core
 *.dmp
