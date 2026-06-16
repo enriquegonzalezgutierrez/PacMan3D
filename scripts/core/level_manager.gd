@@ -11,6 +11,9 @@
 #                direct object references instead of string search lookups.
 #              - Cooperative AI Support: Passes the ghost identity type during
 #                dependency injection for Inky's cooperative AI search.
+#              - Game Feel Update: Manages the sequential death of Pac-Man,
+#                freezing all ghosts during the death animation and subtracting
+#                lives only when the audio playback is complete.
 # Author: Enrique González Gutiérrez
 # Email: enrique.gonzalez.gutierrez@gmail.com
 # ==============================================================================
@@ -36,6 +39,9 @@ var spawned_ghosts_count : int = 0
 var level_data : Dictionary = {}
 var map_offset_x : float = 0.0
 var map_offset_z : float = 0.0
+
+# Injected entity tracking (SRP Compliance)
+var player_instance : Player = null
 
 # List to temporarily store portal nodes for the linking pass
 var portals_to_link : Array[Dictionary] = []
@@ -181,15 +187,18 @@ func _create_pellet(pos: Vector3, is_power: bool) -> void:
 
 # Instantiates the player character and injects its resources
 func _spawn_player(pos: Vector3) -> void:
-	var player := Player.new()
-	player.spawn_position = pos
-	player.position = pos
-	player.position.y = 0.6
+	player_instance = Player.new()
+	player_instance.spawn_position = pos
+	player_instance.position = pos
+	player_instance.position.y = 0.6
 	
-	# Dependency Injection (Now with both munch and death audio streams injected)
-	player.initialize(player_material, waka_audio_stream, death_audio_stream)
+	# Dependency Injection
+	player_instance.initialize(player_material, waka_audio_stream, death_audio_stream)
 	
-	add_child(player)
+	# Listen to the decoupled death sequence completion event (SRP Compliance)
+	player_instance.death_completed.connect(_on_player_death_completed)
+	
+	add_child(player_instance)
 
 # Factory/DI method: Spawns a ghost, assigns strategy, and injects resources
 func _spawn_ghost(pos: Vector3) -> void:
@@ -248,13 +257,27 @@ func _on_pellet_eaten(is_power: bool) -> void:
 			GameManager.activate_power_pellet()
 		GameManager.pellet_eaten()
 
-# Signal callback: Routes ghost caught events to score increments or life losses
+# Signal callback: Routes ghost caught events to score increments or player death sequence triggers
 func _on_ghost_player_caught(is_frightened: bool) -> void:
 	if GameManager:
 		if is_frightened:
 			GameManager.add_score(200)
 		else:
-			GameManager.lose_life()
+			# Normal ghost caught Pac-Man:
+			# 1. Freeze all active ghosts in place (Game Feel / Polish)
+			for ghost in get_tree().get_nodes_in_group("ghosts"):
+				if ghost.has_method("set_frozen"):
+					ghost.set_frozen(true)
+					
+			# 2. Instruct Pac-Man to initiate his local sequential death (SRP Compliance)
+			if player_instance:
+				player_instance.die()
+
+# Signal callback: Triggered ONLY after Pac-Man's death sequence finishes (audio + particles)
+func _on_player_death_completed() -> void:
+	if GameManager:
+		# Subtract life (This emits player_killed and automatically triggers unfreezes/resets)
+		GameManager.lose_life()
 
 # Global Signal: Tells all active ghosts to activate frightened mode
 func _on_power_pellet_activated() -> void:

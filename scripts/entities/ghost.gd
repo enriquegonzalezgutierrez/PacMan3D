@@ -3,13 +3,10 @@
 #              generation, collision-tested pathfinding, and coordinates
 #              with an abstract behavior strategy.
 #              SOLID Refactoring:
-#              - DIP & OCP: Removed all hardcoded string matching and Singleton
-#                coupling. Strategy behaviors, normal/frightened materials, and
-#                grid matrix layout parameters are fully injected from the outside.
-#              - SRP: Decoupled global gameplay state mutations. The ghost now
-#                exposes clean signals (`player_caught`) for managers to handle.
-#              - Inky Flanking Fix: Restored read-only `ghost_type` property via
-#                dependency injection to support Inky's cooperative AI search.
+#              - SRP: Removed body.respawn() call. The ghost only reports the
+#                collision via signals, leaving orchestrators to handle the sequence.
+#              - Polishing: Added a public `set_frozen` method to freeze ghosts
+#                in place during Pac-Man's dramatic death sequence.
 # Author: Enrique González Gutiérrez
 # Email: enrique.gonzalez.gutierrez@gmail.com
 # ==============================================================================
@@ -39,7 +36,7 @@ const ALIGNMENT_FORCE : float = 15.0
 var speed : float = BASE_SPEED
 
 # Injected Dependencies (DIP Compliance)
-var ghost_type : String = "" # Read-only identifier restored for cooperative AI tactics (Inky)
+var ghost_type : String = "" 
 var behavior_strategy : GhostBehavior
 var original_material : StandardMaterial3D
 var frightened_material : StandardMaterial3D
@@ -60,11 +57,12 @@ const FRIGHTENED_DURATION : float = 7.0
 var spawn_position : Vector3
 var exit_position : Vector3 = Vector3(0.0, 0.8, -4.0) 
 var is_inside_foso : bool = true 
+var is_frozen : bool = false # Freezes ghosts during Pac-Man's death sequence
 
 # Grid tracking variables to detect intersection crossings
 var last_grid_pos : Vector2i = Vector2i(-1, -1)
 
-# Dependency Injection initializer method (Now accepts type for cooperative strategies)
+# Dependency Injection initializer method
 func initialize(
 	type: String,
 	strategy: GhostBehavior, 
@@ -149,8 +147,20 @@ func _setup_player_detection() -> void:
 	
 	detection_area.body_entered.connect(_on_player_detected)
 
+# Public method to freeze ghost navigation during dramatic events (SRP Compliance)
+func set_frozen(enabled: bool) -> void:
+	is_frozen = enabled
+	if is_frozen:
+		velocity = Vector3.ZERO
+
 # Main physics loop managing timers, states, movement, and separation
 func _physics_process(delta: float) -> void:
+	# Bypass physics process if the ghost is currently frozen in place
+	if is_frozen:
+		velocity = Vector3.ZERO
+		move_and_slide()
+		return
+
 	if is_inside_foso:
 		var pos_2d := Vector2(global_position.x, global_position.z)
 		var exit_2d := Vector2(exit_position.x, exit_position.z)
@@ -306,7 +316,7 @@ func _choose_new_direction() -> void:
 	else:
 		next_direction = possible_directions.pick_random()
 
-# Public method: Triggers Frightened mode (DIP Compliance)
+# Public method: Triggers Frightened mode
 func activate_frightened_mode() -> void:
 	current_state = State.FRIGHTENED
 	speed = FRIGHTENED_SPEED
@@ -323,6 +333,7 @@ func _exit_frightened_state() -> void:
 
 # Public method: Resets ghost back to base (DIP Compliance)
 func reset_to_base() -> void:
+	is_frozen = false # Ensure ghost is unfrozen when resetting
 	global_position = spawn_position
 	is_inside_foso = true 
 	current_state = State.LEAVING
@@ -350,8 +361,6 @@ func _on_player_detected(body: Node3D) -> void:
 			speed = BASE_SPEED
 			_apply_material(original_material)
 		else:
-			# Notify listeners that a normal ghost caught Pac-Man (DIP Compliance)
+			# Notify listeners that a normal ghost caught Pac-Man
+			# FIXED: Teleportation is completely delegated to LevelManager to allow dramatic delays.
 			player_caught.emit(false)
-			
-			if body.has_method("respawn"):
-				body.respawn()
