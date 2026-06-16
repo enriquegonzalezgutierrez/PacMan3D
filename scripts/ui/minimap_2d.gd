@@ -91,8 +91,9 @@ func _draw() -> void:
 			var color := Color(1.0, 1.0, 1.0)
 			
 			if ghost is Ghost:
-				# OCP Compliance: Read the active material color dynamically
-				if ghost.ghost_material:
-					color = ghost.ghost_material.albedo_color
+				# FIXED: Safely query the active material depending on the ghost's current state
+				var active_mat = ghost.frightened_material if ghost.current_state == Ghost.State.FRIGHTENED else ghost.original_material
+				if active_mat:
+					color = active_mat.albedo_color
 						
 			draw_circle(map_pos, 4.0, color)

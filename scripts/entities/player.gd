@@ -6,9 +6,7 @@
 #              - DIP (Dependency Inversion): Materials and audio streams are now
 #                injected from the outside (LevelManager) instead of hardcoded.
 #              - SRP (Single Responsibility): Strictly focused on player physics
-#                movement and input.
-#              - Bug Fix: Fixed particle position bug by saving transform and
-#                applying global_position AFTER inserting into the SceneTree.
+#                movement, inputs, and triggering local death visuals/audio.
 # Author: Enrique González Gutiérrez
 # Email: enrique.gonzalez.gutierrez@gmail.com
 # ==============================================================================
@@ -22,19 +20,22 @@ const ALIGNMENT_FORCE : float = 15.0
 # Injected Dependencies (DIP Compliance)
 var player_material : StandardMaterial3D
 var munch_stream : AudioStream
+var death_stream : AudioStream
 
 # Internal Node Components
 var visual_mesh : MeshInstance3D 
 var munch_audio : AudioStreamPlayer
+var death_audio : AudioStreamPlayer
 
 var spawn_position : Vector3
 var current_direction : Vector3 = Vector3.ZERO
 var next_direction : Vector3 = Vector3.ZERO
 
-# Dependency Injection initializer method
-func initialize(material: StandardMaterial3D, audio_stream: AudioStream) -> void:
+# Dependency Injection initializer method (Now accepts both munch and death audio streams)
+func initialize(material: StandardMaterial3D, audio_stream: AudioStream, d_stream: AudioStream) -> void:
 	player_material = material
 	munch_stream = audio_stream
+	death_stream = d_stream
 
 func _ready() -> void:
 	add_to_group("player")
@@ -88,13 +89,23 @@ func _setup_camera() -> void:
 	spring_arm.add_child(camera)
 	add_child(spring_arm)
 
+# Sets up separate, non-overlapping audio channels (SRP Compliance)
 func _setup_audio() -> void:
+	# 1. Munch Audio Player (Waka-Waka)
 	munch_audio = AudioStreamPlayer.new()
 	if munch_stream:
 		munch_audio.stream = munch_stream
 	munch_audio.max_polyphony = 1
 	munch_audio.volume_db = -5.0 
 	add_child(munch_audio)
+	
+	# 2. Death Audio Player (Descending pitch sweep)
+	death_audio = AudioStreamPlayer.new()
+	if death_stream:
+		death_audio.stream = death_stream
+	death_audio.max_polyphony = 1
+	death_audio.volume_db = -3.0 # Slightly louder for impact
+	add_child(death_audio)
 
 # Public method to be called when eating a pellet
 func play_eat_sound() -> void:
@@ -102,8 +113,12 @@ func play_eat_sound() -> void:
 		munch_audio.stop()
 		munch_audio.play()
 
-# Programmatically spawns a beautiful retro particle explosion at Pac-Man's death site
+# Programmatically spawns a beautiful retro particle explosion and triggers death audio
 func play_death_particles() -> void:
+	# Trigger death audio immediately (SRP Compliance)
+	if death_audio and death_audio.stream:
+		death_audio.play()
+		
 	var particles := GPUParticles3D.new()
 	
 	# 1. Mesh setup: Small yellow cubes matching Pac-Man's color
@@ -142,7 +157,7 @@ func play_death_particles() -> void:
 	particles.explosiveness = 1.0
 	particles.lifetime = 0.8
 	
-	# FIXED: Save current coordinate position BEFORE tree insertion
+	# Save current coordinate position BEFORE tree insertion
 	var death_position = global_position
 	
 	# Add to LevelManager first, so it doesn't get freed with Player
@@ -156,7 +171,7 @@ func play_death_particles() -> void:
 	var timer = get_tree().create_timer(1.0)
 	timer.timeout.connect(func(): particles.queue_free())
 
-# Triggers particles and teleports player back to start
+# Triggers particles, audio, and teleports player back to start
 func respawn() -> void:
 	play_death_particles()
 	global_position = spawn_position

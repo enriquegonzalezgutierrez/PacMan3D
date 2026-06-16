@@ -8,6 +8,8 @@
 #                grid matrix layout parameters are fully injected from the outside.
 #              - SRP: Decoupled global gameplay state mutations. The ghost now
 #                exposes clean signals (`player_caught`) for managers to handle.
+#              - Inky Flanking Fix: Restored read-only `ghost_type` property via
+#                dependency injection to support Inky's cooperative AI search.
 # Author: Enrique González Gutiérrez
 # Email: enrique.gonzalez.gutierrez@gmail.com
 # ==============================================================================
@@ -37,6 +39,7 @@ const ALIGNMENT_FORCE : float = 15.0
 var speed : float = BASE_SPEED
 
 # Injected Dependencies (DIP Compliance)
+var ghost_type : String = "" # Read-only identifier restored for cooperative AI tactics (Inky)
 var behavior_strategy : GhostBehavior
 var original_material : StandardMaterial3D
 var frightened_material : StandardMaterial3D
@@ -61,8 +64,9 @@ var is_inside_foso : bool = true
 # Grid tracking variables to detect intersection crossings
 var last_grid_pos : Vector2i = Vector2i(-1, -1)
 
-# Dependency Injection initializer method
+# Dependency Injection initializer method (Now accepts type for cooperative strategies)
 func initialize(
+	type: String,
 	strategy: GhostBehavior, 
 	norm_mat: StandardMaterial3D, 
 	fright_mat: StandardMaterial3D, 
@@ -70,6 +74,7 @@ func initialize(
 	width: int, 
 	height: int
 ) -> void:
+	ghost_type = type
 	behavior_strategy = strategy
 	original_material = norm_mat
 	frightened_material = fright_mat

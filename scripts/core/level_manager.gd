@@ -9,6 +9,8 @@
 #                to the GameManager global state, removing low-level couplings.
 #              - Portal Linker: Dynamically wires Portal pairs at runtime using
 #                direct object references instead of string search lookups.
+#              - Cooperative AI Support: Passes the ghost identity type during
+#                dependency injection for Inky's cooperative AI search.
 # Author: Enrique González Gutiérrez
 # Email: enrique.gonzalez.gutierrez@gmail.com
 # ==============================================================================
@@ -20,6 +22,7 @@ const WALL_HEIGHT : float = 2.0
 
 # Preloaded Audio Resources (DIP Compliance)
 var waka_audio_stream : AudioStream = preload("res://assets/audio/sfx/waka_waka.mp3")
+var death_audio_stream : AudioStream = preload("res://assets/audio/sfx/player_death.mp3")
 
 # Centralized Materials (SRP Compliance)
 var wall_material : StandardMaterial3D
@@ -183,8 +186,8 @@ func _spawn_player(pos: Vector3) -> void:
 	player.position = pos
 	player.position.y = 0.6
 	
-	# Dependency Injection
-	player.initialize(player_material, waka_audio_stream)
+	# Dependency Injection (Now with both munch and death audio streams injected)
+	player.initialize(player_material, waka_audio_stream, death_audio_stream)
 	
 	add_child(player)
 
@@ -213,8 +216,8 @@ func _spawn_ghost(pos: Vector3) -> void:
 	var grid_w : int = int(level_data.get("grid_width", 0))
 	var grid_h : int = int(level_data.get("grid_height", 0))
 	
-	# Inject dependencies (Strategy, Material, Frightened Material, Grid Layout data)
-	ghost.initialize(strategy, norm_mat, ghost_frightened_material, layout, grid_w, grid_h)
+	# Inject dependencies
+	ghost.initialize(ghost_type, strategy, norm_mat, ghost_frightened_material, layout, grid_w, grid_h)
 	
 	# Listen to decoupled entity events (DIP Compliance)
 	ghost.player_caught.connect(_on_ghost_player_caught)
