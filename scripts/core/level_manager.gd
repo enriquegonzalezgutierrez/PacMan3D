@@ -14,6 +14,9 @@
 #              - Game Feel Update: Manages the sequential death of Pac-Man,
 #                freezing all ghosts during the death animation and subtracting
 #                lives only when the audio playback is complete.
+#              - Background Music: Integrates the level's procedural soundtrack.
+#              - Calibrations: Adjusted entity spawn Y-heights (0.85 for Player,
+#                0.9 for Ghosts) to match new giant arcade proportions perfectly.
 # Author: Enrique González Gutiérrez
 # Email: enrique.gonzalez.gutierrez@gmail.com
 # ==============================================================================
@@ -26,6 +29,7 @@ const WALL_HEIGHT : float = 2.0
 # Preloaded Audio Resources (DIP Compliance)
 var waka_audio_stream : AudioStream = preload("res://assets/audio/sfx/waka_waka.mp3")
 var death_audio_stream : AudioStream = preload("res://assets/audio/sfx/player_death.mp3")
+var bgm_stream : AudioStream = preload("res://assets/audio/bgm/level_1_bgm.mp3") 
 
 # Centralized Materials (SRP Compliance)
 var wall_material : StandardMaterial3D
@@ -42,6 +46,7 @@ var map_offset_z : float = 0.0
 
 # Injected entity tracking (SRP Compliance)
 var player_instance : Player = null
+var bgm_player : AudioStreamPlayer = null
 
 # List to temporarily store portal nodes for the linking pass
 var portals_to_link : Array[Dictionary] = []
@@ -49,6 +54,7 @@ var portals_to_link : Array[Dictionary] = []
 func _ready() -> void:
 	_initialize_materials()
 	_connect_game_manager_signals()
+	_setup_bgm() 
 	if _load_level_data("res://data/level_01.json"):
 		_build_environment()
 
@@ -93,6 +99,16 @@ func _connect_game_manager_signals() -> void:
 	if GameManager:
 		GameManager.power_pellet_activated.connect(_on_power_pellet_activated)
 		GameManager.player_killed.connect(_on_player_killed)
+
+# Programmatically configures and plays the loop background music
+func _setup_bgm() -> void:
+	if bgm_stream:
+		bgm_player = AudioStreamPlayer.new()
+		bgm_player.stream = bgm_stream
+		bgm_player.volume_db = -12.0 
+		bgm_player.autoplay = true
+		add_child(bgm_player)
+		bgm_player.play()
 
 # Loads and parses the JSON level configuration
 func _load_level_data(file_path: String) -> bool:
@@ -190,7 +206,7 @@ func _spawn_player(pos: Vector3) -> void:
 	player_instance = Player.new()
 	player_instance.spawn_position = pos
 	player_instance.position = pos
-	player_instance.position.y = 0.6
+	player_instance.position.y = 0.85 # FIXED: Calibrated from 0.5 to 0.85 to match new radius
 	
 	# Dependency Injection
 	player_instance.initialize(player_material, waka_audio_stream, death_audio_stream)
@@ -209,7 +225,7 @@ func _spawn_ghost(pos: Vector3) -> void:
 	spawned_ghosts_count += 1
 	
 	ghost.position = pos
-	ghost.position.y = 0.9
+	ghost.position.y = 0.9 # FIXED: Calibrated from 0.7 to 0.9 to match new capsule height
 	
 	# Factory creation of concrete behavior strategies (OCP / DIP Compliance)
 	var strategy : GhostBehavior
@@ -269,7 +285,11 @@ func _on_ghost_player_caught(is_frightened: bool) -> void:
 				if ghost.has_method("set_frozen"):
 					ghost.set_frozen(true)
 					
-			# 2. Instruct Pac-Man to initiate his local sequential death (SRP Compliance)
+			# 2. Pause the background music dramatically during death sequence (SRP Compliance)
+			if bgm_player:
+				bgm_player.stream_paused = true
+					
+			# 3. Instruct Pac-Man to initiate his local sequential death
 			if player_instance:
 				player_instance.die()
 
@@ -287,6 +307,10 @@ func _on_power_pellet_activated() -> void:
 
 # Global Signal: Tells all active ghosts to reset to spawn positions
 func _on_player_killed() -> void:
+	# Unpause background music when the game/player resets back to action
+	if bgm_player:
+		bgm_player.stream_paused = false
+		
 	for ghost in get_tree().get_nodes_in_group("ghosts"):
 		if ghost.has_method("reset_to_base"):
 			ghost.reset_to_base()

@@ -5,8 +5,13 @@
 #              SOLID Refactoring:
 #              - SRP: Removed body.respawn() call. The ghost only reports the
 #                collision via signals, leaving orchestrators to handle the sequence.
-#              - Polishing: Added a public `set_frozen` method to freeze ghosts
-#                in place during Pac-Man's dramatic death sequence.
+#              - Polishing: Added a public `set_frozen` method to freeze ghosts.
+#              - Collision Fix: Only physically blocks with Layer 1 (Walls).
+#              - Visual Effects & OCP: Added a programmatic 3D particle explosion
+#                which dynamically matches the ghost's original color.
+#              - Giant Proportions: Increased size (radius 0.9, height 1.8) to fit
+#                tightly within 2.0m wide corridors, locking them on rails and
+#                preventing lane drifting.
 # Author: Enrique González Gutiérrez
 # Email: enrique.gonzalez.gutierrez@gmail.com
 # ==============================================================================
@@ -99,15 +104,18 @@ func _ready() -> void:
 	last_grid_pos = Vector2i(grid_x, grid_z)
 
 func _configure_collision_layers() -> void:
+	# Exist on Layer 3 (Ghosts)
 	collision_layer = 4
-	collision_mask = 3
+	# Only physically block with Layer 1 (Walls)
+	collision_mask = 1
 
 # Programmatically builds the capsule mesh and physical collision box
 func _build_ghost_visuals() -> void:
 	visual_mesh = MeshInstance3D.new()
 	var collision_shape := CollisionShape3D.new()
 	
-	var radius : float = 0.75
+	# GIANT ARCADE SIZE: Diameter of 1.8m fills 90% of the 2.0m corridor width
+	var radius : float = 0.9
 	var height : float = 1.8
 	
 	var capsule_mesh := CapsuleMesh.new()
@@ -115,7 +123,6 @@ func _build_ghost_visuals() -> void:
 	capsule_mesh.height = height
 	visual_mesh.mesh = capsule_mesh
 	
-	# Fallback safety if materials were not injected
 	if not original_material:
 		original_material = StandardMaterial3D.new()
 		original_material.albedo_color = Color(1.0, 0.0, 0.0)
@@ -136,7 +143,7 @@ func _setup_player_detection() -> void:
 	var detection_shape := CollisionShape3D.new()
 	
 	var sphere_shape := SphereShape3D.new()
-	sphere_shape.radius = 0.95 
+	sphere_shape.radius = 1.0 # Adjusted up to match the larger body size
 	detection_shape.shape = sphere_shape
 	
 	detection_area.add_child(detection_shape)
@@ -147,7 +154,7 @@ func _setup_player_detection() -> void:
 	
 	detection_area.body_entered.connect(_on_player_detected)
 
-# Public method to freeze ghost navigation during dramatic events (SRP Compliance)
+# Public method to freeze ghost navigation
 func set_frozen(enabled: bool) -> void:
 	is_frozen = enabled
 	if is_frozen:
@@ -155,7 +162,6 @@ func set_frozen(enabled: bool) -> void:
 
 # Main physics loop managing timers, states, movement, and separation
 func _physics_process(delta: float) -> void:
-	# Bypass physics process if the ghost is currently frozen in place
 	if is_frozen:
 		velocity = Vector3.ZERO
 		move_and_slide()
@@ -224,9 +230,10 @@ func _physics_process(delta: float) -> void:
 	for g in all_ghosts:
 		if g != self and is_instance_valid(g) and not is_inside_foso:
 			var dist = global_position.distance_to(g.global_position)
-			if dist > 0.0 and dist < 1.6:
+			# Adjusted repulsion distance to 1.9 to prevent wide mesh overlap
+			if dist > 0.0 and dist < 1.9:
 				var push_dir = (global_position - g.global_position).normalized()
-				separation += push_dir * (1.6 - dist) * 3.0
+				separation += push_dir * (1.9 - dist) * 3.0
 				
 	velocity += separation
 		
@@ -333,7 +340,7 @@ func _exit_frightened_state() -> void:
 
 # Public method: Resets ghost back to base (DIP Compliance)
 func reset_to_base() -> void:
-	is_frozen = false # Ensure ghost is unfrozen when resetting
+	is_frozen = false 
 	global_position = spawn_position
 	is_inside_foso = true 
 	current_state = State.LEAVING
@@ -348,10 +355,59 @@ func reset_to_base() -> void:
 	var grid_z : int = int(round((global_position.z + offset) / CELL_SIZE))
 	last_grid_pos = Vector2i(grid_x, grid_z)
 
+# Programmatically spawns a beautiful ghostly particle explosion when eaten
+func play_eaten_particles() -> void:
+	var particles := GPUParticles3D.new()
+	
+	var mesh := BoxMesh.new()
+	mesh.size = Vector3(0.12, 0.12, 0.12)
+	
+	var mat := StandardMaterial3D.new()
+	if original_material:
+		mat.albedo_color = original_material.albedo_color
+	else:
+		mat.albedo_color = Color(0.0, 1.0, 1.0) 
+	mat.shading_mode = StandardMaterial3D.SHADING_MODE_UNSHADED
+	mesh.material = mat
+	particles.draw_pass_1 = mesh
+	
+	var p_mat := ParticleProcessMaterial.new()
+	p_mat.emission_shape = ParticleProcessMaterial.EMISSION_SHAPE_SPHERE
+	p_mat.emission_sphere_radius = 0.2
+	
+	p_mat.direction = Vector3.UP
+	p_mat.spread = 180.0 
+	
+	p_mat.initial_velocity_min = 3.0
+	p_mat.initial_velocity_max = 5.0
+	p_mat.gravity = Vector3(0.0, -8.0, 0.0) 
+	
+	p_mat.damping_min = 1.0
+	p_mat.damping_max = 2.0
+	
+	particles.process_material = p_mat
+	
+	particles.amount = 20
+	particles.one_shot = true
+	particles.explosiveness = 1.0
+	particles.lifetime = 0.6
+	
+	var eaten_position = global_position
+	
+	get_parent().add_child(particles)
+	particles.global_position = eaten_position
+	particles.emitting = true
+	
+	var timer = get_tree().create_timer(1.0)
+	timer.timeout.connect(func(): particles.queue_free())
+
 # Handles player intersection and emits state notification signals
 func _on_player_detected(body: Node3D) -> void:
 	if body.is_in_group("player"):
 		if current_state == State.FRIGHTENED:
+			# Trigger the beautiful original-colored particle explosion
+			play_eaten_particles()
+			
 			# Notify listeners that a frightened ghost was eaten
 			player_caught.emit(true)
 			
@@ -362,5 +418,4 @@ func _on_player_detected(body: Node3D) -> void:
 			_apply_material(original_material)
 		else:
 			# Notify listeners that a normal ghost caught Pac-Man
-			# FIXED: Teleportation is completely delegated to LevelManager to allow dramatic delays.
 			player_caught.emit(false)

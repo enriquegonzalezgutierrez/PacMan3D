@@ -4,8 +4,11 @@
 #              Features an ORTHOGRAPHIC top-down camera to prevent 3D perspective.
 #              SOLID Refactoring:
 #              - SRP & State Machine: Added a self-contained `DEAD` state.
-#                Pac-Man now manages his own death sequence (hiding visuals,
-#                waiting for audio to finish) and notifies orchestrators.
+#                Pac-Man now manages his own death sequence.
+#              - Collision Fix: Only physically blocks with Layer 1 (Walls).
+#              - Giant Arcade Proportions: Increased radius to 0.85 (1.7m diameter)
+#                to fill 85% of the 2.0m corridor. This physically locks Pac-Man
+#                in the center of the lane naturally, preventing side-drift wiggles.
 # Author: Enrique González Gutiérrez
 # Email: enrique.gonzalez.gutierrez@gmail.com
 # ==============================================================================
@@ -49,25 +52,22 @@ func _ready() -> void:
 	_setup_audio()
 
 func _configure_collision_layers() -> void:
+	# Exist on Layer 2 (Player)
 	collision_layer = 2
-	collision_mask = 5
+	# Only physically block with Layer 1 (Walls)
+	collision_mask = 1
 
 func _build_player_visuals() -> void:
 	visual_mesh = MeshInstance3D.new()
 	var collision_shape := CollisionShape3D.new()
 	
-	var radius : float = 0.6
+	# GIANT RETRO SIZE: Fills the 2.0m corridor tightly (diameter 1.7)
+	var radius : float = 0.85
 	
 	var sphere_mesh := SphereMesh.new()
 	sphere_mesh.radius = radius
 	sphere_mesh.height = radius * 2.0
 	visual_mesh.mesh = sphere_mesh
-	
-	if not player_material:
-		player_material = StandardMaterial3D.new()
-		player_material.albedo_color = Color(1.0, 1.0, 0.0)
-		player_material.roughness = 0.1
-		
 	visual_mesh.material_override = player_material
 	
 	var sphere_shape := SphereShape3D.new()
@@ -122,24 +122,18 @@ func die() -> void:
 		return
 	is_dead = true
 	
-	# 1. Instantly hide the player mesh so they appear to dissolve into the particles
 	if visual_mesh:
 		visual_mesh.visible = false
 		
-	# 2. Spawn the visual particles and trigger the audio
 	play_death_particles()
 	
-	# 3. Await the complete playback of the death melody
 	if death_audio and death_audio.stream:
 		await death_audio.finished
 	else:
-		# Fallback safety timer if no audio file is injected
 		await get_tree().create_timer(1.0).timeout
 		
-	# 4. Notify orchestrators that the sequence is finished (DIP Compliance)
 	death_completed.emit()
 	
-	# 5. Execute the physical coordinates reset
 	_actual_respawn()
 
 # Programmatically spawns particles and starts audio playback
@@ -206,7 +200,6 @@ func _actual_respawn() -> void:
 	is_dead = false
 
 func _physics_process(_delta: float) -> void:
-	# Bypass inputs and movements if the player is currently dead/dissolving
 	if is_dead:
 		velocity = Vector3.ZERO
 		move_and_slide()
