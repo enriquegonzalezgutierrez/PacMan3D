@@ -3,13 +3,10 @@
 #              main menu, styled retro HUD nodes, and coordinates dynamic 
 #              progression screen overlays.
 #              SOLID Refactoring:
-#              - AUTOMATIC DIRECT TRANSITION: Victory callback completely bypasses 
-#                overlays and transition prompts on final level completion, 
-#                instantly swapping the scene tree to the CreditsScreen.
-#              - ARCADE HUD STYLING: Redesigned the Score and Lives labels with 
-#                stacked layouts, 6-digit dynamic padding, and glowing neon-blue 
-#                outlines for a high-fidelity retro cabinet look.
-#              - SRP & OCP Compliance: Victory triggers check for level indexes.
+#              - AUTOMATIC DYNAMIC TRANSITION: Checks GameManager session states 
+#                on ready to completely bypass main menus during level reloads, 
+#                while executing a cinematic procedural fade-from-black.
+#              - ARCADE HUD STYLING: Redesigned the Score and Lives labels.
 # Author: Enrique González Gutiérrez
 # Email: enrique.gonzalez.gutierrez@gmail.com
 # ==============================================================================
@@ -33,23 +30,42 @@ var start_button : Button
 var exit_button : Button
 var menu_bgm : AudioStreamPlayer
 
+# Cinematic transition variables (SRP/Juice Compliance)
+var fade_overlay : ColorRect
+var fade_alpha : float = 1.0
+
 func _ready() -> void:
 	# Enforce HUD processing during pause states (captures R and SPACE key inputs)
 	process_mode = Node.PROCESS_MODE_ALWAYS
 	
 	_build_hud_elements()
-	_build_main_menu() 
 	
-	# Connect to global GameManager signals safely
-	if GameManager:
-		GameManager.score_changed.connect(_on_score_changed)
-		GameManager.lives_changed.connect(_on_lives_changed)
-		GameManager.game_over.connect(_on_game_over)
-		GameManager.victory.connect(_on_victory)
-		
-		# Pull initial data values directly on startup
-		_on_score_changed(GameManager.score)
-		_on_lives_changed(GameManager.lives)
+	# Setup scene load fade-in effect
+	fade_alpha = 1.0
+	
+	if GameManager and GameManager.is_game_started:
+		# Automate gameplay startup on progression reload (completely bypasses main menu)
+		score_label.visible = true
+		lives_label.visible = true
+		minimap.visible = true
+		call_deferred("emit_start_game_signal")
+	else:
+		# Fresh game boot: construct the main menu overlay normally
+		_build_main_menu()
+
+func _process(delta: float) -> void:
+	# Smoothly fade out the black screen overlay on scene load (procedural juice)
+	if is_instance_valid(fade_overlay) and fade_overlay.visible:
+		fade_alpha -= delta * 1.5 # Fades out in exactly 0.6 seconds
+		if fade_alpha <= 0.0:
+			fade_overlay.visible = false
+			fade_overlay.queue_free()
+		else:
+			fade_overlay.color.a = fade_alpha
+
+# Defer start_game signal until the current frame's node mutations are fully processed
+func emit_start_game_signal() -> void:
+	start_game.emit()
 
 # Programmatically constructs the HUD layout tree
 func _build_hud_elements() -> void:
@@ -112,6 +128,12 @@ func _build_hud_elements() -> void:
 	status_label.set_anchors_and_offsets_preset(Control.PRESET_CENTER)
 	status_label.grow_horizontal = Control.GROW_DIRECTION_BOTH
 	status_label.grow_vertical = GROW_DIRECTION_BOTH
+	
+	# 6. Fade Overlay Setup (Cinematic Transition - Sits on top of everything)
+	fade_overlay = ColorRect.new()
+	fade_overlay.color = Color(0.0, 0.0, 0.0, 1.0) # Start fully black
+	add_child(fade_overlay)
+	fade_overlay.set_anchors_and_offsets_preset(Control.PRESET_FULL_RECT)
 
 # Programmatically builds the full-screen Main Menu overlay
 func _build_main_menu() -> void:
@@ -225,6 +247,9 @@ func _build_main_menu() -> void:
 
 # Button Callback: Clears the menu overlays, starts BGM, and signals LevelManager to build map
 func _on_start_game_pressed() -> void:
+	if GameManager:
+		GameManager.is_game_started = true
+		
 	if menu_bgm:
 		menu_bgm.stop()
 		menu_bgm.queue_free()

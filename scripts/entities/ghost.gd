@@ -2,21 +2,22 @@
 # Description: CharacterBody3D controller for Ghosts. Handles primitive capsule
 #              generation, collision-tested pathfinding, and coordinates
 #              with an abstract behavior strategy.
-#              SOLID Refactoring & Fixes:
-#              - BUG FIX: Resolved MeshInstance3D .radius compilation crash on 
-#                the right pupil.
-#              - CHASE / SCATTER ARCADE CYCLE: Implemented classic state cycling 
-#                timers (20s Chase, 7s Scatter) targeting symmetric home corners 
-#                in 3D space, making their movements incredibly distinct.
-#              - DYNAMIC BLINKING RETRO EYES: Saves a class reference to the 
-#                eyeball nodes and runs an independent, randomized scale-based 
-#                blinking animation.
-#              - ARCADE-ACCURATE LEAVING: Guides ghosts along a strict horizontal
-#                and vertical path to exit the Ghost House.
-#              - ONE-WAY FOSO DOOR: Dynamically blocks ghosts from re-entering.
-#              - WARNING ELIMINATION: Replaced integer division with float division.
-#              - DYNAMIC ALIGNMENT FIX: Calculates grid offset dynamically.
-#              - Giant Proportions: Increased size (radius 0.9, height 1.8).
+#              SOLID Refactoring & Visual Polish:
+#              - OCP & SRP VISUAL COMPLIANCE: Completely stripped all character-specific 
+#                visual match blocks. Now queries the injected Behavior Strategy 
+#                dynamically on ready to compile custom sizes, pupil offsets, 
+#                and accessories.
+#              - LAMBDA MEMORY FIX: Connected the eaten particle despawn timer 
+#                directly to particles.queue_free.
+#              - ARCADE LANE QUEUEING: Implemented a longitudinal speed-damping sensor.
+#              - ROTATION BUG FIX: Restored the deleted rotation interpolation.
+#              - DEADLOCK ELIMINATION: Completely removed the "Soft Separation" physics block.
+#              - GHOSTLY HOVERING: Floats the entire ghost body gently up and down.
+#              - PROCEDURAL WAVY SKIRT: Generates 4 ruffling spheres.
+#              - CHASE / SCATTER ARCADE CYCLE: Implements classic state cycling.
+#              - DYNAMIC BLINKING RETRO EYES: Handles random eye-blinking.
+#              - ARCADE-ACCURATE LEAVING: Kinematic foso exit paths.
+#              - ONE-WAY FOSO DOOR: Exit-only door block.
 # Author: Enrique González Gutiérrez
 # Email: enrique.gonzalez.gutierrez@gmail.com
 # ==============================================================================
@@ -77,6 +78,11 @@ var blink_timer : float = 0.0
 var blink_duration : float = 0.15
 var next_blink_time : float = 3.0 # Initial time before first blink
 
+# Dynamic Floating & Skirt Animation Variables (SRP Compliance)
+var hover_time : float = 0.0
+var skirt_spheres : Array[MeshInstance3D] = []
+var capsule_height : float = 1.8 # Cached dynamically from strategy on ready
+
 # Foso navigation state
 var spawn_position : Vector3
 var exit_position : Vector3 = Vector3(0.0, 0.9, -6.5) # Dynamic fallback default
@@ -115,11 +121,11 @@ func _ready() -> void:
 	_setup_player_detection()
 	_setup_audio()
 	
-	# Randomize first blink timing to stagger animations
+	# Randomize first blink and hover timings to stagger animations
 	next_blink_time = randf_range(2.0, 5.0)
+	hover_time = randf_range(0.0, 5.0)
 	
 	# --- DYNAMIC GHOST HOUSE EXIT DETECTION ---
-	# Automatically scans the active level matrix to find the exact gate coordinates 
 	_detect_exit_position_dynamically()
 	
 	# Initialize directions randomly
@@ -167,9 +173,16 @@ func _build_ghost_visuals() -> void:
 	visual_mesh = MeshInstance3D.new()
 	var collision_shape := CollisionShape3D.new()
 	
-	# GIANT ARCADE SIZE: Diameter of 1.8m fills 90% of the 2.0m corridor width
+	# Default standard dimensions
 	var radius : float = 0.9
 	var height : float = 1.8
+	
+	# Query dynamic visual specifications from the Strategy (OCP/SRP Compliance)
+	if behavior_strategy:
+		radius = behavior_strategy.get_capsule_radius()
+		height = behavior_strategy.get_capsule_height()
+		
+	capsule_height = height # Cache local height for bottom skirt animation offsets
 	
 	var capsule_mesh := CapsuleMesh.new()
 	capsule_mesh.radius = radius
@@ -193,6 +206,16 @@ func _build_ghost_visuals() -> void:
 	var pupil_mat := StandardMaterial3D.new()
 	pupil_mat.albedo_color = Color(0.0, 0.2, 1.0) # Classic Pac-Man Blue pupils
 	pupil_mat.roughness = 0.4
+	
+	# Default forward pupil offsets on face
+	var pupil_left_pos := Vector3(-0.35, 0.4, -0.75 - radius * 0.2)
+	var pupil_right_pos := Vector3(0.35, 0.4, -0.75 - radius * 0.2)
+	
+	# Query character-specific pupil offsets from Strategy (OCP/SRP Compliance)
+	if behavior_strategy:
+		var custom_offsets : Dictionary = behavior_strategy.get_pupil_offsets()
+		pupil_left_pos = custom_offsets.get("left", pupil_left_pos)
+		pupil_right_pos = custom_offsets.get("right", pupil_right_pos)
 	
 	# 1. Left Sclera Sphere (White Eye)
 	var left_sclera := MeshInstance3D.new()
@@ -218,18 +241,45 @@ func _build_ghost_visuals() -> void:
 	pupil_mesh.height = 0.16
 	left_pupil.mesh = pupil_mesh
 	left_pupil.material_override = pupil_mat
-	left_pupil.position = Vector3(-0.35, 0.4, -0.93)
+	left_pupil.position = pupil_left_pos
 	eyes_holder.add_child(left_pupil)
 	
 	# 4. Right Pupil Sphere (Blue Pupil)
 	var right_pupil := MeshInstance3D.new()
-	right_pupil.mesh = pupil_mesh # Reuses pre-built left pupil mesh (SRP compliance, eliminates compilation crash)
+	right_pupil.mesh = pupil_mesh 
 	right_pupil.material_override = pupil_mat
-	right_pupil.position = Vector3(0.35, 0.4, -0.93)
+	right_pupil.position = pupil_right_pos
 	eyes_holder.add_child(right_pupil)
 	
-	# Add the eyes holder to visual_mesh so they rotate automatically with the body orientation
 	visual_mesh.add_child(eyes_holder)
+	
+	# --- PROCEDURAL RETRO WAVY SKIRT (SRP/OCP Compliance) ---
+	var skirt_radius : float = 0.28
+	var skirt_mesh := SphereMesh.new()
+	skirt_mesh.radius = skirt_radius
+	skirt_mesh.height = skirt_radius * 2.0
+	
+	# Calculate skirt offsets dynamically using body radius and height
+	var skirt_base_y = -height / 2.0
+	var skirt_offsets = [
+		Vector3(-radius * 0.5, skirt_base_y, 0.0),
+		Vector3(radius * 0.5, skirt_base_y, 0.0),
+		Vector3(0.0, skirt_base_y, -radius * 0.5),
+		Vector3(0.0, skirt_base_y, radius * 0.5)
+	]
+	
+	for i in range(skirt_offsets.size()):
+		var sphere := MeshInstance3D.new()
+		sphere.mesh = skirt_mesh
+		sphere.material_override = original_material # Uses active ghost color
+		sphere.position = skirt_offsets[i]
+		visual_mesh.add_child(sphere) # Child of body so it inherits transformations
+		skirt_spheres.append(sphere)
+		
+	# --- PROCEDURAL ACCESSORIES ATTACHMENT ---
+	# Ask Strategy to attach any unique decorations dynamically (OCP/SRP Compliance)
+	if behavior_strategy:
+		behavior_strategy.attach_custom_decorations(visual_mesh)
 	
 	# --- PHYSICAL COLLISION SHAPE ---
 	var capsule_shape := CapsuleShape3D.new()
@@ -283,10 +333,8 @@ func _physics_process(delta: float) -> void:
 		return
 
 	# --- ARCADE-ACCURATE LEAVING GUIDANCE ---
-	# Bypasses grid navigation entirely until they fully exit the Ghost House
 	if is_inside_foso:
 		var target_x = exit_position.x
-		# 1. Slide horizontally to line up with the door
 		if abs(global_position.x - target_x) > 0.05:
 			var dir_x = sign(target_x - global_position.x)
 			velocity = Vector3(dir_x * FRIGHTENED_SPEED, 0.0, 0.0)
@@ -294,12 +342,12 @@ func _physics_process(delta: float) -> void:
 			var target_rotation_y = atan2(-velocity.x, -velocity.z)
 			rotation.y = lerp_angle(rotation.y, target_rotation_y, 0.2)
 		else:
-			# 2. Once aligned, snap precisely and slide straight up through the gate
 			global_position.x = target_x
 			velocity = Vector3(0.0, 0.0, -FRIGHTENED_SPEED)
 			rotation.y = lerp_angle(rotation.y, 0.0, 0.2) # Face North
 			
 		move_and_slide()
+		_process_ghost_animations(delta)
 		
 		# Gate threshold check
 		var pos_2d := Vector2(global_position.x, global_position.z)
@@ -318,7 +366,7 @@ func _physics_process(delta: float) -> void:
 			if state_timer >= CHASE_DURATION:
 				current_state = State.SCATTER
 				state_timer = 0.0
-				_choose_new_direction() # Force target recalculated
+				_choose_new_direction() 
 		elif current_state == State.SCATTER:
 			if state_timer >= SCATTER_DURATION:
 				current_state = State.CHASE
@@ -360,10 +408,25 @@ func _physics_process(delta: float) -> void:
 		
 	# --- BASE MOVEMENT & SMOOTH STEERING ALIGNMENT ---
 	if current_direction != Vector3.ZERO:
-		velocity = current_direction * speed
+		# --- ARCADE LONGITUDINAL SEPARATION ---
+		# Dynamically reduces trailing speed when following another ghost closely in the same corridor
+		var adjusted_speed : float = speed
+		if not is_inside_foso:
+			var ghosts = get_tree().get_nodes_in_group("ghosts")
+			for g in ghosts:
+				if g != self and is_instance_valid(g) and not g.is_inside_foso:
+					var to_g : Vector3 = g.global_position - global_position
+					var dist : float = to_g.length()
+					# Buffer distance of 1.8 meters prevents overlapping
+					if dist > 0.1 and dist < 1.8:
+						# Only slow down if the other ghost is directly ahead (high dot product)
+						if current_direction.dot(to_g.normalized()) > 0.7:
+							adjusted_speed = speed * 0.72 # Drop to 72% speed
+							break
+							
+		velocity = current_direction * adjusted_speed
 		
 		# --- DYNAMIC GRID OFFSET MATH ---
-		# Calculates offsets dynamically using global map bounds to prevent even/odd size mismatches
 		var offset_x : float = 32.0
 		var offset_z : float = 32.0
 		if GameManager and GameManager.grid_width > 0:
@@ -382,26 +445,37 @@ func _physics_process(delta: float) -> void:
 	else:
 		velocity = Vector3.ZERO
 		
-	# --- SOFT SEPARATION (FLOCKING REPULSION) ---
-	var separation := Vector3.ZERO
-	var all_ghosts = get_tree().get_nodes_in_group("ghosts")
-	
-	for g in all_ghosts:
-		if g != self and is_instance_valid(g) and not is_inside_foso:
-			var dist = global_position.distance_to(g.global_position)
-			if dist > 0.0 and dist < 1.9:
-				var push_dir = (global_position - g.global_position).normalized()
-				separation += push_dir * (1.9 - dist) * 3.0
-				
-	velocity += separation
-		
-	# --- ROTATION & PHYSICS UPDATE ---
-	if current_direction != Vector3.ZERO:
-		var target_rotation_y = atan2(-current_direction.x, -current_direction.z)
-		rotation.y = lerp_angle(rotation.y, target_rotation_y, 0.2)
+	# --- MOBILITY DEADLOCK FIX ---
+	# Completely stripped soft separation vectors to ensure perfect corridor alignment and prevent friction jams
 		
 	move_and_slide()
+	_process_ghost_animations(delta)
+
+# Orchestrates smooth hovering translations and ruffling leg waves (SRP Compliance)
+func _process_ghost_animations(delta: float) -> void:
+	if is_frozen:
+		return
+		
+	hover_time += delta
 	_process_eye_blinking(delta)
+	
+	# 1. Float the main capsule body gently up and down on a vertical sine wave
+	if is_instance_valid(visual_mesh):
+		visual_mesh.position.y = sin(hover_time * 3.0) * 0.06
+		
+	# 2. Ripple the skirt ruffles out-of-phase (shifted by PI/2) to simulate swimming tails
+	for i in range(skirt_spheres.size()):
+		var sphere = skirt_spheres[i]
+		if is_instance_valid(sphere):
+			var phase_offset : float = i * (PI / 2.0)
+			# Skirt base Y is calculated dynamically from body dimensions (DIP/SRP Compliance)
+			var skirt_base_y = -capsule_height / 2.0
+			sphere.position.y = skirt_base_y + sin(hover_time * 6.0 + phase_offset) * 0.08
+			
+	# 3. Rotate the ghost body smoothly towards its active moving direction (SRP/OCP Compliance)
+	if not is_inside_foso and current_direction != Vector3.ZERO:
+		var target_rotation_y = atan2(-current_direction.x, -current_direction.z)
+		rotation.y = lerp_angle(rotation.y, target_rotation_y, 0.2)
 
 # Handles the dynamic eye-blinking scale animation
 func _process_eye_blinking(delta: float) -> void:
@@ -423,10 +497,13 @@ func _process_eye_blinking(delta: float) -> void:
 			next_blink_time = randf_range(2.5, 6.0)
 			eyes_holder.scale.y = 1.0
 
-# Helper to swap visual materials safely
+# Helper to swap visual materials safely across the entire body (including skirt ruffles)
 func _apply_material(mat: StandardMaterial3D) -> void:
 	if visual_mesh and mat:
 		visual_mesh.material_override = mat
+		for sphere in skirt_spheres:
+			if is_instance_valid(sphere):
+				sphere.material_override = mat
 
 # Performs a mathematical check in the injected level matrix to see if a cell is open (Not a wall)
 func _get_matrix_open_directions() -> Array:
@@ -605,8 +682,8 @@ func play_eaten_particles() -> void:
 	particles.global_position = eaten_position
 	particles.emitting = true
 	
-	var timer = get_tree().create_timer(1.0)
-	timer.timeout.connect(func(): particles.queue_free())
+	# --- DIRECT METHOD CONNECTION FIX ---
+	get_tree().create_timer(1.0).timeout.connect(particles.queue_free)
 
 # Handles player intersection and emits state notification signals
 func _on_player_detected(body: Node3D) -> void:

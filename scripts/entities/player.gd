@@ -1,13 +1,12 @@
 # ==============================================================================
 # Description: CharacterBody3D controller for Pac-Man. Handles movement inputs,
 #              visual mesh rotation, and continuous arcade movement.
-#              SOLID Refactoring & Fixes:
-#              - INVINCIBILITY POWER STATE: Connects to GameManager's power pellet 
-#                activation to shift Pac-Man's body to a glowing golden-orange, 
-#                turn his pupils to a glowing neon-red, spawn a golden particle 
-#                aura trail, and run a blinking warning sequence on cooldown.
-#              - DYNAMIC BLINKING RETRO EYES: Procedurally generates white scleras
-#                with green pupils and runs an independent blinking animation.
+#              SOLID Refactoring & Visual Polish:
+#              - LAMBDA MEMORY FIX: Connected the death particle despawn timer 
+#                directly to particles.queue_free. This lets Godot auto-disconnect 
+#                the signal if the level reloads early, preventing lambda-capture errors.
+#              - PROCEDURAL CHEWING MOUTH: Instantiates an unshaded matte-black mouth.
+#              - DYNAMIC BLINKING RETRO EYES: Procedurally generates white scleras.
 #              - SRP Refactoring (Step 2): Completely stripped all Camera3D setup.
 #              - DYNAMIC ALIGNMENT FIX: Calculates grid offset dynamically.
 #              - Giant Arcade Proportions: Giant 1.7m diameter sphere.
@@ -51,6 +50,10 @@ var is_powered_up : bool = false
 var power_timer : float = 0.0
 const POWER_DURATION : float = 7.0 # Matches Ghost Frightened duration
 var power_particles : GPUParticles3D = null
+
+# Dynamic Chewing Mouth Variables (SRP/Juice Compliance)
+var mouth_instance : MeshInstance3D
+var mouth_time : float = 0.0
 
 # Gameplay State
 var spawn_position : Vector3
@@ -155,6 +158,23 @@ func _build_player_visuals() -> void:
 	# Attach eyes to the visual mesh so they rotate dynamically with Pac-Man
 	visual_mesh.add_child(eyes_holder)
 	
+	# --- PROCEDURAL RETRO CHEWING MOUTH (SRP/OCP Compliance) ---
+	var mouth_mat := StandardMaterial3D.new()
+	mouth_mat.albedo_color = Color(0.01, 0.01, 0.01) # Deep shadow black
+	mouth_mat.roughness = 1.0
+	mouth_mat.shading_mode = StandardMaterial3D.SHADING_MODE_UNSHADED # Unshaded for black abyss effect
+	
+	var mouth_box := BoxMesh.new()
+	mouth_box.size = Vector3(1.0, 1.0, 0.5) # Base unit box to scale dynamically
+	
+	mouth_instance = MeshInstance3D.new()
+	mouth_instance.mesh = mouth_box
+	mouth_instance.material_override = mouth_mat
+	mouth_instance.position = Vector3(0.0, -0.15, -0.62) # Positioned on front lower face
+	mouth_instance.scale = Vector3(0.5, 0.1, 0.5) # Start closed
+	
+	visual_mesh.add_child(mouth_instance) # Child of body so it rotates with Pac-Man
+	
 	# --- PHYSICAL COLLIDER ---
 	var sphere_shape := SphereShape3D.new()
 	sphere_shape.radius = radius
@@ -255,8 +275,8 @@ func play_death_particles() -> void:
 	particles.global_position = death_position
 	particles.emitting = true
 	
-	var timer = get_tree().create_timer(1.0)
-	timer.timeout.connect(func(): particles.queue_free())
+	# --- DIRECT METHOD CONNECTION FIX ---
+	get_tree().create_timer(1.0).timeout.connect(particles.queue_free)
 
 # Teleports the player back to start
 func respawn() -> void:
@@ -401,6 +421,27 @@ func _physics_process(delta: float) -> void:
 	_handle_arcade_input()
 	_process_arcade_movement()
 	_process_eye_blinking(delta)
+	_process_mouth_animation(delta)
+
+# Orchestrates smooth chewing and dynamic mouth-stretching while running (SRP Compliance)
+func _process_mouth_animation(delta: float) -> void:
+	if not is_instance_valid(mouth_instance) or is_dead:
+		return
+		
+	# Only chew if Pac-Man is actively moving (velocity magnitude is high)
+	if velocity.length() > 0.1:
+		mouth_time += delta
+		# Fast biting cycle (24.0 rad/s)
+		# Biting factor oscillates cleanly between 0.0 and 1.0
+		var bite_factor : float = (sin(mouth_time * 24.0) + 1.0) / 2.0
+		
+		# Squash and Stretch: scale mouth vertically while stretching cheeks horizontally
+		mouth_instance.scale.y = lerpf(0.05, 0.72, bite_factor)
+		mouth_instance.scale.x = lerpf(0.5, 0.62, bite_factor)
+	else:
+		# Relax mouth to a slightly open line when static
+		mouth_instance.scale.y = 0.12
+		mouth_instance.scale.x = 0.52
 
 # Handles the dynamic eye-blinking scale animation
 func _process_eye_blinking(delta: float) -> void:

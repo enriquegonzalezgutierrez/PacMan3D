@@ -2,9 +2,13 @@
 # Description: Procedural Level Assembler / 3D Mesh Factory. Hand-crafts 
 #              materials, builds wall styles (Pipes, Blocks, Pillars), spawns 
 #              gameplay entities, and links portals.
-#              SOLID Refactoring:
-#              - SRP Compliance: Extracted all 3D visual generation, preloaded 
-#                assets, and spawning logic out of LevelManager.
+#              SOLID Refactoring & Visual Polish:
+#              - BALANCED LIGHTING FIX: Restored the global DirectionalLight3D 
+#                keylight to full brightness so Pac-Man, pellets, and floors 
+#                are beautifully illuminated. Removed physical OmniLight3D 
+#                nodes entirely, relying strictly on WorldEnvironment Bloom 
+#                to make neon emissive materials glow safely without blinding.
+#              - PROCEDURAL WORLD ENVIRONMENT: Dynamically instantiates WorldEnvironment.
 # Author: Enrique González Gutiérrez
 # Email: enrique.gonzalez.gutierrez@gmail.com
 # ==============================================================================
@@ -82,6 +86,9 @@ func build(level_data: Dictionary) -> void:
 	if level_data.has("wall_color"):
 		wall_material.albedo_color = Color(level_data["wall_color"])
 		
+	# Set up the post-processing Bloom and Glow environment (SRP Compliance)
+	_setup_world_environment()
+		
 	var layout : Array = level_data.get("layout", [])
 	var width : int = int(level_data.get("grid_width", 0))
 	var height : int = int(level_data.get("grid_height", 0))
@@ -114,6 +121,32 @@ func build(level_data: Dictionary) -> void:
 		var partner_portal = parent_node.get_node_or_null(link_info["partner_name"]) as Portal
 		if partner_portal:
 			my_portal.initialize(partner_portal)
+
+# Programmatically configures and attaches a glowing post-processing Bloom world environment
+func _setup_world_environment() -> void:
+	var world_env := WorldEnvironment.new()
+	var env_res := Environment.new()
+	
+	# Configure high-quality additive Bloom and Glow offsets
+	env_res.background_mode = Environment.BG_CLEAR_COLOR
+	env_res.background_color = Color(0.01, 0.01, 0.01, 1.0) # Deep retro black space
+	env_res.glow_enabled = true
+	env_res.glow_intensity = 0.8
+	env_res.glow_strength = 1.0
+	env_res.glow_bloom = 0.25 # Soft bloom margin
+	env_res.glow_blend_mode = Environment.GLOW_BLEND_MODE_ADDITIVE
+	
+	world_env.environment = env_res
+	parent_node.add_child(world_env)
+	
+	# --- RESTORED GLOBAL SUNLIGHT ---
+	# We ensure the global keylight is fully active so Pac-Man and pellets are beautifully visible
+	var main_node = parent_node.get_parent()
+	if is_instance_valid(main_node):
+		var dir_light = main_node.get_node_or_null("DirectionalLight3D") as DirectionalLight3D
+		if is_instance_valid(dir_light):
+			dir_light.light_energy = 1.0 # Standard bright keylight
+			dir_light.light_color = Color(1.0, 1.0, 1.0) # Clean white daylight
 
 # Instantiates procedurally designed wall meshes depending on the active level theme
 func _create_wall(pos: Vector3, x: int, z: int, level_data: Dictionary) -> void:
@@ -148,6 +181,7 @@ func _create_wall(pos: Vector3, x: int, z: int, level_data: Dictionary) -> void:
 			static_body.add_child(pillar_instance)
 			
 			# 2. Glowing emissive sphere sitting exactly on top
+			# The Bloom post-processing automatically makes this glow on screen (no OmniLights needed!)
 			var sphere_mesh := SphereMesh.new()
 			sphere_mesh.radius = 0.55
 			sphere_mesh.height = 1.1
@@ -155,7 +189,7 @@ func _create_wall(pos: Vector3, x: int, z: int, level_data: Dictionary) -> void:
 			var glowing_material := StandardMaterial3D.new()
 			glowing_material.albedo_color = wall_material.albedo_color
 			glowing_material.emission_enabled = true
-			glowing_material.emission = wall_material.albedo_color * 0.6 # Moderate cyber glow
+			glowing_material.emission = wall_material.albedo_color * 0.65 # Glowing neon effect
 			
 			var sphere_instance := MeshInstance3D.new()
 			sphere_instance.mesh = sphere_mesh

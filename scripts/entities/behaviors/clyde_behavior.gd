@@ -1,6 +1,8 @@
 # ==============================================================================
 # Description: Cowardly/Wanderer behavior strategy for Clyde (Orange).
 #              Implements SOLID Open/Closed Principle (OCP).
+#              Updates: Overrode visual hooks to make Clyde plump and 
+#                       shift his pupils downward to look clumsy/worried.
 # Author: Enrique González Gutiérrez
 # Email: enrique.gonzalez.gutierrez@gmail.com
 # ==============================================================================
@@ -19,3 +21,18 @@ func get_target_position(_ghost: CharacterBody3D, player: Node3D) -> Vector3:
 			return _ghost.spawn_position
 		return _ghost.global_position
 	return _ghost.global_position
+
+# --- GRAPHICS OVERRIDES (SRP/OCP/LSP Compliance) ---
+
+func get_capsule_radius() -> float:
+	return 1.05 # Plump
+
+func get_capsule_height() -> float:
+	return 1.65 # Round
+
+func get_pupil_offsets() -> Dictionary:
+	# Shift both pupil offsets downwards to look worried/pokey (SRP/OCP Compliance)
+	return {
+		"left": Vector3(-0.35, 0.32, -0.93),
+		"right": Vector3(0.35, 0.32, -0.93)
+	}

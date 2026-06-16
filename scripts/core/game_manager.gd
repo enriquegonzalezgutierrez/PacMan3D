@@ -1,7 +1,7 @@
 # ==============================================================================
 # Description: Global singleton managing game state, score, lives, win/loss
-#              conditions, and event signals. Added persistent level index
-#              progression helpers (SRP/DIP compliance).
+#              conditions, and event signals. Added persistent start-state
+#              tracking to automate scene-reload transitions.
 # Author: Enrique González Gutiérrez
 # Email: enrique.gonzalez.gutierrez@gmail.com
 # ==============================================================================
@@ -25,6 +25,7 @@ var pellets_eaten : int = 0
 
 # Persistent progression tracking
 var current_level : int = 1
+var is_game_started : bool = false # Tracks if we are actively playing a session
 
 # Grid layout cache for the 2D Minimap (Filled by LevelManager)
 var level_layout : Array = []
@@ -40,7 +41,8 @@ func reset_game() -> void:
 	lives = 3
 	total_pellets = 0
 	pellets_eaten = 0
-	current_level = 1 # Reset to level 1 on full restart
+	current_level = 1 
+	is_game_started = false # Reset session on game over or full restart
 	
 	# Defer the signal emissions until the node tree is fully ready
 	call_deferred("_emit_initial_signals")

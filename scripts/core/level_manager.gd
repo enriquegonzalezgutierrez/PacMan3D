@@ -2,10 +2,11 @@
 # Description: Parses the level JSON file, feeds the layout data to the global
 #              GameManager, and coordinates gameplay states and signals.
 #              SOLID Refactoring:
-#              - BONUS FRUIT TIMERS: Added an independent process loop tracking 
-#                level playtime to spawn the procedurally designed Double-Cherry 
-#                exactly 15s after startup on Pac-Man's starting coordinates.
-#              - DYNAMIC SOUNDTRACK LOADING: Dynamically loads background music tracks.
+#              - LAMBDA MEMORY FIX: Connected the fruit despawn timer directly to 
+#                fruit.queue_free. This lets Godot auto-disconnect the signal if 
+#                the fruit is eaten early, preventing lambda-capture null errors.
+#              - BONUS FRUIT TIMERS: Plays the bonus cherry on Pac-Man's starting coordinate.
+#              - DYNAMIC SOUNDTRACK LOADING: Dynamically loads background music.
 # Author: Enrique González Gutiérrez
 # Email: enrique.gonzalez.gutierrez@gmail.com
 # ==============================================================================
@@ -145,11 +146,9 @@ func _spawn_fruit_bonus() -> void:
 	# Connect the custom points mutation callback
 	fruit.eaten.connect(_on_fruit_eaten)
 	
-	# Despawn Timer: auto-destroys the node if not eaten after 10 seconds
-	get_tree().create_timer(FRUIT_LIFETIME).timeout.connect(func():
-		if is_instance_valid(fruit):
-			fruit.queue_free()
-	)
+	# --- DIRECT METHOD CONNECTION FIX ---
+	# Connecting directly to fruit.queue_free lets Godot auto-cleanup if the fruit is eaten early
+	get_tree().create_timer(FRUIT_LIFETIME).timeout.connect(fruit.queue_free)
 	
 	add_child(fruit)
 	print("BONUS FRUIT GENERATED AT PLAYER STARTING GRID COORDINATE!")
@@ -160,7 +159,6 @@ func _on_fruit_eaten(points: int) -> void:
 		GameManager.add_score(points)
 		
 	var score_text := FloatingScore3D.new()
-	# Inject custom dynamic score string and golden colors before adding to the tree (SRP Compliance)
 	score_text.text = "+%d" % points
 	score_text.modulate = Color(1.0, 1.0, 0.0) # Golden yellow
 	add_child(score_text)
