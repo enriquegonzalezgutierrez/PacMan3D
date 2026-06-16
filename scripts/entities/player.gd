@@ -3,7 +3,7 @@
 #              visual mesh rotation, and continuous arcade movement.
 #              Features an ORTHOGRAPHIC top-down camera to prevent 3D perspective
 #              optical illusions (walls hiding objects on the edges).
-#              UPDATED: Adjusted player radius to match the ghost's proportions.
+#              UPDATED: Added an AudioStreamPlayer to handle the "waka_waka" sound.
 # Author: Enrique González Gutiérrez
 # Email: enrique.gonzalez.gutierrez@gmail.com
 # ==============================================================================
@@ -16,6 +16,7 @@ const ALIGNMENT_FORCE : float = 15.0
 
 var player_material : StandardMaterial3D
 var visual_mesh : MeshInstance3D 
+var munch_audio : AudioStreamPlayer
 
 var spawn_position : Vector3
 var current_direction : Vector3 = Vector3.ZERO
@@ -27,6 +28,7 @@ func _ready() -> void:
 	_initialize_material()
 	_build_player_visuals()
 	_setup_camera()
+	_setup_audio()
 
 func _configure_collision_layers() -> void:
 	collision_layer = 2
@@ -42,7 +44,6 @@ func _build_player_visuals() -> void:
 	visual_mesh = MeshInstance3D.new()
 	var collision_shape := CollisionShape3D.new()
 	
-	# Reduced radius from 0.8 to 0.6 to match the ghosts' width (capsule radius is 0.6)
 	var radius : float = 0.6
 	
 	var sphere_mesh := SphereMesh.new()
@@ -66,18 +67,31 @@ func _setup_camera() -> void:
 	spring_arm.spring_length = 0.0
 	
 	var camera := Camera3D.new()
-	
-	# =======================================================================
-	# Orthogonal Camera setup to remove 3D perspective hiding objects behind walls.
-	# =======================================================================
 	camera.projection = Camera3D.PROJECTION_ORTHOGONAL
-	# Size to cover the 21x21 grid (42 meters) plus a small margin
 	camera.size = 46.0 
-	
 	camera.current = true 
 	
 	spring_arm.add_child(camera)
 	add_child(spring_arm)
+
+# Programmatically creates an audio player and loads the MP3
+func _setup_audio() -> void:
+	munch_audio = AudioStreamPlayer.new()
+	# Load the audio file directly from the project structure
+	munch_audio.stream = load("res://assets/audio/sfx/waka_waka.mp3")
+	# Prevent sound overlapping too aggressively
+	munch_audio.max_polyphony = 1
+	# Lower volume slightly to avoid deafening the player
+	munch_audio.volume_db = -5.0 
+	add_child(munch_audio)
+
+# Public method to be called by pellets when eaten
+func play_eat_sound() -> void:
+	if munch_audio:
+		# If the sound is already playing (eating very fast), we don't restart it
+		# from zero to create a continuous waka-waka effect.
+		if not munch_audio.playing:
+			munch_audio.play()
 
 func respawn() -> void:
 	global_position = spawn_position
