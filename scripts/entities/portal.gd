@@ -1,16 +1,23 @@
 # ==============================================================================
 # Description: Generic portal teleporter (Area3D) that transfers any physics 
 #              body to a partner portal, adhering to SOLID principles.
-#              UPDATED: Fixed collision masks to properly detect Player/Ghosts 
-#              and fixed teleportation signal race conditions (infinite loops).
+#              SOLID Refactoring:
+#              - DIP: Removed scene tree string-based node lookups. The sibling
+#                partner portal is directly injected as a Node3D reference.
+#              - Robustness: Replaced metadata string name comparison with 
+#                direct object reference comparisons, preventing rename bugs.
 # Author: Enrique González Gutiérrez
 # Email: enrique.gonzalez.gutierrez@gmail.com
 # ==============================================================================
 extends Area3D
 class_name Portal
 
-# The name of the sibling portal to teleport the body to
-@export var partner_portal_name : String = ""
+# Injected Dependency (DIP Compliance)
+var partner_portal : Portal = null
+
+# Dependency Injection initializer
+func initialize(partner: Portal) -> void:
+	partner_portal = partner
 
 func _ready() -> void:
 	_build_portal_collision()
@@ -21,9 +28,7 @@ func _ready() -> void:
 
 # Programmatically builds the trigger area collision box and sets Layers
 func _build_portal_collision() -> void:
-	# CRITICAL FIX: The Area3D needs to monitor the layers where entities exist.
-	# collision_layer = 0 (The portal doesn't physically block anything)
-	# collision_mask  = 6 (Monitors Layer 2 (Player, value 2) + Layer 3 (Ghosts, value 4))
+	# Detect Layer 2 (Player) and Layer 3 (Ghosts)
 	collision_layer = 0
 	collision_mask = 6
 	
@@ -38,23 +43,19 @@ func _build_portal_collision() -> void:
 
 # Callback: Triggers when a player or ghost enters the portal area
 func _on_body_entered(body: Node3D) -> void:
-	# Avoid infinite loop signal race condition: 
-	# If the body just arrived here from another portal, ignore the entry trigger.
-	if body.has_meta("last_portal") and body.get_meta("last_portal") == name:
+	# Avoid teleportation loop: check if the body has just teleported here (referencing this node)
+	if body.has_meta("last_portal") and body.get_meta("last_portal") == self:
 		return
 		
-	# Find the partner portal node dynamically as a sibling in the LevelManager tree
-	var partner = get_parent().get_node_or_null(partner_portal_name) as Node3D
-	if partner:
-		# Mark the body with the DESTINATION portal's name before moving it
-		body.set_meta("last_portal", partner.name)
+	if partner_portal:
+		# Mark the body with the destination portal's object reference
+		body.set_meta("last_portal", partner_portal)
 		
 		# Execute instantaneous teleportation
-		body.global_position = partner.global_position
+		body.global_position = partner_portal.global_position
 
 # Callback: Triggers when the body physically leaves the portal area
 func _on_body_exited(body: Node3D) -> void:
-	# Once the body fully steps out of the destination portal, clear the metadata
-	# so it can use portals again in the future.
-	if body.has_meta("last_portal") and body.get_meta("last_portal") == name:
+	# Clear the metadata tag once the entity fully steps out of the destination portal
+	if body.has_meta("last_portal") and body.get_meta("last_portal") == self:
 		body.remove_meta("last_portal")

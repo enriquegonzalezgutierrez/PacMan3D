@@ -1,7 +1,9 @@
 # ==============================================================================
 # Description: HUD manager. Programmatically sets up UI labels for score/lives,
 #              overlays, and hosts an integrated responsive 2D Minimap.
-#              Fixes the half-cell offset calculation for perfect alignment.
+#              SOLID Refactoring:
+#              - SRP: Removed the inner Minimap2D class and delegated map
+#                rendering to the external standalone Minimap2D class.
 # Author: Enrique González Gutiérrez
 # Email: enrique.gonzalez.gutierrez@gmail.com
 # ==============================================================================
@@ -53,7 +55,7 @@ func _build_hud_elements() -> void:
 	lives_label.offset_right = -24
 	lives_label.offset_top = 24
 	
-	# 3. Minimap 2D Setup (Bottom-Right corner preset)
+	# 3. Minimap 2D Setup (Instantiates standalone Minimap2D - SRP Compliance)
 	minimap = Minimap2D.new()
 	add_child(minimap)
 	minimap.set_anchors_and_offsets_preset(Control.PRESET_BOTTOM_RIGHT)
@@ -110,98 +112,3 @@ func _input(event: InputEvent) -> void:
 			if GameManager:
 				GameManager.reset_game()
 			get_tree().reload_current_scene()
-
-
-# ==============================================================================
-# Inner Class: Procedural 2D Vectorial Minimap Node
-# ==============================================================================
-class Minimap2D extends Control:
-	
-	# Dimensions of the drawn minimap
-	var map_size := Vector2(180, 180)
-	
-	func _ready() -> void:
-		custom_minimum_size = map_size
-		
-	func _process(_delta: float) -> void:
-		# Redraw every frame to update moving entity positions
-		queue_redraw()
-		
-	func _draw() -> void:
-		# Ensure we have active map data loaded in GameManager before drawing
-		if not GameManager or GameManager.level_layout.is_empty():
-			return
-			
-		var gw : float = float(GameManager.grid_width)
-		var gh : float = float(GameManager.grid_height)
-		
-		var cell_w : float = map_size.x / gw
-		var cell_h : float = map_size.y / gh
-		
-		# Draw semi-transparent background
-		draw_rect(Rect2(Vector2.ZERO, map_size), Color(0.0, 0.0, 0.0, 0.6))
-		
-		# 1. Draw Static Layout (Walls & Portals)
-		for z in range(int(gh)):
-			var row : Array = GameManager.level_layout[z]
-			for x in range(int(gw)):
-				var cell_type : int = int(row[x])
-				var rect := Rect2(x * cell_w, z * cell_h, cell_w, cell_h)
-				
-				if cell_type == 1:
-					# Draw blue wall blocks
-					draw_rect(rect, Color(0.0, 0.0, 0.6))
-				elif cell_type == 6 or cell_type == 7:
-					# Draw portal locations in neon green
-					draw_rect(rect, Color(0.0, 1.0, 0.2))
-					
-		# 3D to 2D coordinate converter Lambda
-		# Precise math to map centered 3D coordinates back to 0-based grid indices and center them in 2D cell space
-		var offset_x : float = (gw * 2.0 / 2.0) - 1.0 # Offset is 20.0
-		var offset_z : float = (gh * 2.0 / 2.0) - 1.0 # Offset is 20.0
-		
-		var to_map = func(pos_3d: Vector3) -> Vector2:
-			var grid_x : float = (pos_3d.x + offset_x) / 2.0
-			var grid_z : float = (pos_3d.z + offset_z) / 2.0
-			# Find the exact center point inside the 2D minimap cell
-			var map_x = (grid_x + 0.5) * cell_w
-			var map_y = (grid_z + 0.5) * cell_h
-			return Vector2(map_x, map_y)
-			
-		# 2. Draw Pellets dynamically by querying their active nodes
-		var pellets = get_tree().get_nodes_in_group("pellets")
-		for pellet in pellets:
-			if is_instance_valid(pellet) and pellet is Node3D:
-				var map_pos = to_map.call(pellet.global_position)
-				
-				if pellet.is_power_pellet:
-					# Larger orange power pellets
-					draw_circle(map_pos, 3.5, Color(1.0, 0.5, 0.0))
-				else:
-					# Small yellow standard pellets
-					draw_circle(map_pos, 1.5, Color(1.0, 1.0, 0.0))
-					
-		# 3. Draw Player
-		var player = get_tree().get_first_node_in_group("player") as Node3D
-		if is_instance_valid(player):
-			var map_pos = to_map.call(player.global_position)
-			draw_circle(map_pos, 4.5, Color(1.0, 1.0, 0.0)) # Bright Yellow Pac-Man
-			
-		# 4. Draw Ghosts
-		var ghosts = get_tree().get_nodes_in_group("ghosts")
-		for ghost in ghosts:
-			if is_instance_valid(ghost) and ghost is Node3D:
-				var map_pos = to_map.call(ghost.global_position)
-				var color := Color(1.0, 1.0, 1.0)
-				
-				if ghost is Ghost:
-					if ghost.current_state == Ghost.State.FRIGHTENED:
-						color = ghost.ghost_material.albedo_color
-					else:
-						match ghost.ghost_type:
-							"Blinky": color = Color(1.0, 0.0, 0.0) # Red
-							"Pinky": color = Color(1.0, 0.7, 0.8) # Pink
-							"Inky": color = Color(0.0, 1.0, 1.0) # Cyan
-							"Clyde": color = Color(1.0, 0.6, 0.0) # Orange
-							
-				draw_circle(map_pos, 4.0, color)

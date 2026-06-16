@@ -1,10 +1,14 @@
 # ==============================================================================
 # Description: Parses the level JSON file, feeds the layout data to the global
 #              GameManager, and generates the 3D grid of Pac-Man entities.
-#              The floor has been completely removed to avoid rendering glitches,
-#              shadow cascade bugs with orthogonal cameras, and Z-fighting.
-#              UPDATED: Adjusted Ghost spawn Y position to 0.9 to match its new 
-#              height of 1.8.
+#              SOLID Refactoring:
+#              - DI Container: Acts as the central Dependency Injection container,
+#                preloading audio streams, building materials, and injecting them
+#                into Player and Ghost entities.
+#              - Orchestrator: Connects decoupled signals from Pellets and Ghosts
+#                to the GameManager global state, removing low-level couplings.
+#              - Portal Linker: Dynamically wires Portal pairs at runtime using
+#                direct object references instead of string search lookups.
 # Author: Enrique González Gutiérrez
 # Email: enrique.gonzalez.gutierrez@gmail.com
 # ==============================================================================
@@ -14,7 +18,15 @@ class_name LevelManager
 const CELL_SIZE : float = 2.0
 const WALL_HEIGHT : float = 2.0
 
+# Preloaded Audio Resources (DIP Compliance)
+var waka_audio_stream : AudioStream = preload("res://assets/audio/sfx/waka_waka.mp3")
+
+# Centralized Materials (SRP Compliance)
 var wall_material : StandardMaterial3D
+var player_material : StandardMaterial3D
+var ghost_frightened_material : StandardMaterial3D
+var ghost_materials : Dictionary = {} # Maps type to specific color material
+
 var ghost_types : Array[String] = ["Blinky", "Pinky", "Inky", "Clyde"]
 var spawned_ghosts_count : int = 0
 
@@ -22,15 +34,56 @@ var level_data : Dictionary = {}
 var map_offset_x : float = 0.0
 var map_offset_z : float = 0.0
 
+# List to temporarily store portal nodes for the linking pass
+var portals_to_link : Array[Dictionary] = []
+
 func _ready() -> void:
 	_initialize_materials()
+	_connect_game_manager_signals()
 	if _load_level_data("res://data/level_01.json"):
 		_build_environment()
 
-# Initializes materials for walls
+# Centralized visual resource creation
 func _initialize_materials() -> void:
+	# 1. Wall Material
 	wall_material = StandardMaterial3D.new()
-	wall_material.albedo_color = Color(0.0, 0.0, 1.0) # Classic Pac-Man Blue
+	wall_material.albedo_color = Color(0.0, 0.0, 1.0) # Classic Blue
+	
+	# 2. Player Material
+	player_material = StandardMaterial3D.new()
+	player_material.albedo_color = Color(1.0, 1.0, 0.0) # Yellow
+	player_material.roughness = 0.1
+	player_material.metallic = 0.1
+	
+	# 3. Ghost Frightened Material
+	ghost_frightened_material = StandardMaterial3D.new()
+	ghost_frightened_material.albedo_color = Color(0.0, 0.0, 1.0) # Solid Blue
+	ghost_frightened_material.emission_enabled = true
+	ghost_frightened_material.emission = Color(0.0, 0.2, 0.8) # Glowing neon blue
+	
+	# 4. Standard Ghost Materials
+	var blinky_mat := StandardMaterial3D.new()
+	blinky_mat.albedo_color = Color(1.0, 0.0, 0.0) # Red
+	ghost_materials["Blinky"] = blinky_mat
+	
+	var pinky_mat := StandardMaterial3D.new()
+	pinky_mat.albedo_color = Color(1.0, 0.7, 0.8) # Pink
+	pinky_mat.roughness = 0.4
+	ghost_materials["Pinky"] = pinky_mat
+	
+	var inky_mat := StandardMaterial3D.new()
+	inky_mat.albedo_color = Color(0.0, 1.0, 1.0) # Cyan
+	ghost_materials["Inky"] = inky_mat
+	
+	var clyde_mat := StandardMaterial3D.new()
+	clyde_mat.albedo_color = Color(1.0, 0.6, 0.0) # Orange
+	ghost_materials["Clyde"] = clyde_mat
+
+# Connect LevelManager to receive global signal notifications
+func _connect_game_manager_signals() -> void:
+	if GameManager:
+		GameManager.power_pellet_activated.connect(_on_power_pellet_activated)
+		GameManager.player_killed.connect(_on_player_killed)
 
 # Loads and parses the JSON level configuration
 func _load_level_data(file_path: String) -> bool:
@@ -78,6 +131,13 @@ func _build_environment() -> void:
 				5: _spawn_ghost(world_pos)
 				6: _create_portal(world_pos, "Portal_A", "Portal_B")
 				7: _create_portal(world_pos, "Portal_B", "Portal_A")
+				
+	# Post-spawn pass: Link portal pairs together directly (DIP Compliance)
+	for link_info in portals_to_link:
+		var my_portal : Portal = link_info["portal"]
+		var partner_portal = get_node_or_null(link_info["partner_name"]) as Portal
+		if partner_portal:
+			my_portal.initialize(partner_portal)
 
 # Instantiates a 3D wall block
 func _create_wall(pos: Vector3) -> void:
@@ -100,37 +160,107 @@ func _create_wall(pos: Vector3) -> void:
 	static_body.position.y = WALL_HEIGHT / 2.0 
 	add_child(static_body)
 
-# Instantiates a standard or power pellet
+# Instantiates a standard or power pellet and connects its signals
 func _create_pellet(pos: Vector3, is_power: bool) -> void:
 	var pellet := Pellet.new()
 	pellet.is_power_pellet = is_power
 	pellet.position = pos
 	pellet.position.y = 0.5
+	
+	# Connect pellet consumption to local router (DIP Compliance)
+	pellet.eaten.connect(_on_pellet_eaten)
+	
 	add_child(pellet)
+	
+	# Centralized pellet counter registration
+	if GameManager:
+		GameManager.register_pellet()
 
-# Instantiates the player character
+# Instantiates the player character and injects its resources
 func _spawn_player(pos: Vector3) -> void:
 	var player := Player.new()
 	player.spawn_position = pos
 	player.position = pos
-	player.position.y = 0.6 
+	player.position.y = 0.6
+	
+	# Dependency Injection
+	player.initialize(player_material, waka_audio_stream)
+	
 	add_child(player)
 
-# Instantiates a ghost character with sequential type assignment
+# Factory/DI method: Spawns a ghost, assigns strategy, and injects resources
 func _spawn_ghost(pos: Vector3) -> void:
 	var ghost := Ghost.new()
-	var type_index : int = spawned_ghosts_count % ghost_types.size()
-	ghost.ghost_type = ghost_types[type_index]
+	
+	# Assign sequential ghost type identity
+	var ghost_type : String = ghost_types[spawned_ghosts_count % ghost_types.size()]
 	spawned_ghosts_count += 1
+	
 	ghost.position = pos
-	ghost.position.y = 0.9 # <- ADJUSTED Y HEIGHT HERE (Was 0.8)
+	ghost.position.y = 0.9
+	
+	# Factory creation of concrete behavior strategies (OCP / DIP Compliance)
+	var strategy : GhostBehavior
+	match ghost_type:
+		"Blinky": strategy = BlinkyBehavior.new()
+		"Pinky": strategy = PinkyBehavior.new()
+		"Inky": strategy = InkyBehavior.new()
+		"Clyde": strategy = ClydeBehavior.new()
+		_: strategy = GhostBehavior.new()
+		
+	var norm_mat : StandardMaterial3D = ghost_materials.get(ghost_type)
+	var layout : Array = level_data.get("layout", [])
+	var grid_w : int = int(level_data.get("grid_width", 0))
+	var grid_h : int = int(level_data.get("grid_height", 0))
+	
+	# Inject dependencies (Strategy, Material, Frightened Material, Grid Layout data)
+	ghost.initialize(strategy, norm_mat, ghost_frightened_material, layout, grid_w, grid_h)
+	
+	# Listen to decoupled entity events (DIP Compliance)
+	ghost.player_caught.connect(_on_ghost_player_caught)
+	
 	add_child(ghost)
 
-# Instantiates a warp portal
+# Instantiates a warp portal and registers it for the linking pass
 func _create_portal(pos: Vector3, my_name: String, partner_name: String) -> void:
 	var portal := Portal.new()
 	portal.name = my_name
-	portal.partner_portal_name = partner_name
 	portal.position = pos
 	portal.position.y = 0.8
 	add_child(portal)
+	
+	# Cache link configuration details for the post-spawn linking pass
+	portals_to_link.append({
+		"portal": portal,
+		"partner_name": partner_name
+	})
+
+# --- SIGNAL ROUTING & GAMEPLAY ORCHESTRATION ---
+
+# Signal callback: Routes pellet eating to global GameManager score mutations
+func _on_pellet_eaten(is_power: bool) -> void:
+	if GameManager:
+		if is_power:
+			GameManager.add_score(40)
+			GameManager.activate_power_pellet()
+		GameManager.pellet_eaten()
+
+# Signal callback: Routes ghost caught events to score increments or life losses
+func _on_ghost_player_caught(is_frightened: bool) -> void:
+	if GameManager:
+		if is_frightened:
+			GameManager.add_score(200)
+		else:
+			GameManager.lose_life()
+
+# Global Signal: Tells all active ghosts to activate frightened mode
+func _on_power_pellet_activated() -> void:
+	for ghost in get_tree().get_nodes_in_group("ghosts"):
+		if ghost.has_method("activate_frightened_mode"):
+			ghost.activate_frightened_mode()
+
+# Global Signal: Tells all active ghosts to reset to spawn positions
+func _on_player_killed() -> void:
+	for ghost in get_tree().get_nodes_in_group("ghosts"):
+		if ghost.has_method("reset_to_base"):
+			ghost.reset_to_base()

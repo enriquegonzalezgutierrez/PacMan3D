@@ -1,9 +1,14 @@
 # ==============================================================================
 # Description: CharacterBody3D controller for Pac-Man. Handles movement inputs,
 #              visual mesh rotation, and continuous arcade movement.
-#              Features an ORTHOGRAPHIC top-down camera to prevent 3D perspective
-#              optical illusions (walls hiding objects on the edges).
-#              UPDATED: Added an AudioStreamPlayer to handle the "waka_waka" sound.
+#              Features an ORTHOGRAPHIC top-down camera to prevent 3D perspective.
+#              SOLID Refactoring:
+#              - DIP (Dependency Inversion): Materials and audio streams are now
+#                injected from the outside (LevelManager) instead of hardcoded.
+#              - SRP (Single Responsibility): Strictly focused on player physics
+#                movement and input.
+#              - Bug Fix: Fixed particle position bug by saving transform and
+#                applying global_position AFTER inserting into the SceneTree.
 # Author: Enrique González Gutiérrez
 # Email: enrique.gonzalez.gutierrez@gmail.com
 # ==============================================================================
@@ -14,7 +19,11 @@ const SPEED : float = 7.0
 const CELL_SIZE : float = 2.0 
 const ALIGNMENT_FORCE : float = 15.0 
 
+# Injected Dependencies (DIP Compliance)
 var player_material : StandardMaterial3D
+var munch_stream : AudioStream
+
+# Internal Node Components
 var visual_mesh : MeshInstance3D 
 var munch_audio : AudioStreamPlayer
 
@@ -22,10 +31,14 @@ var spawn_position : Vector3
 var current_direction : Vector3 = Vector3.ZERO
 var next_direction : Vector3 = Vector3.ZERO
 
+# Dependency Injection initializer method
+func initialize(material: StandardMaterial3D, audio_stream: AudioStream) -> void:
+	player_material = material
+	munch_stream = audio_stream
+
 func _ready() -> void:
 	add_to_group("player")
 	_configure_collision_layers()
-	_initialize_material()
 	_build_player_visuals()
 	_setup_camera()
 	_setup_audio()
@@ -33,12 +46,6 @@ func _ready() -> void:
 func _configure_collision_layers() -> void:
 	collision_layer = 2
 	collision_mask = 5
-
-func _initialize_material() -> void:
-	player_material = StandardMaterial3D.new()
-	player_material.albedo_color = Color(1.0, 1.0, 0.0) 
-	player_material.roughness = 0.1
-	player_material.metallic = 0.1
 
 func _build_player_visuals() -> void:
 	visual_mesh = MeshInstance3D.new()
@@ -50,6 +57,13 @@ func _build_player_visuals() -> void:
 	sphere_mesh.radius = radius
 	sphere_mesh.height = radius * 2.0
 	visual_mesh.mesh = sphere_mesh
+	
+	# Fallback safety if dependencies were not injected
+	if not player_material:
+		player_material = StandardMaterial3D.new()
+		player_material.albedo_color = Color(1.0, 1.0, 0.0)
+		player_material.roughness = 0.1
+		
 	visual_mesh.material_override = player_material
 	
 	var sphere_shape := SphereShape3D.new()
@@ -74,26 +88,77 @@ func _setup_camera() -> void:
 	spring_arm.add_child(camera)
 	add_child(spring_arm)
 
-# Programmatically creates an audio player and loads the MP3
 func _setup_audio() -> void:
 	munch_audio = AudioStreamPlayer.new()
-	# Load the audio file directly from the project structure
-	munch_audio.stream = load("res://assets/audio/sfx/waka_waka.mp3")
-	# Prevent sound overlapping too aggressively
+	if munch_stream:
+		munch_audio.stream = munch_stream
 	munch_audio.max_polyphony = 1
-	# Lower volume slightly to avoid deafening the player
 	munch_audio.volume_db = -5.0 
 	add_child(munch_audio)
 
-# Public method to be called by pellets when eaten
+# Public method to be called when eating a pellet
 func play_eat_sound() -> void:
-	if munch_audio:
-		# If the sound is already playing (eating very fast), we don't restart it
-		# from zero to create a continuous waka-waka effect.
-		if not munch_audio.playing:
-			munch_audio.play()
+	if munch_audio and munch_audio.stream:
+		munch_audio.stop()
+		munch_audio.play()
 
+# Programmatically spawns a beautiful retro particle explosion at Pac-Man's death site
+func play_death_particles() -> void:
+	var particles := GPUParticles3D.new()
+	
+	# 1. Mesh setup: Small yellow cubes matching Pac-Man's color
+	var mesh := BoxMesh.new()
+	mesh.size = Vector3(0.15, 0.15, 0.15)
+	
+	var mat := StandardMaterial3D.new()
+	if player_material:
+		mat.albedo_color = player_material.albedo_color
+	else:
+		mat.albedo_color = Color(1.0, 1.0, 0.0)
+	mat.shading_mode = StandardMaterial3D.SHADING_MODE_UNSHADED
+	mesh.material = mat
+	particles.draw_pass_1 = mesh
+	
+	# 2. Physics process setup for explosion behavior
+	var p_mat := ParticleProcessMaterial.new()
+	p_mat.emission_shape = ParticleProcessMaterial.EMISSION_SHAPE_SPHERE
+	p_mat.emission_sphere_radius = 0.3
+	
+	p_mat.direction = Vector3.UP
+	p_mat.spread = 180.0 
+	
+	p_mat.initial_velocity_min = 4.0
+	p_mat.initial_velocity_max = 7.0
+	p_mat.gravity = Vector3(0.0, -12.0, 0.0) 
+	
+	p_mat.damping_min = 1.0
+	p_mat.damping_max = 2.0
+	
+	particles.process_material = p_mat
+	
+	# 3. Particle system emissions
+	particles.amount = 30
+	particles.one_shot = true
+	particles.explosiveness = 1.0
+	particles.lifetime = 0.8
+	
+	# FIXED: Save current coordinate position BEFORE tree insertion
+	var death_position = global_position
+	
+	# Add to LevelManager first, so it doesn't get freed with Player
+	get_parent().add_child(particles)
+	
+	# Apply coordinates AFTER tree insertion to avoid Transform reset bugs
+	particles.global_position = death_position
+	particles.emitting = true
+	
+	# Safely cleanup the programmatic node after lifetime ends
+	var timer = get_tree().create_timer(1.0)
+	timer.timeout.connect(func(): particles.queue_free())
+
+# Triggers particles and teleports player back to start
 func respawn() -> void:
+	play_death_particles()
 	global_position = spawn_position
 	velocity = Vector3.ZERO
 	current_direction = Vector3.ZERO
