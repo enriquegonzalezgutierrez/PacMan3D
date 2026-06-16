@@ -1,10 +1,9 @@
 [gd_scene format=3 uid="uid://cswep7nkucxq5"]
 
-[ext_resource type="Script" uid="uid://b4v4t4irjfsid" path="res://scripts/core/level_manager.gd" id="1_72ix8"]
 [ext_resource type="Script" uid="uid://dxs0gajgrs7rh" path="res://scripts/ui/hud.gd" id="2_2vj2h"]
+[ext_resource type="Script" uid="uid://b4v4t4irjfsid" path="res://scripts/core/level_manager.gd" id="2_y0acb"]
 
 [node name="Main" type="Node3D" unique_id=652129351]
-script = ExtResource("1_72ix8")
 
 [node name="HUD" type="Control" parent="." unique_id=773513902]
 layout_mode = 3
@@ -15,3 +14,6 @@ script = ExtResource("2_2vj2h")
 
 [node name="DirectionalLight3D" type="DirectionalLight3D" parent="." unique_id=1997718309]
 transform = Transform3D(0.7071067, -0.49999994, 0.49999994, 0, 0.7071067, 0.7071067, -0.7071067, -0.49999994, 0.49999994, 0, 0, 0)
+
+[node name="LevelManager" type="Node3D" parent="." unique_id=2147317083]
+script = ExtResource("2_y0acb")

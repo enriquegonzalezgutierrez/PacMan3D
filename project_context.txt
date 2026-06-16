@@ -1,0 +1,1529 @@
+PROJECT TREE
+============
+.
+├── README.md
+├── ROADMAP.md
+├── assets
+│   └── ui
+│       └── images
+│           ├── main_menu_bg.png
+│           └── main_menu_bg.png.import
+├── data
+│   └── level_01.json
+├── icon.svg
+├── icon.svg.import
+├── project.godot
+├── project_context.txt
+├── scenes
+│   └── levels
+│       └── main.tscn
+└── scripts
+	├── core
+	│   ├── game_manager.gd
+	│   ├── game_manager.gd.uid
+	│   ├── level_manager.gd
+	│   └── level_manager.gd.uid
+	├── entities
+	│   ├── behaviors
+	│   │   ├── blinky_behavior.gd
+	│   │   ├── blinky_behavior.gd.uid
+	│   │   ├── clyde_behavior.gd
+	│   │   ├── clyde_behavior.gd.uid
+	│   │   ├── inky_behavior.gd
+	│   │   ├── inky_behavior.gd.uid
+	│   │   ├── pinky_behavior.gd
+	│   │   └── pinky_behavior.gd.uid
+	│   ├── ghost.gd
+	│   ├── ghost.gd.uid
+	│   ├── ghost_behavior.gd
+	│   ├── ghost_behavior.gd.uid
+	│   ├── pellet.gd
+	│   ├── pellet.gd.uid
+	│   ├── player.gd
+	│   ├── player.gd.uid
+	│   ├── portal.gd
+	│   └── portal.gd.uid
+	└── ui
+		├── hud.gd
+		└── hud.gd.uid
+
+12 directories, 34 files
+
+FILES
+=====
+
+==================================================
+FILE: ./.editorconfig
+==================================================
+root = true
+
+[*]
+charset = utf-8
+
+==================================================
+FILE: ./.gitattributes
+==================================================
+# Normalize EOL for all files that Git considers text files.
+* text=auto eol=lf
+
+==================================================
+FILE: ./.gitignore
+==================================================
+# ==============================================================================
+# Description: Comprehensive Git ignore file for Godot 4 projects.
+#              Prevents tracking of local editor metadata, binary builds,
+#              OS-specific garbage, and resolves conflicts with project folders.
+# Author: Enrique González Gutiérrez
+# Email: enrique.gonzalez.gutierrez@gmail.com
+# ==============================================================================
+
+# ------------------------------------------------------------------------------
+# Godot Engine Core Ignores
+# ------------------------------------------------------------------------------
+# Ignore the local .godot/ folder which contains import caches and local settings.
+# This folder is auto-generated and should never be committed.
+.godot/
+
+# Ignore auto-generated translation files.
+*.translation
+
+# ------------------------------------------------------------------------------
+# Platform-Specific Builds & Exports
+# ------------------------------------------------------------------------------
+# It is recommended to keep binary exports out of the repository.
+*.exe
+*.dll
+*.so
+*.dylib
+*.pck
+*.apk
+*.aab
+*.ipa
+build/
+exports/
+
+# ------------------------------------------------------------------------------
+# Mono / C# Specific Ignores (If applicable in the future)
+# ------------------------------------------------------------------------------
+.mono/
+bin/
+obj/
+
+# ------------------------------------------------------------------------------
+# OS-Specific Garbage Files
+# ------------------------------------------------------------------------------
+.DS_Store
+Thumbs.db
+desktop.ini
+.directory
+
+# ------------------------------------------------------------------------------
+# Crash Dumps & System Diagnostics
+# ------------------------------------------------------------------------------
+# FIX: Added a leading slash '/' to ensure Git only ignores a 'core' file at the 
+# root of the repository, preventing it from ignoring folders like 'scripts/core/'.
+/core
+*.dmp
+==================================================
+FILE: ./README.md
+==================================================
+# PacMan3D
+
+<!--
+==============================================================================
+Description: Main documentation file for the PacMan3D project.
+Author: Enrique González Gutiérrez
+Email: enrique.gonzalez.gutierrez@gmail.com
+==============================================================================
+-->
+
+![PacMan3D Main Menu](assets/ui/images/main_menu_bg.png)
+
+## Overview
+**PacMan3D** is a modern 3D reimagining of the classic arcade game, built entirely from scratch using **Godot 4**. 
+
+Currently in **Phase 1**, this project focuses on robust core mechanics, physics-based movement, and dynamic level generation using JSON files. The visual aesthetic relies purely on Godot's primitive 3D meshes (Spheres, Capsules, and Cubes) paired with vibrant colors and lighting to create a clean, minimalist, and highly playable prototype.
+
+## Features (Phase 1)
+*   **JSON-Based Level Generation:** Mazes are generated dynamically at runtime from structured JSON grid data.
+*   **Physics-Based Entities:** Smooth movement and collision detection using Godot 4's 3D physics engine (`CharacterBody3D`, `Area3D`, `StaticBody3D`).
+*   **Primitive 3D Art Style:** 
+	*   Player: Yellow Sphere.
+	*   Ghosts: Colorful Capsules (Red, Pink, Cyan, Orange).
+	*   Maze: Blue Cubes.
+*   **Core Loop:** Pellet collection, Power Pellets (invincibility state), basic Ghost AI (chase and frightened states), and score/lives tracking.
+
+## Project Structure
+*   `/assets/` - UI images, icons, and non-engine assets.
+*   `/data/` - JSON files containing the level layouts.
+*   `/materials/` - Standard 3D materials (colors) for the primitives.
+*   `/scenes/` - Godot scene files (`.tscn`).
+*   `/scripts/` - GDScript files (`.gd`), handling all game logic.
+
+## Author
+*   **Name:** Enrique González Gutiérrez
+*   **Email:** enrique.gonzalez.gutierrez@gmail.com
+==================================================
+FILE: ./ROADMAP.md
+==================================================
+# ROADMAP - PacMan3D (Phase 1)
+
+## 1. Project Setup & Folder Structure
+**Objective:** Establish a clean, scalable, and English-only project structure in Godot 4.
+
+*   `res://data/`: Will contain the JSON files used to build the levels.
+*   `res://scenes/`: Will hold all `.tscn` files.
+	*   `res://scenes/levels/`: For the main game scene.
+	*   `res://scenes/entities/`: For the player, ghosts, pellets, etc.
+	*   `res://scenes/ui/`: For the Heads-Up Display (HUD) and menus.
+*   `res://scripts/`: Will hold all `.gd` scripts.
+	*   `res://scripts/core/`: Game managers, JSON parsers.
+	*   `res://scripts/entities/`: Logic for player and enemies.
+*   `res://materials/`: Will contain standard materials (colors for primitive shapes).
+
+*Note: All future scripts will strictly include the following header:*
+```text
+# ==============================================================================
+# Description: [Brief description of the file's purpose]
+# Author: Enrique González Gutiérrez
+# Email: enrique.gonzalez.gutierrez@gmail.com
+# ==============================================================================
+```
+
+## 2. Level Design & JSON Parsing
+**Objective:** Define the level architecture in a JSON file and create a parser to interpret it in Godot.
+
+*   **JSON Structure Definition:** 
+    The level will be represented as a 2D grid matrix (array of arrays or a flat array with width/height) inside a JSON file. 
+    *Legend for the grid:*
+    *   `0`: Empty space.
+    *   `1`: Wall (Cube).
+    *   `2`: Normal Pellet (Small Sphere).
+    *   `3`: Power Pellet (Medium Sphere).
+    *   `4`: Player Spawn Point.
+    *   `5`: Ghost Spawn Point.
+*   **Level Parser Manager:** 
+    A Singleton/Autoload script (`level_manager.gd`) responsible for reading `level_01.json`, parsing the grid, and calculating the exact 3D coordinates (X, Z) based on a defined cell size (e.g., 2.0 meters).
+
+## 3. Physics & World Generation (Primitives Only)
+**Objective:** Translate the parsed JSON data into a physical 3D world using only Godot primitive meshes.
+
+*   **Walls (`StaticBody3D`):**
+    *   Mesh: `BoxMesh` (Cube).
+    *   Collision: `CollisionShape3D` (Box).
+    *   Material: Blue color.
+*   **Floor (`StaticBody3D`):**
+    *   Generated automatically to cover the entire grid size.
+    *   Material: Dark gray or black color.
+*   **Pellets & Power Pellets (`Area3D`):**
+    *   Mesh: `SphereMesh` (Small for normal, slightly larger for power).
+    *   Collision: `CollisionShape3D` (Sphere).
+    *   Material: Yellow/White color.
+    *   Logic: Emits a signal `on_pellet_eaten` when the player enters the area, then queues itself for deletion.
+
+## 4. Player Entity (Pac-Man)
+**Objective:** Create the controllable character using physics-based movement.
+
+*   **Node Setup (`CharacterBody3D`):**
+    *   Mesh: `SphereMesh` (Yellow color).
+    *   Collision: `CollisionShape3D` (Sphere).
+*   **Movement Logic:**
+    *   Handled via `move_and_slide()` to allow smooth gliding against walls.
+    *   Input handling for 4 directions (Up, Down, Left, Right) mapped to the 3D X and Z axes.
+    *   Movement constraints to ensure the player aligns reasonably well with the grid structure to avoid getting stuck on corners, utilizing raycasts (`RayCast3D`) to detect valid turns.
+*   **State Machine (Basic):** 
+    Normal state vs. Invincible state (when eating a Power Pellet).
+
+## 5. Enemy Entities (Ghosts)
+**Objective:** Create the enemies using basic AI and primitive capsule shapes.
+
+*   **Node Setup (`CharacterBody3D`):**
+    *   Mesh: `CapsuleMesh` (Different colors: Red, Pink, Cyan, Orange).
+    *   Collision: `CollisionShape3D` (Capsule).
+    *   Detection: `Area3D` to detect collision with the Player.
+*   **AI Movement Logic:**
+	*   Since it's Phase 1, Ghosts will use a grid-based pseudo-random movement or basic A* pathfinding (using Godot's `AStarGrid2D` mapped to the 3D X/Z coordinates).
+    *   They will constantly move forward and pick a new valid direction at every intersection.
+*   **Ghost States:**
+    *   `CHASE`: Normal state, chasing or wandering.
+    *   `FRIGHTENED`: Triggered by a Power Pellet. Movement slows down, color changes to Blue, runs away from the player.
+    *   `EATEN`: Returns to the spawn point.
+
+## 6. Game Loop & UI (HUD)
+**Objective:** Connect the elements into a fully playable game loop.
+
+*   **Game Manager (`game_manager.gd`):** Autoload script handling the global state.
+*   **Win/Loss Conditions:**
+    *   Win: Keep track of total pellets generated vs. eaten. When the count reaches 0, trigger Victory.
+    *   Loss: If a Ghost touches the player in `CHASE` state, lose a life. If lives reach 0, trigger Game Over.
+*   **UI (`Control` nodes):**
+    *   Score counter.
+    *   Lives counter.
+    *   Simple "Game Over" and "You Win" text overlay.
+==================================================
+FILE: ./data/level_01.json
+==================================================
+{
+  "_metadata": {
+	"description": "Large classic grid layout data. 0: Empty, 1: Wall, 2: Pellet, 3: Power Pellet, 4: Player Spawn, 5: Ghost Spawn, 6: Portal Left, 7: Portal Right",
+	"author": "Enrique González Gutiérrez",
+	"email": "enrique.gonzalez.gutierrez@gmail.com"
+  },
+  "grid_width": 21,
+  "grid_height": 21,
+  "layout": [
+	[1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1],
+	[1, 3, 2, 2, 2, 2, 2, 2, 2, 2, 1, 2, 2, 2, 2, 2, 2, 2, 2, 3, 1],
+	[1, 2, 1, 1, 1, 2, 1, 1, 1, 2, 1, 2, 1, 1, 1, 2, 1, 1, 1, 2, 1],
+	[1, 2, 1, 1, 1, 2, 1, 1, 1, 2, 1, 2, 1, 1, 1, 2, 1, 1, 1, 2, 1],
+	[1, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 1],
+	[1, 2, 1, 1, 1, 2, 1, 2, 1, 1, 1, 1, 1, 2, 1, 2, 1, 1, 1, 2, 1],
+	[1, 2, 2, 2, 2, 2, 1, 2, 2, 2, 1, 2, 2, 2, 1, 2, 2, 2, 2, 2, 1],
+	[1, 1, 1, 1, 1, 2, 1, 1, 1, 0, 1, 0, 1, 1, 1, 2, 1, 1, 1, 1, 1],
+	[0, 0, 0, 0, 1, 2, 1, 0, 0, 0, 0, 0, 0, 0, 1, 2, 1, 0, 0, 0, 0],
+	[1, 1, 1, 1, 1, 2, 1, 0, 1, 1, 5, 1, 1, 0, 1, 2, 1, 1, 1, 1, 1],
+	[6, 0, 0, 0, 0, 2, 0, 0, 1, 5, 0, 5, 1, 0, 0, 2, 0, 0, 0, 0, 7],
+	[1, 1, 1, 1, 1, 2, 1, 0, 1, 1, 5, 1, 1, 0, 1, 2, 1, 1, 1, 1, 1],
+	[0, 0, 0, 0, 1, 2, 1, 0, 0, 0, 0, 0, 0, 0, 1, 2, 1, 0, 0, 0, 0],
+	[1, 1, 1, 1, 1, 2, 1, 0, 1, 1, 1, 1, 1, 0, 1, 2, 1, 1, 1, 1, 1],
+	[1, 2, 2, 2, 2, 2, 2, 2, 2, 2, 1, 2, 2, 2, 2, 2, 2, 2, 2, 2, 1],
+	[1, 2, 1, 1, 1, 2, 1, 1, 1, 2, 1, 2, 1, 1, 1, 2, 1, 1, 1, 2, 1],
+	[1, 3, 2, 2, 1, 2, 2, 2, 2, 2, 4, 2, 2, 2, 2, 2, 1, 2, 2, 3, 1],
+	[1, 1, 1, 2, 1, 2, 1, 2, 1, 1, 1, 1, 1, 2, 1, 2, 1, 2, 1, 1, 1],
+	[1, 2, 2, 2, 2, 2, 1, 2, 2, 2, 1, 2, 2, 2, 1, 2, 2, 2, 2, 2, 1],
+	[1, 2, 1, 1, 1, 1, 1, 1, 1, 2, 1, 2, 1, 1, 1, 1, 1, 1, 1, 2, 1],
+	[1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1]
+  ]
+}
+
+==================================================
+FILE: ./icon.svg
+==================================================
+<svg xmlns="http://www.w3.org/2000/svg" width="128" height="128"><rect width="124" height="124" x="2" y="2" fill="#363d52" stroke="#212532" stroke-width="4" rx="14"/><g fill="#fff" transform="translate(12.322 12.322)scale(.101)"><path d="M105 673v33q407 354 814 0v-33z"/><path fill="#478cbf" d="m105 673 152 14q12 1 15 14l4 67 132 10 8-61q2-11 15-15h162q13 4 15 15l8 61 132-10 4-67q3-13 15-14l152-14V427q30-39 56-81-35-59-83-108-43 20-82 47-40-37-88-64 7-51 8-102-59-28-123-42-26 43-46 89-49-7-98 0-20-46-46-89-64 14-123 42 1 51 8 102-48 27-88 64-39-27-82-47-48 49-83 108 26 42 56 81zm0 33v39c0 276 813 276 814 0v-39l-134 12-5 69q-2 10-14 13l-162 11q-12 0-16-11l-10-65H446l-10 65q-4 11-16 11l-162-11q-12-3-14-13l-5-69z"/><path d="M483 600c0 34 58 34 58 0v-86c0-34-58-34-58 0z"/><circle cx="725" cy="526" r="90"/><circle cx="299" cy="526" r="90"/></g><g fill="#414042" transform="translate(12.322 12.322)scale(.101)"><circle cx="307" cy="532" r="60"/><circle cx="717" cy="532" r="60"/></g></svg>
+
+==================================================
+FILE: ./project.godot
+==================================================
+; Engine configuration file.
+; It's best edited using the editor UI and not directly,
+; since the parameters that go here are not all obvious.
+;
+; Format:
+;   [section] ; section goes between []
+;   param=value ; assign values to parameters
+
+config_version=5
+
+[application]
+
+config/name="PacMan3D"
+run/main_scene="uid://cswep7nkucxq5"
+config/features=PackedStringArray("4.6", "Forward Plus")
+config/icon="res://icon.svg"
+
+[autoload]
+
+GameManager="*uid://c85kxi3tce0so"
+
+[physics]
+
+3d/physics_engine="Jolt Physics"
+
+[rendering]
+
+rendering_device/driver.windows="d3d12"
+
+==================================================
+FILE: ./project_context.txt
+==================================================
+
+==================================================
+FILE: ./scenes/levels/main.tscn
+==================================================
+[gd_scene format=3 uid="uid://cswep7nkucxq5"]
+
+[ext_resource type="Script" uid="uid://dxs0gajgrs7rh" path="res://scripts/ui/hud.gd" id="2_2vj2h"]
+[ext_resource type="Script" uid="uid://b4v4t4irjfsid" path="res://scripts/core/level_manager.gd" id="2_y0acb"]
+
+[node name="Main" type="Node3D" unique_id=652129351]
+
+[node name="HUD" type="Control" parent="." unique_id=773513902]
+layout_mode = 3
+anchors_preset = 0
+offset_right = 40.0
+offset_bottom = 40.0
+script = ExtResource("2_2vj2h")
+
+[node name="DirectionalLight3D" type="DirectionalLight3D" parent="." unique_id=1997718309]
+transform = Transform3D(0.7071067, -0.49999994, 0.49999994, 0, 0.7071067, 0.7071067, -0.7071067, -0.49999994, 0.49999994, 0, 0, 0)
+
+[node name="LevelManager" type="Node3D" parent="." unique_id=2147317083]
+script = ExtResource("2_y0acb")
+
+==================================================
+FILE: ./scripts/core/game_manager.gd
+==================================================
+# ==============================================================================
+# Description: Global singleton managing game state, score, lives, win/loss
+#              conditions, and event signals. Also stores the current level layout
+#              matrix to allow HUD components (like the Minimap) to query it.
+# Author: Enrique González Gutiérrez
+# Email: enrique.gonzalez.gutierrez@gmail.com
+# ==============================================================================
+extends Node
+
+# Signals to communicate with the UI (HUD)
+signal score_changed(new_score: int)
+signal lives_changed(new_lives: int)
+signal game_over()
+signal victory()
+
+# Gameplay state signals
+signal power_pellet_activated()
+signal player_killed()
+
+# Game State Variables
+var score : int = 0
+var lives : int = 3
+var total_pellets : int = 0
+var pellets_eaten : int = 0
+
+# Grid layout cache for the 2D Minimap (Filled by LevelManager)
+var level_layout : Array = []
+var grid_width : int = 0
+var grid_height : int = 0
+
+func _ready() -> void:
+	reset_game()
+
+# Resets the game variables for a new playthrough
+func reset_game() -> void:
+	score = 0
+	lives = 3
+	total_pellets = 0
+	pellets_eaten = 0
+	
+	# Defer the signal emissions until the node tree is fully ready
+	call_deferred("_emit_initial_signals")
+
+func _emit_initial_signals() -> void:
+	score_changed.emit(score)
+	lives_changed.emit(lives)
+
+# Adds points and updates the HUD
+func add_score(points: int) -> void:
+	score += points
+	score_changed.emit(score)
+
+# Handles losing a life, emitting the reset signal, and checking for Game Over
+func lose_life() -> void:
+	lives -= 1
+	lives_changed.emit(lives)
+	
+	player_killed.emit()
+	
+	if lives <= 0:
+		game_over.emit()
+
+# Called by the LevelManager or Pellets when they are spawned
+func register_pellet() -> void:
+	total_pellets += 1
+
+# Called by the Player when eating a pellet
+func pellet_eaten() -> void:
+	pellets_eaten += 1
+	add_score(10)
+	
+	if pellets_eaten >= total_pellets and total_pellets > 0:
+		victory.emit()
+
+# Triggers the Frightened state for all ghosts
+func activate_power_pellet() -> void:
+	power_pellet_activated.emit()
+
+==================================================
+FILE: ./scripts/core/level_manager.gd
+==================================================
+# ==============================================================================
+# Description: Parses the level JSON file, feeds the layout data to the global
+#              GameManager, and generates the 3D grid of Pac-Man entities.
+#              The floor has been completely removed to avoid rendering glitches,
+#              shadow cascade bugs with orthogonal cameras, and Z-fighting.
+# Author: Enrique González Gutiérrez
+# Email: enrique.gonzalez.gutierrez@gmail.com
+# ==============================================================================
+extends Node3D
+class_name LevelManager
+
+const CELL_SIZE : float = 2.0
+const WALL_HEIGHT : float = 2.0
+
+var wall_material : StandardMaterial3D
+var ghost_types : Array[String] = ["Blinky", "Pinky", "Inky", "Clyde"]
+var spawned_ghosts_count : int = 0
+
+var level_data : Dictionary = {}
+var map_offset_x : float = 0.0
+var map_offset_z : float = 0.0
+
+func _ready() -> void:
+	_initialize_materials()
+	if _load_level_data("res://data/level_01.json"):
+		_build_environment()
+
+# Initializes materials for walls
+func _initialize_materials() -> void:
+	wall_material = StandardMaterial3D.new()
+	wall_material.albedo_color = Color(0.0, 0.0, 1.0) # Classic Pac-Man Blue
+
+# Loads and parses the JSON level configuration
+func _load_level_data(file_path: String) -> bool:
+	if not FileAccess.file_exists(file_path):
+		return false
+		
+	var file := FileAccess.open(file_path, FileAccess.READ)
+	var content := file.get_as_text()
+	file.close()
+	
+	var json := JSON.new()
+	var error := json.parse(content)
+	
+	if error == OK:
+		level_data = json.data
+		var layout : Array = level_data.get("layout", [])
+		if GameManager:
+			GameManager.level_layout = layout
+			GameManager.grid_width = int(level_data.get("grid_width", 0))
+			GameManager.grid_height = int(level_data.get("grid_height", 0))
+			
+		var width : float = float(level_data.get("grid_width", 0))
+		var height : float = float(level_data.get("grid_height", 0))
+		map_offset_x = (width * CELL_SIZE) / 2.0
+		map_offset_z = (height * CELL_SIZE) / 2.0
+		return true
+	return false
+
+# Iterates through the layout matrix and spawns the corresponding 3D entities
+func _build_environment() -> void:
+	var layout : Array = level_data.get("layout", [])
+	for z in range(layout.size()):
+		var row : Array = layout[z]
+		for x in range(row.size()):
+			var cell_type : int = int(row[x])
+			var pos_x : float = (x * CELL_SIZE) - map_offset_x + (CELL_SIZE / 2.0)
+			var pos_z : float = (z * CELL_SIZE) - map_offset_z + (CELL_SIZE / 2.0)
+			var world_pos := Vector3(pos_x, 0.0, pos_z)
+			
+			match cell_type:
+				1: _create_wall(world_pos)
+				2: _create_pellet(world_pos, false)
+				3: _create_pellet(world_pos, true)
+				4: _spawn_player(world_pos)
+				5: _spawn_ghost(world_pos)
+				6: _create_portal(world_pos, "Portal_A", "Portal_B")
+				7: _create_portal(world_pos, "Portal_B", "Portal_A")
+
+# Instantiates a 3D wall block
+func _create_wall(pos: Vector3) -> void:
+	var static_body := StaticBody3D.new()
+	var mesh_instance := MeshInstance3D.new()
+	var collision_shape := CollisionShape3D.new()
+	
+	var box_mesh := BoxMesh.new()
+	box_mesh.size = Vector3(CELL_SIZE, WALL_HEIGHT, CELL_SIZE)
+	mesh_instance.mesh = box_mesh
+	mesh_instance.material_override = wall_material
+	
+	var box_shape := BoxShape3D.new()
+	box_shape.size = box_mesh.size
+	collision_shape.shape = box_shape
+	
+	static_body.add_child(mesh_instance)
+	static_body.add_child(collision_shape)
+	static_body.position = pos
+	static_body.position.y = WALL_HEIGHT / 2.0 
+	add_child(static_body)
+
+# Instantiates a standard or power pellet
+func _create_pellet(pos: Vector3, is_power: bool) -> void:
+	var pellet := Pellet.new()
+	pellet.is_power_pellet = is_power
+	pellet.position = pos
+	pellet.position.y = 0.5
+	add_child(pellet)
+
+# Instantiates the player character
+func _spawn_player(pos: Vector3) -> void:
+	var player := Player.new()
+	player.spawn_position = pos
+	player.position = pos
+	player.position.y = 0.8
+	add_child(player)
+
+# Instantiates a ghost character with sequential type assignment
+func _spawn_ghost(pos: Vector3) -> void:
+	var ghost := Ghost.new()
+	var type_index : int = spawned_ghosts_count % ghost_types.size()
+	ghost.ghost_type = ghost_types[type_index]
+	spawned_ghosts_count += 1
+	ghost.position = pos
+	ghost.position.y = 0.8
+	add_child(ghost)
+
+# Instantiates a warp portal
+func _create_portal(pos: Vector3, my_name: String, partner_name: String) -> void:
+	var portal := Portal.new()
+	portal.name = my_name
+	portal.partner_portal_name = partner_name
+	portal.position = pos
+	portal.position.y = 0.8
+	add_child(portal)
+
+==================================================
+FILE: ./scripts/entities/behaviors/blinky_behavior.gd
+==================================================
+# ==============================================================================
+# Description: Direct Chaser behavior strategy for Blinky (Red).
+#              Implements SOLID Open/Closed Principle (OCP).
+# Author: Enrique González Gutiérrez
+# Email: enrique.gonzalez.gutierrez@gmail.com
+# ==============================================================================
+extends GhostBehavior
+class_name BlinkyBehavior
+
+# Blinky always targets the player's exact direct position
+func get_target_position(_ghost: CharacterBody3D, player: Node3D) -> Vector3:
+	if player:
+		return player.global_position
+	return _ghost.global_position
+
+==================================================
+FILE: ./scripts/entities/behaviors/clyde_behavior.gd
+==================================================
+# ==============================================================================
+# Description: Cowardly/Wanderer behavior strategy for Clyde (Orange).
+#              Implements SOLID Open/Closed Principle (OCP).
+# Author: Enrique González Gutiérrez
+# Email: enrique.gonzalez.gutierrez@gmail.com
+# ==============================================================================
+extends GhostBehavior
+class_name ClydeBehavior
+
+# Clyde targets player if far away, but runs back to spawn corner if too close
+func get_target_position(_ghost: CharacterBody3D, player: Node3D) -> Vector3:
+	if player:
+		var dist_to_player : float = _ghost.global_position.distance_to(player.global_position)
+		if dist_to_player > 14.0: # 7 tiles away
+			return player.global_position
+		
+		# If too close, target own spawn corner
+		if _ghost is Ghost:
+			return _ghost.spawn_position
+		return _ghost.global_position
+	return _ghost.global_position
+
+==================================================
+FILE: ./scripts/entities/behaviors/inky_behavior.gd
+==================================================
+# ==============================================================================
+# Description: Flanker/Tactician behavior strategy for Inky (Cyan).
+#              Implements SOLID Open/Closed Principle (OCP).
+# Author: Enrique González Gutiérrez
+# Email: enrique.gonzalez.gutierrez@gmail.com
+# ==============================================================================
+extends GhostBehavior
+class_name InkyBehavior
+
+# Inky uses Blinky's position and the player's position to flank the player
+func get_target_position(_ghost: CharacterBody3D, player: Node3D) -> Vector3:
+	if player:
+		# Search the scene for Blinky to establish the tactical vector
+		var blinky : Node3D = null
+		var ghosts = _ghost.get_tree().get_nodes_in_group("ghosts")
+		
+		for g in ghosts:
+			if g is Ghost and g.ghost_type == "Blinky":
+				blinky = g
+				break
+		
+		if blinky:
+			var vec_to_player : Vector3 = player.global_position - blinky.global_position
+			return player.global_position + vec_to_player
+		return player.global_position
+	return _ghost.global_position
+
+==================================================
+FILE: ./scripts/entities/behaviors/pinky_behavior.gd
+==================================================
+# ==============================================================================
+# Description: Ambusher behavior strategy for Pinky (Pink).
+#              Implements SOLID Open/Closed Principle (OCP).
+# Author: Enrique González Gutiérrez
+# Email: enrique.gonzalez.gutierrez@gmail.com
+# ==============================================================================
+extends GhostBehavior
+class_name PinkyBehavior
+
+# Pinky targets 8 meters (4 grid tiles) ahead of the player's current moving direction
+func get_target_position(_ghost: CharacterBody3D, player: Node3D) -> Vector3:
+	if player:
+		var player_dir : Vector3 = player.velocity.normalized()
+		if player_dir != Vector3.ZERO:
+			return player.global_position + (player_dir * 8.0)
+		return player.global_position
+	return _ghost.global_position
+
+==================================================
+FILE: ./scripts/entities/ghost.gd
+==================================================
+# ==============================================================================
+# Description: CharacterBody3D controller for Ghosts. Handles primitive capsule
+#              generation, color setting, collision-tested pathfinding, and
+#              assigns SOLID-compliant behavior strategy patterns.
+#              Features grid-based decision making and Perpendicular Snapping
+#              on 90-degree turns to eliminate visual stutters or jerks.
+# Author: Enrique González Gutiérrez
+# Email: enrique.gonzalez.gutierrez@gmail.com
+# ==============================================================================
+extends CharacterBody3D
+class_name Ghost
+
+# State Machine definitions
+enum State { LEAVING, CHASE, FRIGHTENED }
+var current_state : State = State.LEAVING
+
+@export_enum("Blinky", "Pinky", "Inky", "Clyde") var ghost_type : String = "Blinky"
+
+# Movement constants
+const BASE_SPEED : float = 5.0
+const FRIGHTENED_SPEED : float = 2.5
+const CARDINAL_DIRECTIONS = [
+	Vector3.FORWARD,
+	Vector3.BACK,
+	Vector3.LEFT,
+	Vector3.RIGHT
+]
+
+const CELL_SIZE : float = 2.0
+const ALIGNMENT_FORCE : float = 15.0 # Smooth vector steering alignment force
+
+var speed : float = BASE_SPEED
+var ghost_material : StandardMaterial3D
+var current_direction : Vector3 = Vector3.FORWARD
+
+# Frightened timer variables
+var frightened_timer : float = 0.0
+const FRIGHTENED_DURATION : float = 7.0
+
+# Caching positions and foso navigation state
+var spawn_position : Vector3
+var exit_position : Vector3 = Vector3(0.0, 0.8, -4.0) # Coordinate of the foso gate exit
+var is_inside_foso : bool = true # Force exit navigation prior to player chasing
+
+# Grid tracking variables to achieve arcade-perfect turning at intersections
+var last_grid_pos : Vector2i = Vector2i(-1, -1)
+
+# SOLID Strategy reference (Targeting logic is delegated here)
+var behavior_strategy : GhostBehavior
+
+func _ready() -> void:
+	spawn_position = global_position
+	add_to_group("ghosts")
+	
+	_configure_collision_layers()
+	_initialize_material()
+	_build_ghost_visuals()
+	_setup_player_detection()
+	_initialize_behavior_strategy()
+	
+	# Initialize the grid position to prevent an instant turn check on frame 1
+	var offset : float = float(GameManager.grid_width * CELL_SIZE / 2.0) - (CELL_SIZE / 2.0)
+	var grid_x : int = int(round((global_position.x + offset) / CELL_SIZE))
+	var grid_z : int = int(round((global_position.z + offset) / CELL_SIZE))
+	last_grid_pos = Vector2i(grid_x, grid_z)
+	
+	if GameManager:
+		GameManager.power_pellet_activated.connect(_on_power_pellet_activated)
+		GameManager.player_killed.connect(_on_player_killed)
+	
+	current_direction = CARDINAL_DIRECTIONS.pick_random()
+
+# Configures symmetric collision layers: Ghost is on Layer 3, blocks with Layer 1 (Walls) and Layer 2 (Player)
+func _configure_collision_layers() -> void:
+	# Exist on Layer 3 (Bit value 4)
+	collision_layer = 4
+	# Block physically with Layer 1 (Walls) and Layer 2 (Player) (Bit values 1 + 2 = 3)
+	collision_mask = 3
+
+# Instantiate strategy dynamically based on ghost type (SOLID - Open/Closed compliance)
+func _initialize_behavior_strategy() -> void:
+	match ghost_type:
+		"Blinky":
+			behavior_strategy = BlinkyBehavior.new()
+		"Pinky":
+			behavior_strategy = PinkyBehavior.new()
+		"Inky":
+			behavior_strategy = InkyBehavior.new()
+		"Clyde":
+			behavior_strategy = ClydeBehavior.new()
+		_:
+			behavior_strategy = GhostBehavior.new() # Default fallback
+
+# Configures the material color based on the ghost's identity
+func _initialize_material() -> void:
+	if not ghost_material:
+		ghost_material = StandardMaterial3D.new()
+		
+	ghost_material.roughness = 0.2
+	ghost_material.emission_enabled = false
+	
+	match ghost_type:
+		"Blinky":
+			ghost_material.albedo_color = Color(1.0, 0.0, 0.0) # Red
+		"Pinky":
+			ghost_material.albedo_color = Color(1.0, 0.7, 0.8) # Pink
+			ghost_material.roughness = 0.4
+		"Inky":
+			ghost_material.albedo_color = Color(0.0, 1.0, 1.0) # Cyan
+		"Clyde":
+			ghost_material.albedo_color = Color(1.0, 0.6, 0.0) # Orange
+
+# Programmatically builds the capsule mesh and physical collision box
+func _build_ghost_visuals() -> void:
+	var mesh_instance := MeshInstance3D.new()
+	var collision_shape := CollisionShape3D.new()
+	
+	var radius : float = 0.6
+	var height : float = 1.6
+	
+	var capsule_mesh := CapsuleMesh.new()
+	capsule_mesh.radius = radius
+	capsule_mesh.height = height
+	mesh_instance.mesh = capsule_mesh
+	mesh_instance.material_override = ghost_material
+	
+	var capsule_shape := CapsuleShape3D.new()
+	capsule_shape.radius = radius
+	capsule_shape.height = height
+	collision_shape.shape = capsule_shape
+	
+	add_child(mesh_instance)
+	add_child(collision_shape)
+
+# Setup a dedicated trigger area to safely detect player intersection on Layer 2
+func _setup_player_detection() -> void:
+	var detection_area := Area3D.new()
+	var detection_shape := CollisionShape3D.new()
+	
+	var sphere_shape := SphereShape3D.new()
+	sphere_shape.radius = 0.85 # Slightly wider to guarantee trigger
+	detection_shape.shape = sphere_shape
+	
+	detection_area.add_child(detection_shape)
+	add_child(detection_area)
+	
+	# Explicitly set the Area3D to ONLY monitor Layer 2 (where Pac-Man physically exists)
+	detection_area.collision_layer = 0
+	detection_area.collision_mask = 2
+	
+	detection_area.body_entered.connect(_on_player_detected)
+
+# Main physics loop managing timers, states, movement, and rotation
+func _physics_process(delta: float) -> void:
+	# Foso exit controller (Calculated on 2D horizontal plane to prevent Y-axis physics snap bugs)
+	if is_inside_foso:
+		var pos_2d := Vector2(global_position.x, global_position.z)
+		var exit_2d := Vector2(exit_position.x, exit_position.z)
+		if pos_2d.distance_to(exit_2d) < 1.0:
+			is_inside_foso = false
+			if current_state == State.LEAVING:
+				current_state = State.CHASE
+				speed = BASE_SPEED
+				_initialize_material()
+				
+	elif current_state == State.FRIGHTENED:
+		frightened_timer -= delta
+		if frightened_timer <= 0.0:
+			_exit_frightened_state()
+		else:
+			# Frightened warning: Blink between Blue and White in the last 2.5 seconds
+			if frightened_timer <= 2.5:
+				var blink = int(frightened_timer * 5.0) % 2 == 0
+				if blink:
+					ghost_material.albedo_color = Color(1.0, 1.0, 1.0)
+					ghost_material.emission_enabled = true
+					ghost_material.emission = Color(0.8, 0.8, 0.8)
+				else:
+					ghost_material.albedo_color = Color(0.0, 0.0, 1.0)
+					ghost_material.emission_enabled = true
+					ghost_material.emission = Color(0.0, 0.2, 0.8)
+			else:
+				ghost_material.albedo_color = Color(0.0, 0.0, 1.0)
+				ghost_material.emission_enabled = true
+				ghost_material.emission = Color(0.0, 0.2, 0.8)
+
+	# --- GRID-BASED DECISION MAKING LOOP ---
+	# Calculate current grid coordinates dynamically
+	var offset : float = float(GameManager.grid_width * CELL_SIZE / 2.0) - (CELL_SIZE / 2.0)
+	var grid_x : int = int(round((global_position.x + offset) / CELL_SIZE))
+	var grid_z : int = int(round((global_position.z + offset) / CELL_SIZE))
+	var current_grid_pos := Vector2i(grid_x, grid_z)
+	
+	# Evaluate AI direction choice ONLY when entering a new tile or when hitting a wall
+	if current_grid_pos != last_grid_pos:
+		last_grid_pos = current_grid_pos
+		_choose_new_direction()
+	elif is_on_wall():
+		_choose_new_direction()
+		
+	# Apply current speed
+	if current_direction != Vector3.ZERO:
+		velocity = current_direction * speed
+		
+		# SMOOTH STEERING ALIGNMENT: 
+		# Pull ghosts smoothly to the centerline of corridors to prevent wall friction
+		if current_direction.x != 0.0:
+			var target_z = round(global_position.z / CELL_SIZE) * CELL_SIZE
+			velocity.z = (target_z - global_position.z) * ALIGNMENT_FORCE
+		elif current_direction.z != 0.0:
+			var target_x = round(global_position.x / CELL_SIZE) * CELL_SIZE
+			velocity.x = (target_x - global_position.x) * ALIGNMENT_FORCE
+	else:
+		velocity = Vector3.ZERO
+		
+	if current_direction != Vector3.ZERO:
+		var target_rotation_y = atan2(-current_direction.x, -current_direction.z)
+		rotation.y = lerp_angle(rotation.y, target_rotation_y, 0.2)
+		
+	move_and_slide()
+
+# Performs a mathematical check in the level matrix to see if a cell is open (Not a wall)
+func _get_matrix_open_directions() -> Array:
+	var open_dirs = []
+	if not GameManager or GameManager.level_layout.is_empty():
+		return CARDINAL_DIRECTIONS
+		
+	# Convert current 3D position back to 2D grid index
+	var offset : float = float(GameManager.grid_width * CELL_SIZE / 2.0) - (CELL_SIZE / 2.0)
+	var grid_x : int = int(round((global_position.x + offset) / CELL_SIZE))
+	var grid_z : int = int(round((global_position.z + offset) / CELL_SIZE))
+	
+	for dir in CARDINAL_DIRECTIONS:
+		var target_x : int = grid_x + int(dir.x)
+		var target_z : int = grid_z + int(dir.z)
+		
+		# Bounds check
+		if target_x >= 0 and target_x < GameManager.grid_width and target_z >= 0 and target_z < GameManager.grid_height:
+			var cell_type : int = int(GameManager.level_layout[target_z][target_x])
+			if cell_type != 1: # Cell is not a wall
+				open_dirs.append(dir)
+				
+	return open_dirs
+
+# AI direction choice based on active State and open paths
+func _choose_new_direction() -> void:
+	var open_dirs = _get_matrix_open_directions()
+	
+	var possible_directions = []
+	for dir in open_dirs:
+		if dir != -current_direction:
+			possible_directions.append(dir)
+			
+	if possible_directions.is_empty():
+		possible_directions = open_dirs
+	if possible_directions.is_empty():
+		possible_directions = CARDINAL_DIRECTIONS
+
+	var player = get_tree().get_first_node_in_group("player")
+	if not player:
+		current_direction = possible_directions.pick_random()
+		return
+
+	var target_pos : Vector3 = player.global_position
+
+	if is_inside_foso:
+		# When inside the base, target is ALWAYS the exit gate coordinate
+		target_pos = exit_position
+	elif current_state == State.FRIGHTENED:
+		# Fleeing AI: Pick direction that maximizes distance to Player
+		var best_dir = possible_directions[0]
+		var max_dist : float = -1.0
+		for dir in possible_directions:
+			var next_pos : Vector3 = global_position + (dir * CELL_SIZE)
+			var dist : float = next_pos.distance_to(player.global_position)
+			if dist > max_dist:
+				max_dist = dist
+				best_dir = dir
+		current_direction = best_dir
+		return
+	else:
+		# Chase AI: Delegate calculation to active SOLID Behavior Strategy
+		if behavior_strategy:
+			target_pos = behavior_strategy.get_target_position(self, player)
+
+	var next_dir : Vector3 = current_direction
+
+	# 85% chance to seek target, 15% chance to wander randomly
+	if randf() < 0.85:
+		var best_dir = possible_directions[0]
+		var min_dist : float = 999999.0
+		
+		for dir in possible_directions:
+			var next_pos : Vector3 = global_position + (dir * CELL_SIZE)
+			var dist : float = next_pos.distance_to(target_pos)
+			if dist < min_dist:
+				min_dist = dist
+				best_dir = dir
+				
+		next_dir = best_dir
+	else:
+		next_dir = possible_directions.pick_random()
+		
+	# Apply perpendicular snapping to eliminate visual jerking on 90-degree turns
+	if next_dir != current_direction:
+		_snap_to_cell_center(current_direction, next_dir)
+		current_direction = next_dir
+
+# Snaps the ghost position to the center of the current cell along the axis they are leaving
+func _snap_to_cell_center(old_dir: Vector3, new_dir: Vector3) -> void:
+	var offset : float = float(GameManager.grid_width * CELL_SIZE / 2.0) - (CELL_SIZE / 2.0)
+	var grid_x : int = int(round((global_position.x + offset) / CELL_SIZE))
+	var grid_z : int = int(round((global_position.z + offset) / CELL_SIZE))
+	
+	var center_x : float = (grid_x * CELL_SIZE) - offset
+	var center_z : float = (grid_z * CELL_SIZE) - offset
+	
+	# Turning from horizontal (X) to vertical (Z): instantly snap X to corridor centerline
+	if old_dir.x != 0.0 and new_dir.z != 0.0:
+		global_position.x = center_x
+	# Turning from vertical (Z) to horizontal (X): instantly snap Z to corridor centerline
+	elif old_dir.z != 0.0 and new_dir.x != 0.0:
+		global_position.z = center_z
+
+# Signal Callback: Triggers Frightened mode on power pellet intake
+func _on_power_pellet_activated() -> void:
+	current_state = State.FRIGHTENED
+	speed = FRIGHTENED_SPEED
+	frightened_timer = FRIGHTENED_DURATION
+	
+	ghost_material.albedo_color = Color(0.0, 0.0, 1.0) # Solid Blue
+	ghost_material.emission_enabled = true
+	ghost_material.emission = Color(0.0, 0.2, 0.8) # Glowing Blue
+
+# Restores the ghost back to standard chase behavior
+func _exit_frightened_state() -> void:
+	current_state = State.CHASE
+	speed = BASE_SPEED
+	_initialize_material()
+
+# Signal Callback: Resets ghost back to base as LEAVING state when player dies
+func _on_player_killed() -> void:
+	global_position = spawn_position
+	is_inside_foso = true # Reactivate exit gate navigation path
+	current_state = State.LEAVING
+	speed = BASE_SPEED
+	_initialize_material()
+	current_direction = CARDINAL_DIRECTIONS.pick_random()
+	
+	# Re-initialize grid coordinates to prevent offset errors on restart
+	var offset : float = float(GameManager.grid_width * CELL_SIZE / 2.0) - (CELL_SIZE / 2.0)
+	var grid_x : int = int(round((global_position.x + offset) / CELL_SIZE))
+	var grid_z : int = int(round((global_position.z + offset) / CELL_SIZE))
+	last_grid_pos = Vector2i(grid_x, grid_z)
+
+# Handles player intersection depending on current state
+func _on_player_detected(body: Node3D) -> void:
+	if body.is_in_group("player"):
+		if current_state == State.FRIGHTENED:
+			if GameManager:
+				GameManager.add_score(200)
+			
+			global_position = spawn_position
+			is_inside_foso = true # Reactivate foso exit pathing on respawn
+			current_state = State.LEAVING
+			speed = BASE_SPEED
+			_initialize_material()
+		else:
+			# Only kill player if the ghost is out of the foso and in CHASE mode
+			if current_state == State.CHASE:
+				if GameManager:
+					GameManager.lose_life()
+					
+				if body.has_method("respawn"):
+					body.respawn()
+
+==================================================
+FILE: ./scripts/entities/ghost_behavior.gd
+==================================================
+# ==============================================================================
+# Description: Base class (Strategy Pattern) for Ghost targeting behaviors.
+#              Enables strict adherence to SOLID Open/Closed Principle (OCP).
+# Author: Enrique González Gutiérrez
+# Email: enrique.gonzalez.gutierrez@gmail.com
+# ==============================================================================
+extends RefCounted
+class_name GhostBehavior
+
+# Virtual method to be overridden by specific ghost behavior subclasses
+# Returns the 3D target coordinate that the ghost should navigate towards
+func get_target_position(ghost: CharacterBody3D, player: Node3D) -> Vector3:
+	# Fallback target is always the player's direct position
+	if player:
+		return player.global_position
+	return ghost.global_position
+
+==================================================
+FILE: ./scripts/entities/pellet.gd
+==================================================
+# ==============================================================================
+# Description: Script for the pellet entity (Area3D) that registers itself with 
+#              the GameManager, joins the "pellets" group, detects Player class
+#              collision on Layer 2, and features unshaded (always bright) materials
+#              to prevent them from turning black in shadowed corridors.
+# Author: Enrique González Gutiérrez
+# Email: enrique.gonzalez.gutierrez@gmail.com
+# ==============================================================================
+extends Area3D
+class_name Pellet
+
+@export var is_power_pellet : bool = false
+var pellet_material : StandardMaterial3D
+
+func _ready() -> void:
+	add_to_group("pellets")
+	if GameManager:
+		GameManager.register_pellet()
+	_configure_collision_layers()
+	_initialize_material()
+	_build_pellet_visuals()
+	body_entered.connect(_on_body_entered)
+
+func _configure_collision_layers() -> void:
+	collision_layer = 0 
+	collision_mask = 2  
+
+func _initialize_material() -> void:
+	pellet_material = StandardMaterial3D.new()
+	pellet_material.shading_mode = StandardMaterial3D.SHADING_MODE_UNSHADED
+	if is_power_pellet:
+		pellet_material.albedo_color = Color(1.0, 0.5, 0.0) 
+	else:
+		pellet_material.albedo_color = Color(1.0, 1.0, 0.0) 
+
+func _build_pellet_visuals() -> void:
+	var mesh_instance := MeshInstance3D.new()
+	var collision_shape := CollisionShape3D.new()
+	var radius : float = 0.35 if is_power_pellet else 0.15
+	
+	var sphere_mesh := SphereMesh.new()
+	sphere_mesh.radius = radius
+	sphere_mesh.height = radius * 2.0
+	mesh_instance.mesh = sphere_mesh
+	mesh_instance.material_override = pellet_material
+	
+	var sphere_shape := SphereShape3D.new()
+	sphere_shape.radius = radius
+	collision_shape.shape = sphere_shape
+	
+	add_child(mesh_instance)
+	add_child(collision_shape)
+
+func _on_body_entered(body: Node3D) -> void:
+	if body is Player:
+		if GameManager:
+			if is_power_pellet:
+				GameManager.add_score(40)
+				GameManager.activate_power_pellet()
+			GameManager.pellet_eaten()
+		queue_free()
+
+==================================================
+FILE: ./scripts/entities/player.gd
+==================================================
+# ==============================================================================
+# Description: CharacterBody3D controller for Pac-Man. Handles movement inputs,
+#              visual mesh rotation, and continuous arcade movement.
+#              Features an ORTHOGRAPHIC top-down camera to prevent 3D perspective
+#              optical illusions (walls hiding objects on the edges).
+# Author: Enrique González Gutiérrez
+# Email: enrique.gonzalez.gutierrez@gmail.com
+# ==============================================================================
+extends CharacterBody3D
+class_name Player
+
+const SPEED : float = 7.0
+const CELL_SIZE : float = 2.0 
+const ALIGNMENT_FORCE : float = 15.0 
+
+var player_material : StandardMaterial3D
+var visual_mesh : MeshInstance3D 
+
+var spawn_position : Vector3
+var current_direction : Vector3 = Vector3.ZERO
+var next_direction : Vector3 = Vector3.ZERO
+
+func _ready() -> void:
+	add_to_group("player")
+	_configure_collision_layers()
+	_initialize_material()
+	_build_player_visuals()
+	_setup_camera()
+
+func _configure_collision_layers() -> void:
+	collision_layer = 2
+	collision_mask = 5
+
+func _initialize_material() -> void:
+	player_material = StandardMaterial3D.new()
+	player_material.albedo_color = Color(1.0, 1.0, 0.0) 
+	player_material.roughness = 0.1
+	player_material.metallic = 0.1
+
+func _build_player_visuals() -> void:
+	visual_mesh = MeshInstance3D.new()
+	var collision_shape := CollisionShape3D.new()
+	var radius : float = 0.8
+	
+	var sphere_mesh := SphereMesh.new()
+	sphere_mesh.radius = radius
+	sphere_mesh.height = radius * 2.0
+	visual_mesh.mesh = sphere_mesh
+	visual_mesh.material_override = player_material
+	
+	var sphere_shape := SphereShape3D.new()
+	sphere_shape.radius = radius
+	collision_shape.shape = sphere_shape
+	
+	add_child(visual_mesh)
+	add_child(collision_shape)
+
+func _setup_camera() -> void:
+	var spring_arm := SpringArm3D.new()
+	spring_arm.top_level = true
+	spring_arm.position = Vector3(0.0, 30.0, 0.0)
+	spring_arm.rotation_degrees = Vector3(-90.0, 0.0, 0.0)
+	spring_arm.spring_length = 0.0
+	
+	var camera := Camera3D.new()
+	
+	# =======================================================================
+	# LA CLAVE: Cámara Ortográfica. Elimina la perspectiva 3D, hace que 
+	# los muros sean rectos en toda la pantalla y nada quede oculto.
+	# =======================================================================
+	camera.projection = Camera3D.PROJECTION_ORTHOGONAL
+	# Tamaño para abarcar los 21x21 bloques (42 metros) más un pequeño margen
+	camera.size = 46.0 
+	
+	camera.current = true 
+	
+	spring_arm.add_child(camera)
+	add_child(spring_arm)
+
+func respawn() -> void:
+	global_position = spawn_position
+	velocity = Vector3.ZERO
+	current_direction = Vector3.ZERO
+	next_direction = Vector3.ZERO
+
+func _physics_process(_delta: float) -> void:
+	_handle_arcade_input()
+	_process_arcade_movement()
+
+func _handle_arcade_input() -> void:
+	var input_dir := Input.get_vector("ui_left", "ui_right", "ui_up", "ui_down")
+	if input_dir != Vector2.ZERO:
+		next_direction = Vector3(input_dir.x, 0.0, input_dir.y).normalized()
+
+func _process_arcade_movement() -> void:
+	if next_direction != Vector3.ZERO:
+		var test_offset = next_direction * 0.5
+		if not test_move(global_transform, test_offset):
+			current_direction = next_direction
+			
+	if current_direction != Vector3.ZERO:
+		var test_offset = current_direction * 0.1 
+		if test_move(global_transform, test_offset):
+			current_direction = Vector3.ZERO
+			next_direction = Vector3.ZERO 
+			
+	if current_direction != Vector3.ZERO:
+		velocity = current_direction * SPEED
+		
+		if current_direction.x != 0.0:
+			var target_z = round(global_position.z / CELL_SIZE) * CELL_SIZE
+			velocity.z = (target_z - global_position.z) * ALIGNMENT_FORCE
+		elif current_direction.z != 0.0:
+			var target_x = round(global_position.x / CELL_SIZE) * CELL_SIZE
+			velocity.x = (target_x - global_position.x) * ALIGNMENT_FORCE
+			
+		var target_rotation_y = atan2(-current_direction.x, -current_direction.z)
+		visual_mesh.rotation.y = lerp_angle(visual_mesh.rotation.y, target_rotation_y, 0.25)
+	else:
+		velocity = Vector3.ZERO
+		
+	move_and_slide()
+
+==================================================
+FILE: ./scripts/entities/portal.gd
+==================================================
+# ==============================================================================
+# Description: Generic portal teleporter (Area3D) that transfers any physics 
+#              body to a partner portal, adhering to SOLID principles.
+# Author: Enrique González Gutiérrez
+# Email: enrique.gonzalez.gutierrez@gmail.com
+# ==============================================================================
+extends Area3D
+class_name Portal
+
+# The name of the sibling portal to teleport the body to
+@export var partner_portal_name : String = ""
+
+func _ready() -> void:
+	_build_portal_collision()
+	
+	# Connect enter/exit signals
+	body_entered.connect(_on_body_entered)
+	body_exited.connect(_on_body_exited)
+
+# Programmatically builds the trigger area collision box
+func _build_portal_collision() -> void:
+	var collision_shape := CollisionShape3D.new()
+	var box_shape := BoxShape3D.new()
+	
+	# Dimensions match the lane grid sizing (CELL_SIZE x CELL_SIZE)
+	box_shape.size = Vector3(1.8, 2.0, 1.8)
+	collision_shape.shape = box_shape
+	
+	add_child(collision_shape)
+
+# Callback: Triggers when a player or ghost enters the portal area
+func _on_body_entered(body: Node3D) -> void:
+	# Avoid infinite loop: If the body has just teleported here from the other side, ignore it
+	if body.has_meta("just_teleported"):
+		return
+		
+	# Find the partner portal node dynamically as a sibling in the LevelManager tree
+	var partner = get_parent().get_node_or_null(partner_portal_name) as Node3D
+	if partner:
+		# Mark the body so the target portal ignores its arrival trigger
+		body.set_meta("just_teleported", true)
+		
+		# Execute instantaneous teleportation
+		body.global_position = partner.global_position
+
+# Callback: Triggers when the body physically leaves the portal area
+func _on_body_exited(body: Node3D) -> void:
+	# Wipe the metadata flag once the body is clear of the area, ready for another warp
+	if body.has_meta("just_teleported"):
+		body.remove_meta("just_teleported")
+
+==================================================
+FILE: ./scripts/ui/hud.gd
+==================================================
+# ==============================================================================
+# Description: HUD manager. Programmatically sets up UI labels for score/lives,
+#              overlays, and hosts an integrated responsive 2D Minimap.
+#              Fixes the half-cell offset calculation for perfect alignment.
+# Author: Enrique González Gutiérrez
+# Email: enrique.gonzalez.gutierrez@gmail.com
+# ==============================================================================
+extends Control
+class_name HUD
+
+var score_label : Label
+var lives_label : Label
+var status_overlay : ColorRect
+var status_label : Label
+var minimap : Minimap2D
+
+func _ready() -> void:
+	_build_hud_elements()
+	
+	# Connect to global GameManager signals safely
+	if GameManager:
+		GameManager.score_changed.connect(_on_score_changed)
+		GameManager.lives_changed.connect(_on_lives_changed)
+		GameManager.game_over.connect(_on_game_over)
+		GameManager.victory.connect(_on_victory)
+		
+		# Pull initial data values directly on startup
+		_on_score_changed(GameManager.score)
+		_on_lives_changed(GameManager.lives)
+
+# Programmatically constructs the layout tree using responsive anchors
+func _build_hud_elements() -> void:
+	# Make the main HUD control container fill the full screen rect
+	set_anchors_and_offsets_preset(Control.PRESET_FULL_RECT)
+	
+	# 1. Score Label Setup (Top-Left corner preset)
+	score_label = Label.new()
+	score_label.add_theme_font_size_override("font_size", 28)
+	add_child(score_label)
+	score_label.set_anchors_and_offsets_preset(Control.PRESET_TOP_LEFT)
+	score_label.offset_left = 24
+	score_label.offset_top = 24
+	
+	# 2. Lives Label Setup (Top-Right corner preset with reverse text grow)
+	lives_label = Label.new()
+	lives_label.horizontal_alignment = HORIZONTAL_ALIGNMENT_RIGHT
+	lives_label.add_theme_font_size_override("font_size", 28)
+	add_child(lives_label)
+	
+	lives_label.set_anchors_and_offsets_preset(Control.PRESET_TOP_RIGHT)
+	lives_label.grow_horizontal = Control.GROW_DIRECTION_BEGIN
+	lives_label.offset_left = -224
+	lives_label.offset_right = -24
+	lives_label.offset_top = 24
+	
+	# 3. Minimap 2D Setup (Bottom-Right corner preset)
+	minimap = Minimap2D.new()
+	add_child(minimap)
+	minimap.set_anchors_and_offsets_preset(Control.PRESET_BOTTOM_RIGHT)
+	minimap.grow_horizontal = Control.GROW_DIRECTION_BEGIN
+	minimap.grow_vertical = Control.GROW_DIRECTION_BEGIN
+	# Size is 180x180 pixels with a 24px margin
+	minimap.offset_left = -204
+	minimap.offset_top = -204
+	minimap.offset_right = -24
+	minimap.offset_bottom = -24
+	
+	# 4. Status Full-Screen Overlay (Fades the screen on win or loss)
+	status_overlay = ColorRect.new()
+	status_overlay.color = Color(0.0, 0.0, 0.0, 0.75) # Semi-transparent black background
+	status_overlay.visible = false
+	add_child(status_overlay)
+	status_overlay.set_anchors_and_offsets_preset(Control.PRESET_FULL_RECT)
+	
+	# 5. Status Text inside the overlay (Centered)
+	status_label = Label.new()
+	status_label.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+	status_label.vertical_alignment = VERTICAL_ALIGNMENT_CENTER
+	status_label.add_theme_font_size_override("font_size", 48)
+	status_overlay.add_child(status_label)
+	status_label.set_anchors_and_offsets_preset(Control.PRESET_CENTER)
+	status_label.grow_horizontal = Control.GROW_DIRECTION_BOTH
+	status_label.grow_vertical = GROW_DIRECTION_BOTH
+
+# Callback: Updates the text whenever points are scored
+func _on_score_changed(new_score: int) -> void:
+	score_label.text = "SCORE: %d" % new_score
+
+# Callback: Updates the life counter representation
+func _on_lives_changed(new_lives: int) -> void:
+	lives_label.text = "LIVES: %d" % new_lives
+
+# Callback: Triggers when lives hit 0, pausing gameplay and prompting reset
+func _on_game_over() -> void:
+	status_label.text = "GAME OVER\nPress R to Restart"
+	status_overlay.visible = true
+	get_tree().paused = true
+
+# Callback: Triggers when all pellets are cleared, pausing and prompting reset
+func _on_victory() -> void:
+	status_label.text = "VICTORY!\nPress R to Restart"
+	status_overlay.visible = true
+	get_tree().paused = true
+
+# Listens for keyboard inputs to handle restarts
+func _input(event: InputEvent) -> void:
+	if event is InputEventKey and event.keycode == KEY_R and event.is_pressed():
+		if status_overlay.visible:
+			get_tree().paused = false
+			if GameManager:
+				GameManager.reset_game()
+			get_tree().reload_current_scene()
+
+
+# ==============================================================================
+# Inner Class: Procedural 2D Vectorial Minimap Node
+# ==============================================================================
+class Minimap2D extends Control:
+	
+	# Dimensions of the drawn minimap
+	var map_size := Vector2(180, 180)
+	
+	func _ready() -> void:
+		custom_minimum_size = map_size
+		
+	func _process(_delta: float) -> void:
+		# Redraw every frame to update moving entity positions
+		queue_redraw()
+		
+	func _draw() -> void:
+		# Ensure we have active map data loaded in GameManager before drawing
+		if not GameManager or GameManager.level_layout.is_empty():
+			return
+			
+		var gw : float = float(GameManager.grid_width)
+		var gh : float = float(GameManager.grid_height)
+		
+		var cell_w : float = map_size.x / gw
+		var cell_h : float = map_size.y / gh
+		
+		# Draw semi-transparent background
+		draw_rect(Rect2(Vector2.ZERO, map_size), Color(0.0, 0.0, 0.0, 0.6))
+		
+		# 1. Draw Static Layout (Walls & Portals)
+		for z in range(int(gh)):
+			var row : Array = GameManager.level_layout[z]
+			for x in range(int(gw)):
+				var cell_type : int = int(row[x])
+				var rect := Rect2(x * cell_w, z * cell_h, cell_w, cell_h)
+				
+				if cell_type == 1:
+					# Draw blue wall blocks
+					draw_rect(rect, Color(0.0, 0.0, 0.6))
+				elif cell_type == 6 or cell_type == 7:
+					# Draw portal locations in neon green
+					draw_rect(rect, Color(0.0, 1.0, 0.2))
+					
+		# 3D to 2D coordinate converter Lambda
+		# Precise math to map centered 3D coordinates back to 0-based grid indices and center them in 2D cell space
+		var offset_x : float = (gw * 2.0 / 2.0) - 1.0 # Offset is 20.0
+		var offset_z : float = (gh * 2.0 / 2.0) - 1.0 # Offset is 20.0
+		
+		var to_map = func(pos_3d: Vector3) -> Vector2:
+			var grid_x : float = (pos_3d.x + offset_x) / 2.0
+			var grid_z : float = (pos_3d.z + offset_z) / 2.0
+			# Find the exact center point inside the 2D minimap cell
+			var map_x = (grid_x + 0.5) * cell_w
+			var map_y = (grid_z + 0.5) * cell_h
+			return Vector2(map_x, map_y)
+			
+		# 2. Draw Pellets dynamically by querying their active nodes
+		var pellets = get_tree().get_nodes_in_group("pellets")
+		for pellet in pellets:
+			if is_instance_valid(pellet) and pellet is Node3D:
+				var map_pos = to_map.call(pellet.global_position)
+				
+				if pellet.is_power_pellet:
+					# Larger orange power pellets
+					draw_circle(map_pos, 3.5, Color(1.0, 0.5, 0.0))
+				else:
+					# Small yellow standard pellets
+					draw_circle(map_pos, 1.5, Color(1.0, 1.0, 0.0))
+					
+		# 3. Draw Player
+		var player = get_tree().get_first_node_in_group("player") as Node3D
+		if is_instance_valid(player):
+			var map_pos = to_map.call(player.global_position)
+			draw_circle(map_pos, 4.5, Color(1.0, 1.0, 0.0)) # Bright Yellow Pac-Man
+			
+		# 4. Draw Ghosts
+		var ghosts = get_tree().get_nodes_in_group("ghosts")
+		for ghost in ghosts:
+			if is_instance_valid(ghost) and ghost is Node3D:
+				var map_pos = to_map.call(ghost.global_position)
+				var color := Color(1.0, 1.0, 1.0)
+				
+				if ghost is Ghost:
+					if ghost.current_state == Ghost.State.FRIGHTENED:
+						color = ghost.ghost_material.albedo_color
+					else:
+						match ghost.ghost_type:
+							"Blinky": color = Color(1.0, 0.0, 0.0) # Red
+							"Pinky": color = Color(1.0, 0.7, 0.8) # Pink
+							"Inky": color = Color(0.0, 1.0, 1.0) # Cyan
+							"Clyde": color = Color(1.0, 0.6, 0.0) # Orange
+							
+				draw_circle(map_pos, 4.0, color)

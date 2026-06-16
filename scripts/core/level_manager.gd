@@ -1,6 +1,8 @@
 # ==============================================================================
 # Description: Parses the level JSON file, feeds the layout data to the global
-#              GameManager, and generates the 3D grid with a perfect PlaneMesh floor.
+#              GameManager, and generates the 3D grid of Pac-Man entities.
+#              The floor has been completely removed to avoid rendering glitches,
+#              shadow cascade bugs with orthogonal cameras, and Z-fighting.
 # Author: Enrique González Gutiérrez
 # Email: enrique.gonzalez.gutierrez@gmail.com
 # ==============================================================================
@@ -11,7 +13,6 @@ const CELL_SIZE : float = 2.0
 const WALL_HEIGHT : float = 2.0
 
 var wall_material : StandardMaterial3D
-var floor_material : StandardMaterial3D
 var ghost_types : Array[String] = ["Blinky", "Pinky", "Inky", "Clyde"]
 var spawned_ghosts_count : int = 0
 
@@ -24,14 +25,12 @@ func _ready() -> void:
 	if _load_level_data("res://data/level_01.json"):
 		_build_environment()
 
+# Initializes materials for walls
 func _initialize_materials() -> void:
 	wall_material = StandardMaterial3D.new()
-	wall_material.albedo_color = Color(0.0, 0.0, 1.0) 
-	
-	floor_material = StandardMaterial3D.new()
-	floor_material.shading_mode = StandardMaterial3D.SHADING_MODE_UNSHADED
-	floor_material.albedo_color = Color(0.3, 0.3, 0.3) 
+	wall_material.albedo_color = Color(0.0, 0.0, 1.0) # Classic Pac-Man Blue
 
+# Loads and parses the JSON level configuration
 func _load_level_data(file_path: String) -> bool:
 	if not FileAccess.file_exists(file_path):
 		return false
@@ -39,6 +38,7 @@ func _load_level_data(file_path: String) -> bool:
 	var file := FileAccess.open(file_path, FileAccess.READ)
 	var content := file.get_as_text()
 	file.close()
+	
 	var json := JSON.new()
 	var error := json.parse(content)
 	
@@ -49,6 +49,7 @@ func _load_level_data(file_path: String) -> bool:
 			GameManager.level_layout = layout
 			GameManager.grid_width = int(level_data.get("grid_width", 0))
 			GameManager.grid_height = int(level_data.get("grid_height", 0))
+			
 		var width : float = float(level_data.get("grid_width", 0))
 		var height : float = float(level_data.get("grid_height", 0))
 		map_offset_x = (width * CELL_SIZE) / 2.0
@@ -56,6 +57,7 @@ func _load_level_data(file_path: String) -> bool:
 		return true
 	return false
 
+# Iterates through the layout matrix and spawns the corresponding 3D entities
 func _build_environment() -> void:
 	var layout : Array = level_data.get("layout", [])
 	for z in range(layout.size()):
@@ -74,25 +76,29 @@ func _build_environment() -> void:
 				5: _spawn_ghost(world_pos)
 				6: _create_portal(world_pos, "Portal_A", "Portal_B")
 				7: _create_portal(world_pos, "Portal_B", "Portal_A")
-	_create_floor()
 
+# Instantiates a 3D wall block
 func _create_wall(pos: Vector3) -> void:
 	var static_body := StaticBody3D.new()
 	var mesh_instance := MeshInstance3D.new()
 	var collision_shape := CollisionShape3D.new()
+	
 	var box_mesh := BoxMesh.new()
 	box_mesh.size = Vector3(CELL_SIZE, WALL_HEIGHT, CELL_SIZE)
 	mesh_instance.mesh = box_mesh
 	mesh_instance.material_override = wall_material
+	
 	var box_shape := BoxShape3D.new()
 	box_shape.size = box_mesh.size
 	collision_shape.shape = box_shape
+	
 	static_body.add_child(mesh_instance)
 	static_body.add_child(collision_shape)
 	static_body.position = pos
 	static_body.position.y = WALL_HEIGHT / 2.0 
 	add_child(static_body)
 
+# Instantiates a standard or power pellet
 func _create_pellet(pos: Vector3, is_power: bool) -> void:
 	var pellet := Pellet.new()
 	pellet.is_power_pellet = is_power
@@ -100,6 +106,7 @@ func _create_pellet(pos: Vector3, is_power: bool) -> void:
 	pellet.position.y = 0.5
 	add_child(pellet)
 
+# Instantiates the player character
 func _spawn_player(pos: Vector3) -> void:
 	var player := Player.new()
 	player.spawn_position = pos
@@ -107,6 +114,7 @@ func _spawn_player(pos: Vector3) -> void:
 	player.position.y = 0.8
 	add_child(player)
 
+# Instantiates a ghost character with sequential type assignment
 func _spawn_ghost(pos: Vector3) -> void:
 	var ghost := Ghost.new()
 	var type_index : int = spawned_ghosts_count % ghost_types.size()
@@ -116,6 +124,7 @@ func _spawn_ghost(pos: Vector3) -> void:
 	ghost.position.y = 0.8
 	add_child(ghost)
 
+# Instantiates a warp portal
 func _create_portal(pos: Vector3, my_name: String, partner_name: String) -> void:
 	var portal := Portal.new()
 	portal.name = my_name
@@ -123,22 +132,3 @@ func _create_portal(pos: Vector3, my_name: String, partner_name: String) -> void
 	portal.position = pos
 	portal.position.y = 0.8
 	add_child(portal)
-
-func _create_floor() -> void:
-	var width : float = float(level_data.get("grid_width", 0)) * CELL_SIZE
-	var height : float = float(level_data.get("grid_height", 0)) * CELL_SIZE
-	var static_body := StaticBody3D.new()
-	var mesh_instance := MeshInstance3D.new()
-	var collision_shape := CollisionShape3D.new()
-	var plane_mesh := PlaneMesh.new()
-	plane_mesh.size = Vector2(width, height)
-	mesh_instance.mesh = plane_mesh
-	mesh_instance.material_override = floor_material
-	var floor_shape := BoxShape3D.new()
-	floor_shape.size = Vector3(width, 0.1, height)
-	collision_shape.shape = floor_shape
-	static_body.add_child(mesh_instance)
-	static_body.add_child(collision_shape)
-	static_body.position = Vector3(0.0, 0.0, 0.0)
-	collision_shape.position.y = -0.05
-	add_child(static_body)

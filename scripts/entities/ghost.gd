@@ -1,8 +1,10 @@
 # ==============================================================================
 # Description: CharacterBody3D controller for Ghosts. Handles primitive capsule
-#              generation, color setting, collision-tested pathfinding, and
-#              assigns SOLID-compliant behavior strategy patterns.
-#              Features symmetric physical collisions and precise player detection.
+#              generation, collision-tested pathfinding, and assigns SOLID
+#              compliant behavior strategy patterns.
+#              UPDATED: Uses buffered 'test_move' for buttery-smooth arcade turns
+#              without coordinate snapping (no stutters). Also includes Soft 
+#              Separation (Flocking) to prevent ghosts from perfectly overlapping.
 # Author: Enrique González Gutiérrez
 # Email: enrique.gonzalez.gutierrez@gmail.com
 # ==============================================================================
@@ -30,11 +32,12 @@ const ALIGNMENT_FORCE : float = 15.0 # Smooth vector steering alignment force
 
 var speed : float = BASE_SPEED
 var ghost_material : StandardMaterial3D
-var current_direction : Vector3 = Vector3.FORWARD
 
-# Timer variables
-var change_direction_timer : float = 0.0
-var change_direction_interval : float = 1.5
+# Buffered turning logic (Identical to Player)
+var current_direction : Vector3 = Vector3.FORWARD
+var next_direction : Vector3 = Vector3.FORWARD
+
+# Frightened timer variables
 var frightened_timer : float = 0.0
 const FRIGHTENED_DURATION : float = 7.0
 
@@ -42,6 +45,9 @@ const FRIGHTENED_DURATION : float = 7.0
 var spawn_position : Vector3
 var exit_position : Vector3 = Vector3(0.0, 0.8, -4.0) # Coordinate of the foso gate exit
 var is_inside_foso : bool = true # Force exit navigation prior to player chasing
+
+# Grid tracking variables to detect new tile intersections
+var last_grid_pos : Vector2i = Vector2i(-1, -1)
 
 # SOLID Strategy reference (Targeting logic is delegated here)
 var behavior_strategy : GhostBehavior
@@ -56,32 +62,36 @@ func _ready() -> void:
 	_setup_player_detection()
 	_initialize_behavior_strategy()
 	
+	# Initialize directions randomly
+	current_direction = CARDINAL_DIRECTIONS.pick_random()
+	next_direction = current_direction
+	
+	# Initialize the grid position to prevent an instant turn check on frame 1
+	var offset : float = float(GameManager.grid_width * CELL_SIZE / 2.0) - (CELL_SIZE / 2.0)
+	var grid_x : int = int(round((global_position.x + offset) / CELL_SIZE))
+	var grid_z : int = int(round((global_position.z + offset) / CELL_SIZE))
+	last_grid_pos = Vector2i(grid_x, grid_z)
+	
 	if GameManager:
 		GameManager.power_pellet_activated.connect(_on_power_pellet_activated)
 		GameManager.player_killed.connect(_on_player_killed)
-	
-	current_direction = CARDINAL_DIRECTIONS.pick_random()
 
 # Configures symmetric collision layers: Ghost is on Layer 3, blocks with Layer 1 (Walls) and Layer 2 (Player)
 func _configure_collision_layers() -> void:
 	# Exist on Layer 3 (Bit value 4)
 	collision_layer = 4
-	# Block physically with Layer 1 (Walls) and Layer 2 (Player) (Bit values 1 + 2 = 3)
+	# Block physically with Layer 1 (Walls) and Layer 2 (Player)
+	# NOTE: Ghosts do NOT block each other physically here to prevent gridlock. Separation is handled by Soft Repulsion.
 	collision_mask = 3
 
 # Instantiate strategy dynamically based on ghost type (SOLID - Open/Closed compliance)
 func _initialize_behavior_strategy() -> void:
 	match ghost_type:
-		"Blinky":
-			behavior_strategy = BlinkyBehavior.new()
-		"Pinky":
-			behavior_strategy = PinkyBehavior.new()
-		"Inky":
-			behavior_strategy = InkyBehavior.new()
-		"Clyde":
-			behavior_strategy = ClydeBehavior.new()
-		_:
-			behavior_strategy = GhostBehavior.new() # Default fallback
+		"Blinky": behavior_strategy = BlinkyBehavior.new()
+		"Pinky": behavior_strategy = PinkyBehavior.new()
+		"Inky": behavior_strategy = InkyBehavior.new()
+		"Clyde": behavior_strategy = ClydeBehavior.new()
+		_: behavior_strategy = GhostBehavior.new()
 
 # Configures the material color based on the ghost's identity
 func _initialize_material() -> void:
@@ -92,15 +102,10 @@ func _initialize_material() -> void:
 	ghost_material.emission_enabled = false
 	
 	match ghost_type:
-		"Blinky":
-			ghost_material.albedo_color = Color(1.0, 0.0, 0.0) # Red
-		"Pinky":
-			ghost_material.albedo_color = Color(1.0, 0.7, 0.8) # Pink
-			ghost_material.roughness = 0.4
-		"Inky":
-			ghost_material.albedo_color = Color(0.0, 1.0, 1.0) # Cyan
-		"Clyde":
-			ghost_material.albedo_color = Color(1.0, 0.6, 0.0) # Orange
+		"Blinky": ghost_material.albedo_color = Color(1.0, 0.0, 0.0) # Red
+		"Pinky": ghost_material.albedo_color = Color(1.0, 0.7, 0.8) # Pink
+		"Inky": ghost_material.albedo_color = Color(0.0, 1.0, 1.0) # Cyan
+		"Clyde": ghost_material.albedo_color = Color(1.0, 0.6, 0.0) # Orange
 
 # Programmatically builds the capsule mesh and physical collision box
 func _build_ghost_visuals() -> void:
@@ -130,21 +135,20 @@ func _setup_player_detection() -> void:
 	var detection_shape := CollisionShape3D.new()
 	
 	var sphere_shape := SphereShape3D.new()
-	sphere_shape.radius = 0.85 # Slightly wider to guarantee trigger
+	sphere_shape.radius = 0.85 
 	detection_shape.shape = sphere_shape
 	
 	detection_area.add_child(detection_shape)
 	add_child(detection_area)
 	
-	# Explicitly set the Area3D to ONLY monitor Layer 2 (where Pac-Man physically exists)
 	detection_area.collision_layer = 0
 	detection_area.collision_mask = 2
 	
 	detection_area.body_entered.connect(_on_player_detected)
 
-# Main physics loop managing timers, states, movement, and rotation
+# Main physics loop managing timers, states, movement, separation, and rotation
 func _physics_process(delta: float) -> void:
-	# Foso exit controller (Calculated on 2D horizontal plane to prevent Y-axis physics snap bugs)
+	# Foso exit controller (Calculated on 2D horizontal plane)
 	if is_inside_foso:
 		var pos_2d := Vector2(global_position.x, global_position.z)
 		var exit_2d := Vector2(exit_position.x, exit_position.z)
@@ -160,7 +164,7 @@ func _physics_process(delta: float) -> void:
 		if frightened_timer <= 0.0:
 			_exit_frightened_state()
 		else:
-			# Frightened warning: Blink between Blue and White in the last 2.5 seconds
+			# Frightened blinking warning
 			if frightened_timer <= 2.5:
 				var blink = int(frightened_timer * 5.0) % 2 == 0
 				if blink:
@@ -175,19 +179,32 @@ func _physics_process(delta: float) -> void:
 				ghost_material.albedo_color = Color(0.0, 0.0, 1.0)
 				ghost_material.emission_enabled = true
 				ghost_material.emission = Color(0.0, 0.2, 0.8)
-				
-	change_direction_timer += delta
+
+	# --- GRID-BASED DECISION MAKING LOOP ---
+	var offset : float = float(GameManager.grid_width * CELL_SIZE / 2.0) - (CELL_SIZE / 2.0)
+	var grid_x : int = int(round((global_position.x + offset) / CELL_SIZE))
+	var grid_z : int = int(round((global_position.z + offset) / CELL_SIZE))
+	var current_grid_pos := Vector2i(grid_x, grid_z)
 	
-	if is_on_wall() or change_direction_timer >= change_direction_interval:
+	# Evaluate AI direction choice ONLY when entering a new tile or hitting a wall
+	if current_grid_pos != last_grid_pos:
+		last_grid_pos = current_grid_pos
 		_choose_new_direction()
-		change_direction_timer = 0.0
+	elif is_on_wall():
+		_choose_new_direction()
 		
-	# Apply current speed
+	# --- SMOOTH BUFFERED TURN LOGIC (Same as Player) ---
+	# Tests if the path is clear to execute the turn buffered by the AI
+	if next_direction != Vector3.ZERO and next_direction != current_direction:
+		var test_offset = next_direction * 0.5 
+		if not test_move(global_transform, test_offset):
+			current_direction = next_direction
+		
+	# --- BASE MOVEMENT & SMOOTH STEERING ALIGNMENT ---
 	if current_direction != Vector3.ZERO:
 		velocity = current_direction * speed
 		
-		# SMOOTH STEERING ALIGNMENT: 
-		# Pull ghosts smoothly to the centerline of corridors to prevent wall friction
+		# Pull ghosts smoothly to the centerline of corridors to perfectly align them without teleporting
 		if current_direction.x != 0.0:
 			var target_z = round(global_position.z / CELL_SIZE) * CELL_SIZE
 			velocity.z = (target_z - global_position.z) * ALIGNMENT_FORCE
@@ -197,6 +214,24 @@ func _physics_process(delta: float) -> void:
 	else:
 		velocity = Vector3.ZERO
 		
+	# --- SOFT SEPARATION (FLOCKING REPULSION) ---
+	# Prevents ghosts from stacking perfectly on top of each other without blocking the corridors
+	var separation := Vector3.ZERO
+	var all_ghosts = get_tree().get_nodes_in_group("ghosts")
+	
+	for g in all_ghosts:
+		if g != self and is_instance_valid(g) and not is_inside_foso:
+			var dist = global_position.distance_to(g.global_position)
+			# If another ghost is closer than 1.2 meters, apply repulsion
+			if dist > 0.0 and dist < 1.2:
+				var push_dir = (global_position - g.global_position).normalized()
+				# The closer they are, the stronger the push vector
+				separation += push_dir * (1.2 - dist) * 3.0
+				
+	# Apply separation force to the final velocity
+	velocity += separation
+		
+	# --- ROTATION & PHYSICS UPDATE ---
 	if current_direction != Vector3.ZERO:
 		var target_rotation_y = atan2(-current_direction.x, -current_direction.z)
 		rotation.y = lerp_angle(rotation.y, target_rotation_y, 0.2)
@@ -209,7 +244,6 @@ func _get_matrix_open_directions() -> Array:
 	if not GameManager or GameManager.level_layout.is_empty():
 		return CARDINAL_DIRECTIONS
 		
-	# Convert current 3D position back to 2D grid index
 	var offset : float = float(GameManager.grid_width * CELL_SIZE / 2.0) - (CELL_SIZE / 2.0)
 	var grid_x : int = int(round((global_position.x + offset) / CELL_SIZE))
 	var grid_z : int = int(round((global_position.z + offset) / CELL_SIZE))
@@ -218,20 +252,20 @@ func _get_matrix_open_directions() -> Array:
 		var target_x : int = grid_x + int(dir.x)
 		var target_z : int = grid_z + int(dir.z)
 		
-		# Bounds check
 		if target_x >= 0 and target_x < GameManager.grid_width and target_z >= 0 and target_z < GameManager.grid_height:
 			var cell_type : int = int(GameManager.level_layout[target_z][target_x])
-			if cell_type != 1: # Cell is not a wall
+			if cell_type != 1: 
 				open_dirs.append(dir)
 				
 	return open_dirs
 
-# AI direction choice based on active State and open paths
+# AI direction choice based on active State and open paths. Assigns to NEXT_DIRECTION buffer.
 func _choose_new_direction() -> void:
 	var open_dirs = _get_matrix_open_directions()
 	
 	var possible_directions = []
 	for dir in open_dirs:
+		# Pac-Man rule: Ghosts normally cannot voluntarily reverse their direction
 		if dir != -current_direction:
 			possible_directions.append(dir)
 			
@@ -242,13 +276,12 @@ func _choose_new_direction() -> void:
 
 	var player = get_tree().get_first_node_in_group("player")
 	if not player:
-		current_direction = possible_directions.pick_random()
+		next_direction = possible_directions.pick_random()
 		return
 
 	var target_pos : Vector3 = player.global_position
 
 	if is_inside_foso:
-		# When inside the base, target is ALWAYS the exit gate coordinate
 		target_pos = exit_position
 	elif current_state == State.FRIGHTENED:
 		# Fleeing AI: Pick direction that maximizes distance to Player
@@ -260,7 +293,7 @@ func _choose_new_direction() -> void:
 			if dist > max_dist:
 				max_dist = dist
 				best_dir = dir
-		current_direction = best_dir
+		next_direction = best_dir
 		return
 	else:
 		# Chase AI: Delegate calculation to active SOLID Behavior Strategy
@@ -279,19 +312,22 @@ func _choose_new_direction() -> void:
 				min_dist = dist
 				best_dir = dir
 				
-		current_direction = best_dir
+		next_direction = best_dir
 	else:
-		current_direction = possible_directions.pick_random()
+		next_direction = possible_directions.pick_random()
 
-# Signal Callback: Triggers Frightened mode on power pellet intake
+# Signal Callback: Triggers Frightened mode and instantly reverses direction (Classic arcade rule)
 func _on_power_pellet_activated() -> void:
 	current_state = State.FRIGHTENED
 	speed = FRIGHTENED_SPEED
 	frightened_timer = FRIGHTENED_DURATION
 	
-	ghost_material.albedo_color = Color(0.0, 0.0, 1.0) # Solid Blue
+	# Instantly reverse direction upon power pellet activation
+	next_direction = -current_direction
+	
+	ghost_material.albedo_color = Color(0.0, 0.0, 1.0) 
 	ghost_material.emission_enabled = true
-	ghost_material.emission = Color(0.0, 0.2, 0.8) # Glowing Blue
+	ghost_material.emission = Color(0.0, 0.2, 0.8) 
 
 # Restores the ghost back to standard chase behavior
 func _exit_frightened_state() -> void:
@@ -299,17 +335,23 @@ func _exit_frightened_state() -> void:
 	speed = BASE_SPEED
 	_initialize_material()
 
-# Signal Callback: Resets ghost back to base as LEAVING state when player dies
+# Signal Callback: Resets ghost back to base
 func _on_player_killed() -> void:
 	global_position = spawn_position
-	is_inside_foso = true # Reactivate exit gate navigation path
+	is_inside_foso = true 
 	current_state = State.LEAVING
 	speed = BASE_SPEED
 	_initialize_material()
-	change_direction_timer = 0.0
+	
 	current_direction = CARDINAL_DIRECTIONS.pick_random()
+	next_direction = current_direction
+	
+	var offset : float = float(GameManager.grid_width * CELL_SIZE / 2.0) - (CELL_SIZE / 2.0)
+	var grid_x : int = int(round((global_position.x + offset) / CELL_SIZE))
+	var grid_z : int = int(round((global_position.z + offset) / CELL_SIZE))
+	last_grid_pos = Vector2i(grid_x, grid_z)
 
-# Handles player intersection depending on current state
+# Handles player intersection
 func _on_player_detected(body: Node3D) -> void:
 	if body.is_in_group("player"):
 		if current_state == State.FRIGHTENED:
@@ -317,12 +359,11 @@ func _on_player_detected(body: Node3D) -> void:
 				GameManager.add_score(200)
 			
 			global_position = spawn_position
-			is_inside_foso = true # Reactivate foso exit pathing on respawn
+			is_inside_foso = true 
 			current_state = State.LEAVING
 			speed = BASE_SPEED
 			_initialize_material()
 		else:
-			# Only kill player if the ghost is out of the foso and in CHASE mode
 			if current_state == State.CHASE:
 				if GameManager:
 					GameManager.lose_life()
