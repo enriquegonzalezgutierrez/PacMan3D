@@ -18,6 +18,8 @@
 #              - OCP & DIP (Dynamic Height Decoupling): Removed all hardcoded
 #                spawning Y-heights. The manager queries Player and Ghost 
 #                instances dynamically in runtime for their physical spawn offsets.
+#              - Ghost Audio Injection: Preloads and injects the 'ghost_eaten.mp3'
+#                audio stream directly into instantiated Ghost controllers.
 # Author: Enrique González Gutiérrez
 # Email: enrique.gonzalez.gutierrez@gmail.com
 # ==============================================================================
@@ -30,6 +32,7 @@ const WALL_HEIGHT : float = 2.0
 # Preloaded Audio Resources (DIP Compliance)
 var waka_audio_stream : AudioStream = preload("res://assets/audio/sfx/waka_waka.mp3")
 var death_audio_stream : AudioStream = preload("res://assets/audio/sfx/player_death.mp3")
+var ghost_eaten_audio_stream : AudioStream = preload("res://assets/audio/sfx/ghost_eaten.mp3") # Preloaded Ghost eaten SFX
 var bgm_stream : AudioStream = preload("res://assets/audio/bgm/level_1_bgm.mp3") 
 
 # Centralized Materials (SRP Compliance)
@@ -208,10 +211,10 @@ func _spawn_player(pos: Vector3) -> void:
 	player_instance.spawn_position = pos
 	player_instance.position = pos
 	
-	# Dependency Injection
+	# Dependency Injection (Munch and death audio streams injected)
 	player_instance.initialize(player_material, waka_audio_stream, death_audio_stream)
 	
-	# FIXED DYNAMIC CALCULATION: Query the player for its physical spawn height dynamically (OCP/DIP Compliance)
+	# Dynamic height offset calculation based on player physical size
 	player_instance.position.y = player_instance.get_spawn_height_offset()
 	
 	# Listen to the decoupled death sequence completion event (SRP Compliance)
@@ -243,10 +246,10 @@ func _spawn_ghost(pos: Vector3) -> void:
 	var grid_w : int = int(level_data.get("grid_width", 0))
 	var grid_h : int = int(level_data.get("grid_height", 0))
 	
-	# Inject dependencies
-	ghost.initialize(ghost_type, strategy, norm_mat, ghost_frightened_material, layout, grid_w, grid_h)
+	# Inject dependencies (Now correctly includes preloaded ghost_eaten_audio_stream at position 8)
+	ghost.initialize(ghost_type, strategy, norm_mat, ghost_frightened_material, layout, grid_w, grid_h, ghost_eaten_audio_stream)
 	
-	# FIXED DYNAMIC CALCULATION: Query the ghost for its physical spawn height dynamically (OCP/DIP Compliance)
+	# Dynamic height offset calculation based on ghost physical size
 	ghost.position.y = ghost.get_spawn_height_offset()
 	
 	# Listen to decoupled entity events (DIP Compliance)
@@ -282,6 +285,7 @@ func _on_pellet_eaten(is_power: bool) -> void:
 func _on_ghost_player_caught(is_frightened: bool) -> void:
 	if GameManager:
 		if is_frightened:
+			# Ghost caught while frightened: reward score
 			GameManager.add_score(200)
 		else:
 			# Normal ghost caught Pac-Man:

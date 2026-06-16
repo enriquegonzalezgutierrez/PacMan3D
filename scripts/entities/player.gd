@@ -7,11 +7,9 @@
 #                Pac-Man now manages his own death sequence.
 #              - Collision Fix: Only physically blocks with Layer 1 (Walls).
 #              - Giant Arcade Proportions: Giant 1.7m diameter sphere.
-#              - Dynamic Cinematic Camera: Replaced flat static camera with a 
-#                smoothly-interpolated Perspective Follow Camera, tilted at 
-#                -55 degrees (Pac-Mania style).
-#              - Bug Fix: Fixed the C++ tree transform error by calling `add_child`
-#                before adjusting 'camera_holder.global_position'.
+#              - Dynamic Cinematic Camera: Smoothly-interpolated Perspective Follow Camera.
+#              - RESTORED: Returned Pac-Man to a perfect, solid, shiny sphere 
+#                for a clean, minimalist 3D aesthetic.
 # Author: Enrique González Gutiérrez
 # Email: enrique.gonzalez.gutierrez@gmail.com
 # ==============================================================================
@@ -31,11 +29,12 @@ var munch_stream : AudioStream
 var death_stream : AudioStream
 
 # Internal Node Components
-var visual_mesh : MeshInstance3D 
+var visual_mesh : MeshInstance3D # Restored to a single solid MeshInstance3D
 var munch_audio : AudioStreamPlayer
 var death_audio : AudioStreamPlayer
 var camera_holder : Node3D # Tilted independent pivot for smooth tracking
 
+# Gameplay State
 var spawn_position : Vector3
 var current_direction : Vector3 = Vector3.ZERO
 var next_direction : Vector3 = Vector3.ZERO
@@ -67,6 +66,7 @@ func _build_player_visuals() -> void:
 	# GIANT RETRO SIZE: Fills the 2.0m corridor tightly (diameter 1.7)
 	var radius : float = 0.85
 	
+	# Restored to a single, beautiful solid sphere mesh
 	var sphere_mesh := SphereMesh.new()
 	sphere_mesh.radius = radius
 	sphere_mesh.height = radius * 2.0
@@ -80,21 +80,17 @@ func _build_player_visuals() -> void:
 	add_child(visual_mesh)
 	add_child(collision_shape)
 
-# Set up a dynamic perspective following camera (Pac-Mania style)
 func _setup_camera() -> void:
 	camera_holder = Node3D.new()
 	camera_holder.top_level = true
 	
-	# FIXED: Add the child to the scene tree FIRST so it is inside the tree,
-	# allowing global_position assignments to work without C++ engine errors.
 	add_child(camera_holder)
 	camera_holder.global_position = global_position
 	
 	var camera := Camera3D.new()
 	camera.projection = Camera3D.PROJECTION_PERSPECTIVE
-	camera.fov = 55.0 # Slightly narrow field of view for a more cinematic feel
+	camera.fov = 55.0 
 	
-	# Angled Offset: 11 meters high, 7.5 meters behind (on Z axis)
 	camera.position = Vector3(0.0, 11.0, 7.5)
 	camera.rotation_degrees = Vector3(-55.0, 0.0, 0.0)
 	
@@ -221,7 +217,6 @@ func get_spawn_height_offset() -> float:
 func _physics_process(_delta: float) -> void:
 	# Keep the camera following smoothly even when Pac-Man is dead
 	if is_instance_valid(camera_holder):
-		# Buttery-smooth LERP interpolation (0.08) creates elegant drag/damping inertia
 		camera_holder.global_position = camera_holder.global_position.lerp(global_position, 0.08)
 
 	if is_dead:

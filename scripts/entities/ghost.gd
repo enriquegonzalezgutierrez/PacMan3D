@@ -11,9 +11,9 @@
 #              - Giant Proportions: Increased size (radius 0.9, height 1.8).
 #              - OCP & DIP (Height Decoupling): Added `get_spawn_height_offset()`
 #                public method.
-#              - Aesthetic Polish: Procedurally sculpts the classic 8-bit arcade
-#                protruding eyes (white sclera, blue pupils) that rotate naturally
-#                with the movement direction.
+#              - Aesthetic Polish: Procedurally sculpts classic 8-bit eyes.
+#              - DIP (Audio Decoupling): Added support for playing a "ghost eaten"
+#                audio stream dynamically injected from the outside.
 # Author: Enrique González Gutiérrez
 # Email: enrique.gonzalez.gutierrez@gmail.com
 # ==============================================================================
@@ -50,9 +50,11 @@ var frightened_material : StandardMaterial3D
 var level_layout : Array = []
 var grid_width : int = 0
 var grid_height : int = 0
+var eaten_stream : AudioStream
 
 # Internal Node Components
 var visual_mesh : MeshInstance3D
+var eaten_audio : AudioStreamPlayer
 var current_direction : Vector3 = Vector3.FORWARD
 var next_direction : Vector3 = Vector3.FORWARD
 
@@ -77,7 +79,8 @@ func initialize(
 	fright_mat: StandardMaterial3D, 
 	layout: Array, 
 	width: int, 
-	height: int
+	height: int,
+	eat_stream: AudioStream
 ) -> void:
 	ghost_type = type
 	behavior_strategy = strategy
@@ -86,6 +89,7 @@ func initialize(
 	level_layout = layout
 	grid_width = width
 	grid_height = height
+	eaten_stream = eat_stream
 
 func _ready() -> void:
 	spawn_position = global_position
@@ -94,6 +98,7 @@ func _ready() -> void:
 	_configure_collision_layers()
 	_build_ghost_visuals()
 	_setup_player_detection()
+	_setup_audio()
 	
 	# Initialize directions randomly
 	current_direction = CARDINAL_DIRECTIONS.pick_random()
@@ -204,6 +209,14 @@ func _setup_player_detection() -> void:
 	detection_area.collision_mask = 2
 	
 	detection_area.body_entered.connect(_on_player_detected)
+
+func _setup_audio() -> void:
+	eaten_audio = AudioStreamPlayer.new()
+	if eaten_stream:
+		eaten_audio.stream = eaten_stream
+	eaten_audio.max_polyphony = 1
+	eaten_audio.volume_db = -4.0 # Nice punchy volume
+	add_child(eaten_audio)
 
 # Public method to freeze ghost navigation
 func set_frozen(enabled: bool) -> void:
@@ -409,8 +422,12 @@ func reset_to_base() -> void:
 	var grid_z : int = int(round((global_position.z + offset) / CELL_SIZE))
 	last_grid_pos = Vector2i(grid_x, grid_z)
 
-# Programmatically spawns a beautiful ghostly particle explosion when eaten
+# Programmatically spawns a beautiful ghostly particle explosion when eaten and plays sound
 func play_eaten_particles() -> void:
+	# Trigger the eaten audio stream (SRP Compliance)
+	if eaten_audio and eaten_audio.stream:
+		eaten_audio.play()
+		
 	var particles := GPUParticles3D.new()
 	
 	var mesh := BoxMesh.new()
@@ -459,7 +476,7 @@ func play_eaten_particles() -> void:
 func _on_player_detected(body: Node3D) -> void:
 	if body.is_in_group("player"):
 		if current_state == State.FRIGHTENED:
-			# Trigger the beautiful original-colored particle explosion
+			# Trigger the beautiful original-colored particle explosion and sound
 			play_eaten_particles()
 			
 			# Notify listeners that a frightened ghost was eaten
