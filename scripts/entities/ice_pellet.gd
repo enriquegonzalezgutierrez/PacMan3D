@@ -5,6 +5,8 @@
 #              SOLID Refactoring:
 #              - SRP Compliance: Fully isolated visual representation and 
 #                collision detection from other items.
+#              - LSP/OCP COMPLIANCE: Exposes minimap drawing properties via 
+#                polymorphic methods to prevent duck-typing in Minimap2D.
 # Author: Enrique González Gutiérrez
 # Email: enrique.gonzalez.gutierrez@gmail.com
 # ==============================================================================
@@ -87,3 +89,12 @@ func _on_body_entered(body: Node3D) -> void:
 		
 		# Self-destroy
 		queue_free()
+
+# --- MINIMAP POLYMORPHISM (LSP/OCP COMPLIANCE) ---
+# Instructs the minimap how to draw this specific utility pellet
+
+func get_minimap_color() -> Color:
+	return Color(0.0, 0.8, 1.0) # Frost Cyan
+
+func get_minimap_radius() -> float:
+	return 3.5

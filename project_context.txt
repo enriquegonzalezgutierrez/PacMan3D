@@ -1,13 +1,23 @@
 PROJECT TREE
 ============
 .
+├── PacMan3D.apk
+├── PacMan3D.apk.idsig
 ├── README.md
 ├── ROADMAP.md
 ├── assets
 │   ├── audio
 │   │   ├── bgm
+│   │   │   ├── credits_bgm.mp3
+│   │   │   ├── credits_bgm.mp3.import
 │   │   │   ├── level_1_bgm.mp3
 │   │   │   ├── level_1_bgm.mp3.import
+│   │   │   ├── level_2_bgm.mp3
+│   │   │   ├── level_2_bgm.mp3.import
+│   │   │   ├── level_3_bgm.mp3
+│   │   │   ├── level_3_bgm.mp3.import
+│   │   │   ├── level_4_bgm.mp3
+│   │   │   ├── level_4_bgm.mp3.import
 │   │   │   ├── main_menu_bgm.mp3
 │   │   │   └── main_menu_bgm.mp3.import
 │   │   └── sfx
@@ -19,10 +29,18 @@ PROJECT TREE
 │   │       └── waka_waka.mp3.import
 │   └── ui
 │       └── images
+│           ├── credits_bg.png
+│           ├── credits_bg.png.import
 │           ├── main_menu_bg.png
 │           └── main_menu_bg.png.import
 ├── data
-│   └── level_01.json
+│   ├── level_01.json
+│   ├── level_02.json
+│   ├── level_03.json
+│   ├── level_04.json
+│   └── level_05.json
+├── export_presets.cfg
+├── generate_levels.py
 ├── icon.svg
 ├── icon.svg.import
 ├── project.godot
@@ -34,8 +52,12 @@ PROJECT TREE
 	├── core
 	│   ├── game_manager.gd
 	│   ├── game_manager.gd.uid
+	│   ├── level_builder.gd
+	│   ├── level_builder.gd.uid
 	│   ├── level_manager.gd
-	│   └── level_manager.gd.uid
+	│   ├── level_manager.gd.uid
+	│   ├── map_validator.gd
+	│   └── map_validator.gd.uid
 	├── entities
 	│   ├── behaviors
 	│   │   ├── blinky_behavior.gd
@@ -46,12 +68,18 @@ PROJECT TREE
 	│   │   ├── inky_behavior.gd.uid
 	│   │   ├── pinky_behavior.gd
 	│   │   └── pinky_behavior.gd.uid
+	│   ├── diorama_camera.gd
+	│   ├── diorama_camera.gd.uid
 	│   ├── floating_score.gd
 	│   ├── floating_score.gd.uid
+	│   ├── fruit.gd
+	│   ├── fruit.gd.uid
 	│   ├── ghost.gd
 	│   ├── ghost.gd.uid
 	│   ├── ghost_behavior.gd
 	│   ├── ghost_behavior.gd.uid
+	│   ├── ice_pellet.gd
+	│   ├── ice_pellet.gd.uid
 	│   ├── pellet.gd
 	│   ├── pellet.gd.uid
 	│   ├── player.gd
@@ -59,88 +87,18 @@ PROJECT TREE
 	│   ├── portal.gd
 	│   └── portal.gd.uid
 	└── ui
+		├── credits.gd
+		├── credits.gd.uid
 		├── hud.gd
 		├── hud.gd.uid
 		├── minimap_2d.gd
 		└── minimap_2d.gd.uid
 
-15 directories, 48 files
+15 directories, 78 files
 
 FILES
 =====
 
-==================================================
-FILE: ./.editorconfig
-==================================================
-root = true
-
-[*]
-charset = utf-8
-
-==================================================
-FILE: ./.gitattributes
-==================================================
-# Normalize EOL for all files that Git considers text files.
-* text=auto eol=lf
-
-==================================================
-FILE: ./.gitignore
-==================================================
-# ==============================================================================
-# Description: Comprehensive Git ignore file for Godot 4 projects.
-#              Prevents tracking of local editor metadata, binary builds,
-#              OS-specific garbage, and resolves conflicts with project folders.
-# Author: Enrique González Gutiérrez
-# Email: enrique.gonzalez.gutierrez@gmail.com
-# ==============================================================================
-
-# ------------------------------------------------------------------------------
-# Godot Engine Core Ignores
-# ------------------------------------------------------------------------------
-# Ignore the local .godot/ folder which contains import caches and local settings.
-# This folder is auto-generated and should never be committed.
-.godot/
-
-# Ignore auto-generated translation files.
-*.translation
-
-# ------------------------------------------------------------------------------
-# Platform-Specific Builds & Exports
-# ------------------------------------------------------------------------------
-# It is recommended to keep binary exports out of the repository.
-*.exe
-*.dll
-*.so
-*.dylib
-*.pck
-*.apk
-*.aab
-*.ipa
-build/
-exports/
-
-# ------------------------------------------------------------------------------
-# Mono / C# Specific Ignores (If applicable in the future)
-# ------------------------------------------------------------------------------
-.mono/
-bin/
-obj/
-
-# ------------------------------------------------------------------------------
-# OS-Specific Garbage Files
-# ------------------------------------------------------------------------------
-.DS_Store
-Thumbs.db
-desktop.ini
-.directory
-
-# ------------------------------------------------------------------------------
-# Crash Dumps & System Diagnostics
-# ------------------------------------------------------------------------------
-# FIX: Added a leading slash '/' to ensure Git only ignores a 'core' file at the 
-# root of the repository, preventing it from ignoring folders like 'scripts/core/'.
-/core
-*.dmp
 ==================================================
 FILE: ./README.md
 ==================================================
@@ -157,25 +115,28 @@ Email: enrique.gonzalez.gutierrez@gmail.com
 ![PacMan3D Main Menu](assets/ui/images/main_menu_bg.png)
 
 ## Overview
-**PacMan3D** is a modern 3D reimagining of the classic arcade game, built entirely from scratch using **Godot 4**. 
+**PacMan3D** is a modern 3D reimagining of the classic arcade game, built entirely from scratch in **Godot 4**. 
 
-Currently in **Phase 1**, this project focuses on robust core mechanics, physics-based movement, and dynamic level generation using JSON files. The visual aesthetic relies purely on Godot's primitive 3D meshes (Spheres, Capsules, and Cubes) paired with vibrant colors and lighting to create a clean, minimalist, and highly playable prototype.
+This project focuses on robust core mechanics, physics-based movement, procedural level generation, and strict adherence to **SOLID software design principles**. The visual aesthetic relies on Godot's primitive 3D meshes (Spheres, Capsules, and Cubes) paired with vibrant neon lighting and three procedural architectural styles.
 
-## Features (Phase 1)
-*   **JSON-Based Level Generation:** Mazes are generated dynamically at runtime from structured JSON grid data.
-*   **Physics-Based Entities:** Smooth movement and collision detection using Godot 4's 3D physics engine (`CharacterBody3D`, `Area3D`, `StaticBody3D`).
-*   **Primitive 3D Art Style:** 
-	*   Player: Yellow Sphere.
-	*   Ghosts: Colorful Capsules (Red, Pink, Cyan, Orange).
-	*   Maze: Blue Cubes.
-*   **Core Loop:** Pellet collection, Power Pellets (invincibility state), basic Ghost AI (chase and frightened states), and score/lives tracking.
+## Features (Phase 1 Completed)
+*   **Procedural Level Generator (Python):** Automatically crafts braided, symmetric, 100% connected 3D mazes in under `0.01` seconds with zero dead-ends or 2x2 plazas.
+*   **Multi-Style Visual Themes:** Levels are rendered dynamically in one of three procedurally generated themes:
+    *   `pipes`: Connected double-deck pipeline rails (Pac-Mania style).
+    *   `blocks`: Monolithic neon arcade cubes.
+    *   `pillars`: Futuristic columns topped with glowing, emissive floating spheres.
+*   **Dynamic Level Tinting:** Reads hex color configurations directly from the JSON files to procedurally tint the levels on start.
+*   **Decoupled Diorama Camera:** A standalone camera tracking node utilizing steep perspectives, narrow FOVs, and smooth spatial LERP damping to simulate a diorama view.
+*   **Arcade-Accurate Ghost AI:** Features coordinate-based pathfinding, behavior strategies (Blinky, Pinky, Inky, Clyde), and hardcoded kinematic foso-exiting logic.
+*   **SOLID Software Architecture:** Decoupled interfaces where core nodes interact through signals and public APIs, keeping managers and entities lightweight and single-responsible.
 
 ## Project Structure
-*   `/assets/` - UI images, icons, and non-engine assets.
-*   `/data/` - JSON files containing the level layouts.
-*   `/materials/` - Standard 3D materials (colors) for the primitives.
-*   `/scenes/` - Godot scene files (`.tscn`).
-*   `/scripts/` - GDScript files (`.gd`), handling all game logic.
+*   `generate_levels.py` - Procedural level generator script (Python).
+*   `/assets/` - UI images, icons, sound effects, and background music.
+*   `/data/` - JSON level configuration files.
+*   `/scripts/core/` - Global GameManager, LevelManager orchestrator, MapValidator, and LevelBuilder assembler.
+*   `/scripts/entities/` - Player, Ghosts, behaviors, DioramaCamera, Portals, and Pellets.
+*   `/scripts/ui/` - HUD, procedural Main Menu, and 2D Vectorial Minimap.
 
 ## Author
 *   **Name:** Enrique González Gutiérrez
@@ -183,151 +144,305 @@ Currently in **Phase 1**, this project focuses on robust core mechanics, physics
 ==================================================
 FILE: ./ROADMAP.md
 ==================================================
-# ROADMAP - PacMan3D (Phase 1)
+# ROADMAP - PacMan3D
 
-## 1. Project Setup & Folder Structure
-**Objective:** Establish a clean, scalable, and English-only project structure in Godot 4.
+<!--
+==============================================================================
+Description: Project development roadmap and progress tracker.
+Author: Enrique González Gutiérrez
+Email: enrique.gonzalez.gutierrez@gmail.com
+==============================================================================
+-->
 
-*   `res://data/`: Will contain the JSON files used to build the levels.
-*   `res://scenes/`: Will hold all `.tscn` files.
-	*   `res://scenes/levels/`: For the main game scene.
-	*   `res://scenes/entities/`: For the player, ghosts, pellets, etc.
-	*   `res://scenes/ui/`: For the Heads-Up Display (HUD) and menus.
-*   `res://scripts/`: Will hold all `.gd` scripts.
-	*   `res://scripts/core/`: Game managers, JSON parsers.
-	*   `res://scripts/entities/`: Logic for player and enemies.
-*   `res://materials/`: Will contain standard materials (colors for primitive shapes).
+## Phase 1: Core Mechanics & Refactoring (COMPLETED)
 
-*Note: All future scripts will strictly include the following header:*
-```text
-# ==============================================================================
-# Description: [Brief description of the file's purpose]
-# Author: Enrique González Gutiérrez
-# Email: enrique.gonzalez.gutierrez@gmail.com
-# ==============================================================================
-```
+### 1. Project Setup & Folder Structure [X]
+*   Established a clean, scalable folder layout.
+*   Enforced strict strict English-only naming conventions and standard file header templates.
 
-## 2. Level Design & JSON Parsing
-**Objective:** Define the level architecture in a JSON file and create a parser to interpret it in Godot.
+### 2. Level Design, Procedural Generation, & Verification [X]
+*   Created `generate_levels.py`, a robust Python-based procedural level generator utilizing DFS maze generation and self-healing BFS connectivity passes.
+*   Enforced mathematical checks to guarantee 100% connected paths, zero dead-ends, and zero 2x2 hollow plazas on every run.
+*   Implemented three procedural rendering styles: connected pipes, solid neon cubes, and futuristic cylindrical pillars topped with emissive spheres.
 
-*   **JSON Structure Definition:** 
-    The level will be represented as a 2D grid matrix (array of arrays or a flat array with width/height) inside a JSON file. 
-    *Legend for the grid:*
-    *   `0`: Empty space.
-    *   `1`: Wall (Cube).
-    *   `2`: Normal Pellet (Small Sphere).
-    *   `3`: Power Pellet (Medium Sphere).
-    *   `4`: Player Spawn Point.
-    *   `5`: Ghost Spawn Point.
-*   **Level Parser Manager:** 
-    A Singleton/Autoload script (`level_manager.gd`) responsible for reading `level_01.json`, parsing the grid, and calculating the exact 3D coordinates (X, Z) based on a defined cell size (e.g., 2.0 meters).
+### 3. Physics & World Generation [X]
+*   Decoupled world loading, map validation, and mesh instantiation into specialized, single-responsibility scripts.
+*   Built dynamic wall color tinting reading directly from level JSON data.
+*   Implemented identical physics box colliders across all three visual styles to guarantee 100% consistent movement physics.
 
-## 3. Physics & World Generation (Primitives Only)
-**Objective:** Translate the parsed JSON data into a physical 3D world using only Godot primitive meshes.
+### 4. Player Entity (Pac-Man) [X]
+*   Implemented physics-based kinematics using `move_and_slide()` alongside responsive directional buffering.
+*   Decoupled the diorama camera controller entirely into `diorama_camera.gd`, utilizing steep perspective angles, telephoto narrow FOVs, and LERP tracking.
+*   Programmed a modular sequential death state triggering local GPUParticles3D explosions.
 
-*   **Walls (`StaticBody3D`):**
-    *   Mesh: `BoxMesh` (Cube).
-    *   Collision: `CollisionShape3D` (Box).
-    *   Material: Blue color.
-*   **Floor (`StaticBody3D`):**
-    *   Generated automatically to cover the entire grid size.
-    *   Material: Dark gray or black color.
-*   **Pellets & Power Pellets (`Area3D`):**
-    *   Mesh: `SphereMesh` (Small for normal, slightly larger for power).
-    *   Collision: `CollisionShape3D` (Sphere).
-    *   Material: Yellow/White color.
-    *   Logic: Emits a signal `on_pellet_eaten` when the player enters the area, then queues itself for deletion.
+### 5. Enemy Entities (Ghosts) [X]
+*   Designed a decoupled state machine (Leaving, Chase, Frightened).
+*   Integrated behavior strategies using clean strategy patterns (Blinky, Pinky, Inky, Clyde).
+*   Implemented arcade-accurate foso exit paths and a physical one-way gate, preventing ghosts from wandering back into the Ghost House.
+*   Applied dynamic alignment calculations to prevent entities from clipping/freezing during odd and even map size transitions.
 
-## 4. Player Entity (Pac-Man)
-**Objective:** Create the controllable character using physics-based movement.
+### 6. SOLID Refactoring Phase [X]
+*   **Single Responsibility Principle (SRP):** Split the massive `LevelManager` God Class into `LevelManager` (high-level orchestrator), `MapValidator` (topological checker), and `LevelBuilder` (3D mesh assembler).
+*   **Dependency Inversion Principle (DIP):** Wired dynamically generated entities up to the manager through loose signals and callbacks instead of hardcoded paths.
 
-*   **Node Setup (`CharacterBody3D`):**
-    *   Mesh: `SphereMesh` (Yellow color).
-    *   Collision: `CollisionShape3D` (Sphere).
-*   **Movement Logic:**
-    *   Handled via `move_and_slide()` to allow smooth gliding against walls.
-    *   Input handling for 4 directions (Up, Down, Left, Right) mapped to the 3D X and Z axes.
-    *   Movement constraints to ensure the player aligns reasonably well with the grid structure to avoid getting stuck on corners, utilizing raycasts (`RayCast3D`) to detect valid turns.
-*   **State Machine (Basic):** 
-    Normal state vs. Invincible state (when eating a Power Pellet).
+---
 
-## 5. Enemy Entities (Ghosts)
-**Objective:** Create the enemies using basic AI and primitive capsule shapes.
+## Phase 2: Gameplay Polish & Progression (Future Scope)
 
-*   **Node Setup (`CharacterBody3D`):**
-    *   Mesh: `CapsuleMesh` (Different colors: Red, Pink, Cyan, Orange).
-    *   Collision: `CollisionShape3D` (Capsule).
-    *   Detection: `Area3D` to detect collision with the Player.
-*   **AI Movement Logic:**
-	*   Since it's Phase 1, Ghosts will use a grid-based pseudo-random movement or basic A* pathfinding (using Godot's `AStarGrid2D` mapped to the 3D X/Z coordinates).
-    *   They will constantly move forward and pick a new valid direction at every intersection.
-*   **Ghost States:**
-    *   `CHASE`: Normal state, chasing or wandering.
-    *   `FRIGHTENED`: Triggered by a Power Pellet. Movement slows down, color changes to Blue, runs away from the player.
-    *   `EATEN`: Returns to the spawn point.
+### 1. Automated Level Progression
+*   Implement automatic level transitions in `GameManager` (e.g., loading `level_02.json` once all pellets are consumed).
+*   Design a progression sequence, increasing ghost speed and reducing frightened timers as level numbers increase.
 
-## 6. Game Loop & UI (HUD)
-**Objective:** Connect the elements into a fully playable game loop.
+### 2. Advanced Ghost AI State Cycles
+*   Introduce Chase / Scatter timers (standard arcade timing) where ghosts periodically stop chasing and retreat to their designated corners before resuming.
+*   Add a proper "Eaten" state where ghosts return to the foso as floating eyeballs before respawning.
 
-*   **Game Manager (`game_manager.gd`):** Autoload script handling the global state.
-*   **Win/Loss Conditions:**
-    *   Win: Keep track of total pellets generated vs. eaten. When the count reaches 0, trigger Victory.
-    *   Loss: If a Ghost touches the player in `CHASE` state, lose a life. If lives reach 0, trigger Game Over.
-*   **UI (`Control` nodes):**
-    *   Score counter.
-    *   Lives counter.
-    *   Simple "Game Over" and "You Win" text overlay.
+### 3. Audio & SFX Balancing
+*   Implement dynamic BGM pitch scaling (speeding up music as remaining pellets drop below 20%).
+*   Add audio attenuation based on distance for 3D positional waka-waka and ghost siren sound effects.
+
+### 4. Visual Polish & HUD Enhancements
+*   Add screen-shake effects during Player death and ghost consumption.
+*   Implement transition overlays (fade-to-black) between levels and menu selections.
 ==================================================
 FILE: ./data/level_01.json
 ==================================================
 {
   "_metadata": {
-	"description": "Perfect symmetric 32x32 arcade grid layout. 0: Empty, 1: Wall, 2: Pellet, 3: Power Pellet, 4: Player Spawn, 5: Ghost Spawn, 6: Portal Left, 7: Portal Right, 8: Portal Top, 9: Portal Bottom",
-	"author": "Enrique González Gutiérrez",
-	"email": "enrique.gonzalez.gutierrez@gmail.com"
+	"description": "Procedurally Generated Pac-Man Level 01",
+	"author": "Python Level Generator",
+	"type": "Braided Symmetric Maze"
   },
-  "grid_width": 32,
-  "grid_height": 32,
+  "grid_width": 31,
+  "grid_height": 31,
+  "wall_color": "#1C3CFF",
+  "rendering_style": "pipes",
   "layout": [
-	[1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 8, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1],
-	[1, 3, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 0, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 3, 1, 1],
-	[1, 2, 1, 2, 1, 2, 1, 2, 1, 2, 1, 2, 1, 2, 1, 0, 1, 2, 1, 2, 1, 2, 1, 2, 1, 2, 1, 2, 1, 2, 1, 1],
-	[1, 2, 1, 2, 1, 2, 1, 2, 1, 2, 1, 2, 1, 2, 1, 0, 1, 2, 1, 2, 1, 2, 1, 2, 1, 2, 1, 2, 1, 2, 1, 1],
-	[1, 2, 1, 2, 1, 2, 1, 2, 1, 2, 1, 2, 1, 2, 1, 2, 1, 2, 1, 2, 1, 2, 1, 2, 1, 2, 1, 2, 1, 2, 1, 1],
-	[1, 2, 1, 2, 1, 2, 1, 2, 1, 2, 1, 2, 1, 2, 1, 2, 1, 2, 1, 2, 1, 2, 1, 2, 1, 2, 1, 2, 1, 2, 1, 1],
-	[1, 2, 1, 2, 1, 2, 1, 2, 1, 2, 1, 2, 1, 2, 1, 2, 1, 2, 1, 2, 1, 2, 1, 2, 1, 2, 1, 2, 1, 2, 1, 1],
-	[1, 2, 1, 2, 1, 2, 1, 2, 1, 2, 1, 2, 1, 2, 1, 2, 1, 2, 1, 2, 1, 2, 1, 2, 1, 2, 1, 2, 1, 2, 1, 1],
-	[1, 2, 1, 2, 1, 2, 1, 2, 1, 2, 1, 2, 1, 2, 1, 2, 1, 2, 1, 2, 1, 2, 1, 2, 1, 2, 1, 2, 1, 2, 1, 1],
-	[1, 2, 1, 2, 1, 2, 1, 2, 1, 2, 1, 2, 1, 2, 1, 2, 1, 2, 1, 2, 1, 2, 1, 2, 1, 2, 1, 2, 1, 2, 1, 1],
-	[1, 2, 1, 2, 1, 2, 1, 2, 1, 2, 1, 2, 1, 2, 1, 2, 1, 2, 1, 2, 1, 2, 1, 2, 1, 2, 1, 2, 1, 2, 1, 1],
-	[1, 2, 1, 2, 1, 2, 1, 2, 1, 2, 1, 2, 1, 2, 1, 2, 1, 2, 1, 2, 1, 2, 1, 2, 1, 2, 1, 2, 1, 2, 1, 1],
-	[1, 2, 1, 2, 1, 2, 1, 2, 1, 2, 1, 2, 1, 2, 1, 2, 1, 2, 1, 2, 1, 2, 1, 2, 1, 2, 1, 2, 1, 2, 1, 1],
-	[1, 2, 1, 2, 1, 2, 1, 2, 1, 2, 1, 2, 1, 2, 1, 5, 1, 2, 1, 2, 1, 2, 1, 2, 1, 2, 1, 2, 1, 2, 1, 1],
-	[6, 0, 0, 0, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 5, 0, 5, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 0, 0, 0, 7],
-	[1, 2, 1, 2, 1, 2, 1, 2, 1, 2, 1, 2, 1, 2, 1, 5, 1, 2, 1, 2, 1, 2, 1, 2, 1, 2, 1, 2, 1, 2, 1, 1],
-	[1, 2, 1, 2, 1, 2, 1, 2, 1, 2, 1, 2, 1, 2, 1, 2, 1, 2, 1, 2, 1, 2, 1, 2, 1, 2, 1, 2, 1, 2, 1, 1],
-	[1, 2, 1, 2, 1, 2, 1, 2, 1, 2, 1, 2, 1, 2, 1, 2, 1, 2, 1, 2, 1, 2, 1, 2, 1, 2, 1, 2, 1, 2, 1, 1],
-	[1, 2, 1, 2, 1, 2, 1, 2, 1, 2, 1, 2, 1, 2, 1, 2, 1, 2, 1, 2, 1, 2, 1, 2, 1, 2, 1, 2, 1, 2, 1, 1],
-	[1, 2, 1, 2, 1, 2, 1, 2, 1, 2, 1, 2, 1, 2, 1, 2, 1, 2, 1, 2, 1, 2, 1, 2, 1, 2, 1, 2, 1, 2, 1, 1],
-	[1, 2, 1, 2, 1, 2, 1, 2, 1, 2, 1, 2, 1, 2, 1, 2, 1, 2, 1, 2, 1, 2, 1, 2, 1, 2, 1, 2, 1, 2, 1, 1],
-	[1, 2, 1, 2, 1, 2, 1, 2, 1, 2, 1, 2, 1, 2, 1, 2, 1, 2, 1, 2, 1, 2, 1, 2, 1, 2, 1, 2, 1, 2, 1, 1],
-	[1, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 4, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 1, 1],
-	[1, 2, 1, 2, 1, 2, 1, 2, 1, 2, 1, 2, 1, 2, 1, 2, 1, 2, 1, 2, 1, 2, 1, 2, 1, 2, 1, 2, 1, 2, 1, 1],
-	[1, 2, 1, 2, 1, 2, 1, 2, 1, 2, 1, 2, 1, 2, 1, 2, 1, 2, 1, 2, 1, 2, 1, 2, 1, 2, 1, 2, 1, 2, 1, 1],
-	[1, 2, 1, 2, 1, 2, 1, 2, 1, 2, 1, 2, 1, 2, 1, 2, 1, 2, 1, 2, 1, 2, 1, 2, 1, 2, 1, 2, 1, 2, 1, 1],
-	[1, 2, 1, 2, 1, 2, 1, 2, 1, 2, 1, 2, 1, 2, 1, 2, 1, 2, 1, 2, 1, 2, 1, 2, 1, 2, 1, 2, 1, 2, 1, 1],
-	[1, 2, 1, 2, 1, 2, 1, 2, 1, 2, 1, 2, 1, 2, 1, 2, 1, 2, 1, 2, 1, 2, 1, 2, 1, 2, 1, 2, 1, 2, 1, 1],
-	[1, 2, 1, 2, 1, 2, 1, 2, 1, 2, 1, 2, 1, 2, 1, 0, 1, 2, 1, 2, 1, 2, 1, 2, 1, 2, 1, 2, 1, 2, 1, 1],
-	[1, 2, 1, 2, 1, 2, 1, 2, 1, 2, 1, 2, 1, 2, 1, 0, 1, 2, 1, 2, 1, 2, 1, 2, 1, 2, 1, 2, 1, 2, 1, 1],
-	[1, 3, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 0, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 3, 1, 1],
-	[1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 9, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1]
+	[1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 8, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1],
+	[1, 3, 2, 2, 2, 2, 2, 2, 1, 2, 2, 2, 2, 2, 2, 0, 2, 2, 2, 2, 2, 2, 1, 2, 2, 2, 2, 2, 2, 3, 1],
+	[1, 2, 1, 1, 1, 2, 1, 2, 1, 2, 1, 1, 1, 2, 1, 2, 1, 2, 1, 1, 1, 2, 1, 2, 1, 2, 1, 1, 1, 2, 1],
+	[1, 2, 2, 2, 2, 2, 1, 2, 1, 2, 2, 2, 1, 2, 1, 2, 1, 2, 1, 2, 2, 2, 1, 2, 1, 2, 2, 2, 2, 2, 1],
+	[1, 2, 1, 1, 1, 1, 1, 2, 1, 1, 1, 2, 1, 2, 1, 2, 1, 2, 1, 2, 1, 1, 1, 2, 1, 1, 1, 1, 1, 2, 1],
+	[1, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 1, 2, 2, 2, 2, 2, 1, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 1],
+	[1, 2, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 2, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 2, 1],
+	[1, 2, 1, 2, 2, 2, 2, 2, 2, 2, 1, 2, 2, 2, 1, 2, 1, 2, 2, 2, 1, 2, 2, 2, 2, 2, 2, 2, 1, 2, 1],
+	[1, 2, 1, 2, 1, 1, 1, 2, 1, 2, 1, 2, 1, 2, 1, 2, 1, 2, 1, 2, 1, 2, 1, 2, 1, 1, 1, 2, 1, 2, 1],
+	[1, 2, 1, 2, 2, 2, 1, 2, 1, 2, 2, 2, 1, 2, 2, 2, 2, 2, 1, 2, 2, 2, 1, 2, 1, 2, 2, 2, 1, 2, 1],
+	[1, 2, 1, 1, 1, 2, 1, 2, 1, 1, 1, 1, 1, 1, 1, 2, 1, 1, 1, 1, 1, 1, 1, 2, 1, 2, 1, 1, 1, 2, 1],
+	[1, 2, 2, 2, 2, 2, 1, 2, 1, 2, 2, 2, 2, 2, 2, 0, 2, 2, 2, 2, 2, 2, 1, 2, 1, 2, 2, 2, 2, 2, 1],
+	[1, 1, 1, 1, 1, 1, 1, 2, 1, 2, 1, 1, 1, 1, 1, 0, 1, 1, 1, 1, 1, 2, 1, 2, 1, 1, 1, 1, 1, 1, 1],
+	[1, 1, 1, 1, 1, 2, 2, 2, 1, 2, 2, 2, 1, 0, 0, 0, 0, 0, 1, 2, 2, 2, 1, 2, 2, 2, 1, 1, 1, 1, 1],
+	[6, 0, 0, 0, 0, 0, 1, 2, 1, 2, 1, 2, 1, 0, 5, 0, 5, 0, 1, 2, 1, 2, 1, 2, 1, 0, 0, 0, 0, 0, 7],
+	[1, 1, 1, 1, 1, 1, 1, 2, 1, 2, 1, 2, 1, 0, 5, 0, 5, 0, 1, 2, 1, 2, 1, 2, 1, 1, 1, 1, 1, 1, 1],
+	[1, 1, 1, 1, 1, 1, 1, 2, 1, 2, 1, 2, 1, 1, 1, 1, 1, 1, 1, 2, 1, 2, 1, 2, 1, 1, 1, 1, 1, 1, 1],
+	[1, 2, 2, 2, 2, 2, 2, 2, 2, 2, 1, 2, 2, 2, 2, 2, 2, 2, 2, 2, 1, 2, 2, 2, 2, 2, 2, 2, 2, 2, 1],
+	[1, 2, 1, 2, 1, 1, 1, 1, 1, 1, 1, 2, 1, 1, 1, 2, 1, 1, 1, 2, 1, 1, 1, 1, 1, 1, 1, 2, 1, 2, 1],
+	[1, 2, 2, 2, 1, 2, 2, 2, 2, 2, 2, 2, 1, 2, 2, 2, 2, 2, 1, 2, 2, 2, 2, 2, 2, 2, 1, 2, 2, 2, 1],
+	[1, 2, 1, 1, 1, 2, 1, 1, 1, 1, 1, 1, 1, 2, 1, 2, 1, 2, 1, 1, 1, 1, 1, 1, 1, 2, 1, 1, 1, 2, 1],
+	[1, 2, 1, 2, 2, 2, 2, 2, 2, 2, 1, 2, 2, 2, 1, 2, 1, 2, 2, 2, 1, 2, 2, 2, 2, 2, 2, 2, 1, 2, 1],
+	[1, 2, 1, 2, 1, 2, 1, 1, 1, 2, 1, 2, 1, 1, 1, 2, 1, 1, 1, 2, 1, 2, 1, 1, 1, 2, 1, 2, 1, 2, 1],
+	[1, 2, 1, 2, 2, 2, 2, 2, 1, 2, 2, 2, 1, 2, 2, 4, 2, 2, 1, 2, 2, 2, 1, 2, 2, 2, 2, 2, 1, 2, 1],
+	[1, 2, 1, 1, 1, 1, 1, 2, 1, 1, 1, 1, 1, 2, 1, 2, 1, 2, 1, 1, 1, 1, 1, 2, 1, 1, 1, 1, 1, 2, 1],
+	[1, 2, 2, 2, 1, 2, 2, 2, 2, 2, 2, 2, 2, 2, 1, 2, 1, 2, 2, 2, 2, 2, 2, 2, 2, 2, 1, 2, 2, 2, 1],
+	[1, 2, 1, 2, 1, 2, 1, 1, 1, 1, 1, 2, 1, 1, 1, 2, 1, 1, 1, 2, 1, 1, 1, 1, 1, 2, 1, 2, 1, 2, 1],
+	[1, 2, 1, 2, 2, 2, 1, 2, 2, 2, 1, 2, 2, 2, 1, 2, 1, 2, 2, 2, 1, 2, 2, 2, 1, 2, 2, 2, 1, 2, 1],
+	[1, 2, 1, 2, 1, 1, 1, 2, 1, 2, 1, 1, 1, 2, 1, 2, 1, 2, 1, 1, 1, 2, 1, 2, 1, 1, 1, 2, 1, 2, 1],
+	[1, 3, 2, 2, 2, 2, 2, 2, 1, 2, 2, 2, 2, 2, 2, 0, 2, 2, 2, 2, 2, 2, 1, 2, 2, 2, 2, 2, 2, 3, 1],
+	[1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 9, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1]
   ]
 }
 
 ==================================================
-FILE: ./icon.svg
+FILE: ./data/level_02.json
 ==================================================
-<svg xmlns="http://www.w3.org/2000/svg" width="128" height="128"><rect width="124" height="124" x="2" y="2" fill="#363d52" stroke="#212532" stroke-width="4" rx="14"/><g fill="#fff" transform="translate(12.322 12.322)scale(.101)"><path d="M105 673v33q407 354 814 0v-33z"/><path fill="#478cbf" d="m105 673 152 14q12 1 15 14l4 67 132 10 8-61q2-11 15-15h162q13 4 15 15l8 61 132-10 4-67q3-13 15-14l152-14V427q30-39 56-81-35-59-83-108-43 20-82 47-40-37-88-64 7-51 8-102-59-28-123-42-26 43-46 89-49-7-98 0-20-46-46-89-64 14-123 42 1 51 8 102-48 27-88 64-39-27-82-47-48 49-83 108 26 42 56 81zm0 33v39c0 276 813 276 814 0v-39l-134 12-5 69q-2 10-14 13l-162 11q-12 0-16-11l-10-65H446l-10 65q-4 11-16 11l-162-11q-12-3-14-13l-5-69z"/><path d="M483 600c0 34 58 34 58 0v-86c0-34-58-34-58 0z"/><circle cx="725" cy="526" r="90"/><circle cx="299" cy="526" r="90"/></g><g fill="#414042" transform="translate(12.322 12.322)scale(.101)"><circle cx="307" cy="532" r="60"/><circle cx="717" cy="532" r="60"/></g></svg>
+{
+  "_metadata": {
+	"description": "Procedurally Generated Pac-Man Level 02",
+	"author": "Python Level Generator",
+	"type": "Braided Symmetric Maze"
+  },
+  "grid_width": 31,
+  "grid_height": 31,
+  "wall_color": "#00E5FF",
+  "rendering_style": "pillars",
+  "layout": [
+	[1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 8, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1],
+	[1, 3, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 0, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 3, 1],
+	[1, 2, 1, 2, 1, 1, 1, 1, 1, 1, 1, 1, 1, 2, 1, 2, 1, 2, 1, 1, 1, 1, 1, 1, 1, 1, 1, 2, 1, 2, 1],
+	[1, 2, 1, 2, 2, 2, 2, 2, 2, 2, 2, 2, 1, 2, 1, 2, 1, 2, 1, 2, 2, 2, 2, 2, 2, 2, 2, 2, 1, 2, 1],
+	[1, 2, 1, 2, 1, 2, 1, 1, 1, 1, 1, 2, 1, 2, 1, 2, 1, 2, 1, 2, 1, 1, 1, 1, 1, 2, 1, 2, 1, 2, 1],
+	[1, 2, 1, 2, 2, 2, 2, 2, 2, 2, 2, 2, 1, 2, 1, 2, 1, 2, 1, 2, 2, 2, 2, 2, 2, 2, 2, 2, 1, 2, 1],
+	[1, 2, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 2, 1, 2, 1, 2, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 2, 1],
+	[1, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 1, 2, 1, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 1],
+	[1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 2, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1],
+	[1, 2, 2, 2, 1, 2, 2, 2, 1, 2, 2, 2, 2, 2, 1, 2, 1, 2, 2, 2, 2, 2, 1, 2, 2, 2, 1, 2, 2, 2, 1],
+	[1, 2, 1, 2, 1, 2, 1, 2, 1, 2, 1, 1, 1, 2, 1, 2, 1, 2, 1, 1, 1, 2, 1, 2, 1, 2, 1, 2, 1, 2, 1],
+	[1, 2, 2, 2, 2, 2, 1, 2, 1, 2, 1, 2, 2, 2, 2, 0, 2, 2, 2, 2, 1, 2, 1, 2, 1, 2, 2, 2, 2, 2, 1],
+	[1, 1, 1, 1, 1, 1, 1, 2, 1, 2, 1, 2, 1, 1, 1, 0, 1, 1, 1, 2, 1, 2, 1, 2, 1, 1, 1, 1, 1, 1, 1],
+	[1, 1, 1, 1, 1, 1, 1, 2, 1, 2, 2, 2, 1, 0, 0, 0, 0, 0, 1, 2, 2, 2, 1, 2, 1, 1, 1, 1, 1, 1, 1],
+	[6, 0, 0, 0, 0, 0, 1, 2, 1, 1, 1, 2, 1, 0, 5, 0, 5, 0, 1, 2, 1, 1, 1, 2, 1, 0, 0, 0, 0, 0, 7],
+	[1, 1, 1, 1, 1, 2, 2, 2, 2, 2, 2, 2, 1, 0, 5, 0, 5, 0, 1, 2, 2, 2, 2, 2, 2, 2, 1, 1, 1, 1, 1],
+	[1, 1, 1, 1, 1, 1, 1, 2, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 2, 1, 1, 1, 1, 1, 1, 1],
+	[1, 2, 2, 2, 2, 2, 2, 2, 1, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 1, 2, 2, 2, 2, 2, 2, 2, 1],
+	[1, 2, 1, 1, 1, 2, 1, 1, 1, 2, 1, 1, 1, 2, 1, 2, 1, 2, 1, 1, 1, 2, 1, 1, 1, 2, 1, 1, 1, 2, 1],
+	[1, 2, 1, 2, 2, 2, 2, 2, 2, 2, 1, 2, 2, 2, 1, 2, 1, 2, 2, 2, 1, 2, 2, 2, 2, 2, 2, 2, 1, 2, 1],
+	[1, 2, 1, 2, 1, 1, 1, 1, 1, 1, 1, 2, 1, 1, 1, 2, 1, 1, 1, 2, 1, 1, 1, 1, 1, 1, 1, 2, 1, 2, 1],
+	[1, 2, 1, 2, 2, 2, 2, 2, 2, 2, 1, 2, 2, 2, 1, 2, 1, 2, 2, 2, 1, 2, 2, 2, 2, 2, 2, 2, 1, 2, 1],
+	[1, 2, 1, 1, 1, 1, 1, 1, 1, 2, 1, 2, 1, 2, 1, 2, 1, 2, 1, 2, 1, 2, 1, 1, 1, 1, 1, 1, 1, 2, 1],
+	[1, 2, 1, 2, 2, 2, 2, 2, 2, 2, 1, 2, 1, 2, 2, 4, 2, 2, 1, 2, 1, 2, 2, 2, 2, 2, 2, 2, 1, 2, 1],
+	[1, 2, 1, 2, 1, 2, 1, 1, 1, 1, 1, 2, 1, 2, 1, 2, 1, 2, 1, 2, 1, 1, 1, 1, 1, 2, 1, 2, 1, 2, 1],
+	[1, 2, 1, 2, 1, 2, 2, 2, 2, 2, 2, 2, 1, 2, 1, 2, 1, 2, 1, 2, 2, 2, 2, 2, 2, 2, 1, 2, 1, 2, 1],
+	[1, 2, 1, 2, 1, 1, 1, 2, 1, 1, 1, 1, 1, 2, 1, 2, 1, 2, 1, 1, 1, 1, 1, 2, 1, 1, 1, 2, 1, 2, 1],
+	[1, 2, 2, 2, 1, 2, 2, 2, 1, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 1, 2, 2, 2, 1, 2, 2, 2, 1],
+	[1, 2, 1, 1, 1, 2, 1, 2, 1, 2, 1, 2, 1, 1, 1, 2, 1, 1, 1, 2, 1, 2, 1, 2, 1, 2, 1, 1, 1, 2, 1],
+	[1, 3, 2, 2, 2, 2, 1, 2, 2, 2, 2, 2, 2, 2, 2, 0, 2, 2, 2, 2, 2, 2, 2, 2, 1, 2, 2, 2, 2, 3, 1],
+	[1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 9, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1]
+  ]
+}
+
+==================================================
+FILE: ./data/level_03.json
+==================================================
+{
+  "_metadata": {
+	"description": "Procedurally Generated Pac-Man Level 03",
+	"author": "Python Level Generator",
+	"type": "Braided Symmetric Maze"
+  },
+  "grid_width": 31,
+  "grid_height": 31,
+  "wall_color": "#FF00D0",
+  "rendering_style": "blocks",
+  "layout": [
+	[1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 8, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1],
+	[1, 3, 2, 2, 1, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 0, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 1, 2, 2, 3, 1],
+	[1, 2, 1, 2, 1, 2, 1, 1, 1, 1, 1, 1, 1, 2, 1, 2, 1, 2, 1, 1, 1, 1, 1, 1, 1, 2, 1, 2, 1, 2, 1],
+	[1, 2, 1, 2, 2, 2, 1, 2, 2, 2, 2, 2, 2, 2, 1, 2, 1, 2, 2, 2, 2, 2, 2, 2, 1, 2, 2, 2, 1, 2, 1],
+	[1, 2, 1, 1, 1, 2, 1, 2, 1, 1, 1, 1, 1, 1, 1, 2, 1, 1, 1, 1, 1, 1, 1, 2, 1, 2, 1, 1, 1, 2, 1],
+	[1, 2, 2, 2, 1, 2, 1, 2, 2, 2, 2, 2, 2, 2, 1, 2, 1, 2, 2, 2, 2, 2, 2, 2, 1, 2, 1, 2, 2, 2, 1],
+	[1, 2, 1, 2, 1, 2, 1, 2, 1, 1, 1, 1, 1, 2, 1, 2, 1, 2, 1, 1, 1, 1, 1, 2, 1, 2, 1, 2, 1, 2, 1],
+	[1, 2, 2, 2, 1, 2, 1, 2, 2, 2, 1, 2, 2, 2, 1, 2, 1, 2, 2, 2, 1, 2, 2, 2, 1, 2, 1, 2, 2, 2, 1],
+	[1, 2, 1, 1, 1, 2, 1, 1, 1, 2, 1, 2, 1, 1, 1, 2, 1, 1, 1, 2, 1, 2, 1, 1, 1, 2, 1, 1, 1, 2, 1],
+	[1, 2, 2, 2, 2, 2, 2, 2, 2, 2, 1, 2, 1, 2, 2, 2, 2, 2, 1, 2, 1, 2, 2, 2, 2, 2, 2, 2, 2, 2, 1],
+	[1, 2, 1, 1, 1, 1, 1, 1, 1, 1, 1, 2, 1, 2, 1, 2, 1, 2, 1, 2, 1, 1, 1, 1, 1, 1, 1, 1, 1, 2, 1],
+	[1, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 1, 2, 2, 0, 2, 2, 1, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 1],
+	[1, 1, 1, 1, 1, 2, 1, 1, 1, 1, 1, 2, 1, 1, 1, 0, 1, 1, 1, 2, 1, 1, 1, 1, 1, 2, 1, 1, 1, 1, 1],
+	[1, 1, 1, 1, 1, 2, 1, 2, 2, 2, 2, 2, 1, 0, 0, 0, 0, 0, 1, 2, 2, 2, 2, 2, 1, 2, 1, 1, 1, 1, 1],
+	[6, 0, 0, 0, 0, 0, 1, 2, 1, 1, 1, 2, 1, 0, 5, 0, 5, 0, 1, 2, 1, 1, 1, 2, 1, 0, 0, 0, 0, 0, 7],
+	[1, 1, 1, 1, 1, 1, 1, 2, 1, 2, 2, 2, 1, 0, 5, 0, 5, 0, 1, 2, 2, 2, 1, 2, 1, 1, 1, 1, 1, 1, 1],
+	[1, 1, 1, 1, 1, 1, 1, 2, 1, 2, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 2, 1, 2, 1, 1, 1, 1, 1, 1, 1],
+	[1, 2, 2, 2, 2, 2, 1, 2, 2, 2, 1, 2, 2, 2, 2, 2, 2, 2, 2, 2, 1, 2, 2, 2, 1, 2, 2, 2, 2, 2, 1],
+	[1, 2, 1, 1, 1, 2, 1, 2, 1, 1, 1, 2, 1, 2, 1, 2, 1, 2, 1, 2, 1, 1, 1, 2, 1, 2, 1, 1, 1, 2, 1],
+	[1, 2, 2, 2, 2, 2, 1, 2, 2, 2, 2, 2, 1, 2, 1, 2, 1, 2, 1, 2, 2, 2, 2, 2, 1, 2, 2, 2, 2, 2, 1],
+	[1, 1, 1, 2, 1, 1, 1, 1, 1, 2, 1, 1, 1, 2, 1, 2, 1, 2, 1, 1, 1, 2, 1, 1, 1, 1, 1, 2, 1, 1, 1],
+	[1, 2, 2, 2, 1, 2, 2, 2, 2, 2, 1, 2, 2, 2, 1, 2, 1, 2, 2, 2, 1, 2, 2, 2, 2, 2, 1, 2, 2, 2, 1],
+	[1, 2, 1, 1, 1, 2, 1, 1, 1, 1, 1, 2, 1, 1, 1, 2, 1, 1, 1, 2, 1, 1, 1, 1, 1, 2, 1, 1, 1, 2, 1],
+	[1, 2, 1, 2, 2, 2, 1, 2, 2, 2, 1, 2, 2, 2, 2, 4, 2, 2, 2, 2, 1, 2, 2, 2, 1, 2, 2, 2, 1, 2, 1],
+	[1, 2, 1, 2, 1, 1, 1, 2, 1, 2, 1, 2, 1, 1, 1, 2, 1, 1, 1, 2, 1, 2, 1, 2, 1, 1, 1, 2, 1, 2, 1],
+	[1, 2, 1, 2, 2, 2, 2, 2, 1, 2, 1, 2, 2, 2, 1, 2, 1, 2, 2, 2, 1, 2, 1, 2, 2, 2, 2, 2, 1, 2, 1],
+	[1, 2, 1, 2, 1, 1, 1, 2, 1, 2, 1, 2, 1, 2, 1, 2, 1, 2, 1, 2, 1, 2, 1, 2, 1, 1, 1, 2, 1, 2, 1],
+	[1, 2, 1, 2, 2, 2, 2, 2, 1, 2, 1, 2, 2, 2, 1, 2, 1, 2, 2, 2, 1, 2, 1, 2, 2, 2, 2, 2, 1, 2, 1],
+	[1, 2, 1, 1, 1, 1, 1, 1, 1, 2, 1, 1, 1, 2, 1, 2, 1, 2, 1, 1, 1, 2, 1, 1, 1, 1, 1, 1, 1, 2, 1],
+	[1, 3, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 0, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 3, 1],
+	[1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 9, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1]
+  ]
+}
+
+==================================================
+FILE: ./data/level_04.json
+==================================================
+{
+  "_metadata": {
+	"description": "Procedurally Generated Pac-Man Level 04",
+	"author": "Python Level Generator",
+	"type": "Braided Symmetric Maze"
+  },
+  "grid_width": 31,
+  "grid_height": 31,
+  "wall_color": "#FF3C00",
+  "rendering_style": "pillars",
+  "layout": [
+	[1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 8, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1],
+	[1, 3, 2, 2, 2, 2, 1, 2, 2, 2, 2, 2, 2, 2, 2, 0, 2, 2, 2, 2, 2, 2, 2, 2, 1, 2, 2, 2, 2, 3, 1],
+	[1, 2, 1, 1, 1, 2, 1, 2, 1, 2, 1, 2, 1, 2, 1, 2, 1, 2, 1, 2, 1, 2, 1, 2, 1, 2, 1, 1, 1, 2, 1],
+	[1, 2, 2, 2, 1, 2, 2, 2, 1, 2, 1, 2, 1, 2, 2, 2, 2, 2, 1, 2, 1, 2, 1, 2, 2, 2, 1, 2, 2, 2, 1],
+	[1, 2, 1, 2, 1, 1, 1, 2, 1, 2, 1, 2, 1, 1, 1, 2, 1, 1, 1, 2, 1, 2, 1, 2, 1, 1, 1, 2, 1, 2, 1],
+	[1, 2, 1, 2, 2, 2, 2, 2, 1, 2, 1, 2, 2, 2, 1, 2, 1, 2, 2, 2, 1, 2, 1, 2, 2, 2, 2, 2, 1, 2, 1],
+	[1, 2, 1, 1, 1, 2, 1, 1, 1, 2, 1, 2, 1, 2, 1, 2, 1, 2, 1, 2, 1, 2, 1, 1, 1, 2, 1, 1, 1, 2, 1],
+	[1, 2, 2, 2, 1, 2, 2, 2, 2, 2, 1, 2, 1, 2, 2, 2, 2, 2, 1, 2, 1, 2, 2, 2, 2, 2, 1, 2, 2, 2, 1],
+	[1, 2, 1, 2, 1, 1, 1, 1, 1, 1, 1, 2, 1, 1, 1, 1, 1, 1, 1, 2, 1, 1, 1, 1, 1, 1, 1, 2, 1, 2, 1],
+	[1, 2, 1, 2, 2, 2, 1, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 1, 2, 2, 2, 1, 2, 1],
+	[1, 2, 1, 2, 1, 2, 1, 2, 1, 1, 1, 1, 1, 1, 1, 2, 1, 1, 1, 1, 1, 1, 1, 2, 1, 2, 1, 2, 1, 2, 1],
+	[1, 2, 2, 2, 2, 2, 2, 2, 2, 2, 1, 2, 2, 2, 2, 0, 2, 2, 2, 2, 1, 2, 2, 2, 2, 2, 2, 2, 2, 2, 1],
+	[1, 1, 1, 1, 1, 2, 1, 1, 1, 2, 1, 2, 1, 1, 1, 0, 1, 1, 1, 2, 1, 2, 1, 1, 1, 2, 1, 1, 1, 1, 1],
+	[1, 1, 1, 1, 1, 2, 1, 2, 2, 2, 2, 2, 1, 0, 0, 0, 0, 0, 1, 2, 2, 2, 2, 2, 1, 2, 1, 1, 1, 1, 1],
+	[6, 0, 0, 0, 0, 0, 1, 2, 1, 1, 1, 2, 1, 0, 5, 0, 5, 0, 1, 2, 1, 1, 1, 2, 1, 0, 0, 0, 0, 0, 7],
+	[1, 1, 1, 1, 1, 1, 1, 2, 2, 2, 1, 2, 1, 0, 5, 0, 5, 0, 1, 2, 1, 2, 2, 2, 1, 1, 1, 1, 1, 1, 1],
+	[1, 1, 1, 1, 1, 1, 1, 2, 1, 2, 1, 2, 1, 1, 1, 1, 1, 1, 1, 2, 1, 2, 1, 2, 1, 1, 1, 1, 1, 1, 1],
+	[1, 2, 2, 2, 2, 2, 1, 2, 1, 2, 1, 2, 1, 2, 2, 2, 2, 2, 1, 2, 1, 2, 1, 2, 1, 2, 2, 2, 2, 2, 1],
+	[1, 2, 1, 1, 1, 2, 1, 2, 1, 2, 1, 2, 1, 2, 1, 2, 1, 2, 1, 2, 1, 2, 1, 2, 1, 2, 1, 1, 1, 2, 1],
+	[1, 2, 2, 2, 2, 2, 2, 2, 1, 2, 1, 2, 1, 2, 2, 2, 2, 2, 1, 2, 1, 2, 1, 2, 2, 2, 2, 2, 2, 2, 1],
+	[1, 2, 1, 1, 1, 1, 1, 1, 1, 2, 1, 2, 1, 1, 1, 2, 1, 1, 1, 2, 1, 2, 1, 1, 1, 1, 1, 1, 1, 2, 1],
+	[1, 2, 2, 2, 2, 2, 2, 2, 1, 2, 1, 2, 2, 2, 2, 2, 2, 2, 2, 2, 1, 2, 1, 2, 2, 2, 2, 2, 2, 2, 1],
+	[1, 2, 1, 1, 1, 1, 1, 2, 1, 2, 1, 1, 1, 1, 1, 2, 1, 1, 1, 1, 1, 2, 1, 2, 1, 1, 1, 1, 1, 2, 1],
+	[1, 2, 2, 2, 1, 2, 2, 2, 1, 2, 2, 2, 2, 2, 2, 4, 2, 2, 2, 2, 2, 2, 1, 2, 2, 2, 1, 2, 2, 2, 1],
+	[1, 2, 1, 2, 1, 2, 1, 1, 1, 2, 1, 1, 1, 2, 1, 1, 1, 2, 1, 1, 1, 2, 1, 1, 1, 2, 1, 2, 1, 2, 1],
+	[1, 2, 2, 2, 1, 2, 2, 2, 2, 2, 1, 2, 2, 2, 2, 2, 2, 2, 2, 2, 1, 2, 2, 2, 2, 2, 1, 2, 2, 2, 1],
+	[1, 1, 1, 1, 1, 2, 1, 1, 1, 1, 1, 2, 1, 1, 1, 2, 1, 1, 1, 2, 1, 1, 1, 1, 1, 2, 1, 1, 1, 1, 1],
+	[1, 2, 2, 2, 2, 2, 1, 2, 2, 2, 1, 2, 2, 2, 2, 2, 2, 2, 2, 2, 1, 2, 2, 2, 1, 2, 2, 2, 2, 2, 1],
+	[1, 2, 1, 1, 1, 1, 1, 2, 1, 2, 1, 1, 1, 1, 1, 2, 1, 1, 1, 1, 1, 2, 1, 2, 1, 1, 1, 1, 1, 2, 1],
+	[1, 3, 2, 2, 2, 2, 2, 2, 1, 2, 2, 2, 2, 2, 2, 0, 2, 2, 2, 2, 2, 2, 1, 2, 2, 2, 2, 2, 2, 3, 1],
+	[1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 9, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1]
+  ]
+}
+
+==================================================
+FILE: ./data/level_05.json
+==================================================
+{
+  "_metadata": {
+	"description": "Procedurally Generated Pac-Man Level 05",
+	"author": "Python Level Generator",
+	"type": "Braided Symmetric Maze"
+  },
+  "grid_width": 31,
+  "grid_height": 31,
+  "wall_color": "#10FF30",
+  "rendering_style": "blocks",
+  "layout": [
+	[1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 8, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1],
+	[1, 3, 2, 2, 2, 2, 2, 2, 1, 2, 2, 2, 2, 2, 2, 0, 2, 2, 2, 2, 2, 2, 1, 2, 2, 2, 2, 2, 2, 3, 1],
+	[1, 2, 1, 2, 1, 1, 1, 2, 1, 2, 1, 1, 1, 2, 1, 2, 1, 2, 1, 1, 1, 2, 1, 2, 1, 1, 1, 2, 1, 2, 1],
+	[1, 2, 2, 2, 2, 2, 1, 2, 1, 2, 1, 2, 2, 2, 1, 2, 1, 2, 2, 2, 1, 2, 1, 2, 1, 2, 2, 2, 2, 2, 1],
+	[1, 1, 1, 1, 1, 2, 1, 2, 1, 2, 1, 2, 1, 1, 1, 2, 1, 1, 1, 2, 1, 2, 1, 2, 1, 2, 1, 1, 1, 1, 1],
+	[1, 2, 2, 2, 1, 2, 1, 2, 2, 2, 1, 2, 1, 2, 2, 2, 2, 2, 1, 2, 1, 2, 2, 2, 1, 2, 1, 2, 2, 2, 1],
+	[1, 2, 1, 2, 1, 2, 1, 1, 1, 2, 1, 2, 1, 2, 1, 1, 1, 2, 1, 2, 1, 2, 1, 1, 1, 2, 1, 2, 1, 2, 1],
+	[1, 2, 1, 2, 2, 2, 2, 2, 2, 2, 2, 2, 1, 2, 2, 2, 2, 2, 1, 2, 2, 2, 2, 2, 2, 2, 2, 2, 1, 2, 1],
+	[1, 2, 1, 2, 1, 1, 1, 1, 1, 1, 1, 1, 1, 2, 1, 2, 1, 2, 1, 1, 1, 1, 1, 1, 1, 1, 1, 2, 1, 2, 1],
+	[1, 2, 2, 2, 1, 2, 2, 2, 2, 2, 2, 2, 1, 2, 2, 2, 2, 2, 1, 2, 2, 2, 2, 2, 2, 2, 1, 2, 2, 2, 1],
+	[1, 2, 1, 1, 1, 2, 1, 1, 1, 2, 1, 2, 1, 1, 1, 2, 1, 1, 1, 2, 1, 2, 1, 1, 1, 2, 1, 1, 1, 2, 1],
+	[1, 2, 2, 2, 2, 2, 1, 2, 2, 2, 1, 2, 2, 2, 2, 0, 2, 2, 2, 2, 1, 2, 2, 2, 1, 2, 2, 2, 2, 2, 1],
+	[1, 1, 1, 1, 1, 1, 1, 2, 1, 1, 1, 2, 1, 1, 1, 0, 1, 1, 1, 2, 1, 1, 1, 2, 1, 1, 1, 1, 1, 1, 1],
+	[1, 1, 1, 1, 1, 1, 1, 2, 2, 2, 1, 2, 1, 0, 0, 0, 0, 0, 1, 2, 1, 2, 2, 2, 1, 1, 1, 1, 1, 1, 1],
+	[6, 0, 0, 0, 0, 0, 1, 1, 1, 2, 1, 2, 1, 0, 5, 0, 5, 0, 1, 2, 1, 2, 1, 1, 1, 0, 0, 0, 0, 0, 7],
+	[1, 1, 1, 1, 1, 2, 2, 2, 2, 2, 1, 2, 1, 0, 5, 0, 5, 0, 1, 2, 1, 2, 2, 2, 2, 2, 1, 1, 1, 1, 1],
+	[1, 1, 1, 1, 1, 1, 1, 2, 1, 1, 1, 2, 1, 1, 1, 1, 1, 1, 1, 2, 1, 1, 1, 2, 1, 1, 1, 1, 1, 1, 1],
+	[1, 2, 2, 2, 2, 2, 2, 2, 2, 2, 1, 2, 2, 2, 2, 2, 2, 2, 2, 2, 1, 2, 2, 2, 2, 2, 2, 2, 2, 2, 1],
+	[1, 2, 1, 1, 1, 2, 1, 1, 1, 2, 1, 2, 1, 1, 1, 2, 1, 1, 1, 2, 1, 2, 1, 1, 1, 2, 1, 1, 1, 2, 1],
+	[1, 2, 2, 2, 1, 2, 1, 2, 2, 2, 1, 2, 2, 2, 2, 2, 2, 2, 2, 2, 1, 2, 2, 2, 1, 2, 1, 2, 2, 2, 1],
+	[1, 1, 1, 2, 1, 2, 1, 2, 1, 1, 1, 1, 1, 1, 1, 2, 1, 1, 1, 1, 1, 1, 1, 2, 1, 2, 1, 2, 1, 1, 1],
+	[1, 2, 2, 2, 1, 2, 1, 2, 2, 2, 2, 2, 1, 2, 2, 2, 2, 2, 1, 2, 2, 2, 2, 2, 1, 2, 1, 2, 2, 2, 1],
+	[1, 2, 1, 2, 1, 2, 1, 1, 1, 1, 1, 2, 1, 2, 1, 1, 1, 2, 1, 2, 1, 1, 1, 1, 1, 2, 1, 2, 1, 2, 1],
+	[1, 2, 1, 2, 1, 2, 1, 2, 2, 2, 1, 2, 1, 2, 2, 4, 2, 2, 1, 2, 1, 2, 2, 2, 1, 2, 1, 2, 1, 2, 1],
+	[1, 2, 1, 2, 1, 2, 1, 2, 1, 2, 1, 2, 1, 2, 1, 2, 1, 2, 1, 2, 1, 2, 1, 2, 1, 2, 1, 2, 1, 2, 1],
+	[1, 2, 2, 2, 1, 2, 1, 2, 1, 2, 2, 2, 2, 2, 1, 2, 1, 2, 2, 2, 2, 2, 1, 2, 1, 2, 1, 2, 2, 2, 1],
+	[1, 2, 1, 1, 1, 2, 1, 2, 1, 1, 1, 2, 1, 1, 1, 2, 1, 1, 1, 2, 1, 1, 1, 2, 1, 2, 1, 1, 1, 2, 1],
+	[1, 2, 2, 2, 2, 2, 1, 2, 2, 2, 2, 2, 1, 2, 2, 2, 2, 2, 1, 2, 2, 2, 2, 2, 1, 2, 2, 2, 2, 2, 1],
+	[1, 2, 1, 1, 1, 2, 1, 1, 1, 2, 1, 1, 1, 2, 1, 2, 1, 2, 1, 1, 1, 2, 1, 1, 1, 2, 1, 1, 1, 2, 1],
+	[1, 3, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 0, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 3, 1],
+	[1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 9, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1]
+  ]
+}
 
 ==================================================
 FILE: ./project.godot
@@ -360,10 +475,7 @@ GameManager="*uid://c85kxi3tce0so"
 [rendering]
 
 rendering_device/driver.windows="d3d12"
-
-==================================================
-FILE: ./project_context.txt
-==================================================
+textures/vram_compression/import_etc2_astc=true
 
 ==================================================
 FILE: ./scenes/levels/main.tscn
@@ -393,8 +505,8 @@ FILE: ./scripts/core/game_manager.gd
 ==================================================
 # ==============================================================================
 # Description: Global singleton managing game state, score, lives, win/loss
-#              conditions, and event signals. Also stores the current level layout
-#              matrix to allow HUD components (like the Minimap) to query it.
+#              conditions, and event signals. Added persistent start-state
+#              tracking to automate scene-reload transitions.
 # Author: Enrique González Gutiérrez
 # Email: enrique.gonzalez.gutierrez@gmail.com
 # ==============================================================================
@@ -416,6 +528,10 @@ var lives : int = 3
 var total_pellets : int = 0
 var pellets_eaten : int = 0
 
+# Persistent progression tracking
+var current_level : int = 1
+var is_game_started : bool = false # Tracks if we are actively playing a session
+
 # Grid layout cache for the 2D Minimap (Filled by LevelManager)
 var level_layout : Array = []
 var grid_width : int = 0
@@ -424,12 +540,14 @@ var grid_height : int = 0
 func _ready() -> void:
 	reset_game()
 
-# Resets the game variables for a new playthrough
+# Resets the game variables for a completely new playthrough
 func reset_game() -> void:
 	score = 0
 	lives = 3
 	total_pellets = 0
 	pellets_eaten = 0
+	current_level = 1 
+	is_game_started = false # Reset session on game over or full restart
 	
 	# Defer the signal emissions until the node tree is fully ready
 	call_deferred("_emit_initial_signals")
@@ -469,27 +587,35 @@ func pellet_eaten() -> void:
 func activate_power_pellet() -> void:
 	power_pellet_activated.emit()
 
+# Dynamic check to see if another procedural JSON level exists in the folder
+func has_next_level() -> bool:
+	var next_level_path = "res://data/level_%02d.json" % (current_level + 1)
+	return FileAccess.file_exists(next_level_path)
+
+# Advances state tracking variables to prepare for the next level load
+func advance_level() -> void:
+	current_level += 1
+	total_pellets = 0
+	pellets_eaten = 0
+
 ==================================================
-FILE: ./scripts/core/level_manager.gd
+FILE: ./scripts/core/level_builder.gd
 ==================================================
 # ==============================================================================
-# Description: Parses the level JSON file, feeds the layout data to the global
-#              GameManager, and generates the 3D grid of Pac-Man entities.
+# Description: Procedural Level Assembler / 3D Mesh Factory. Hand-crafts 
+#              materials, builds wall styles (Pipes, Blocks, Pillars), spawns 
+#              gameplay entities, and links portals.
 #              SOLID Refactoring:
-#              - DI Container: Preloads and injects player_death.mp3 and BGM.
-#              - Dynamic Height Decoupling: Queries entities for spawn heights.
-#              - Map Expansion (OCP): Support added for vertical portals.
-#              - Procedural Main Menu: Delayed map spawning.
-#              - Pac-Mania Connected Pipes (OCP/SRP): Connected cylindrical rails.
-#              - Map Quality Validator with Visual Context (SRP):
-#                Features strict mathematical validation of map topology,
-#                printing a procedural text-art grid context on error to easily
-#                identify layout flaws in the console.
+#              - PROBABILISTIC SPAWNING: Added a 25% chance of spawning a strategic, 
+#                frost-blue IcePellet instead of a standard Power Pellet, 
+#                maximizing gameplay variety under OCP.
+#              - PROCEDURAL LIGHTING: Dynamic OmniLight3D on pillars.
+#              - PROCEDURAL WORLD ENVIRONMENT: Dynamically instantiates WorldEnvironment.
 # Author: Enrique González Gutiérrez
 # Email: enrique.gonzalez.gutierrez@gmail.com
 # ==============================================================================
-extends Node3D
-class_name LevelManager
+extends RefCounted
+class_name LevelBuilder
 
 const CELL_SIZE : float = 2.0
 const WALL_HEIGHT : float = 2.0
@@ -497,45 +623,29 @@ const WALL_HEIGHT : float = 2.0
 # Preloaded Audio Resources (DIP Compliance)
 var waka_audio_stream : AudioStream = preload("res://assets/audio/sfx/waka_waka.mp3")
 var death_audio_stream : AudioStream = preload("res://assets/audio/sfx/player_death.mp3")
-var ghost_eaten_audio_stream : AudioStream = preload("res://assets/audio/sfx/ghost_eaten.mp3") 
-var bgm_stream : AudioStream = preload("res://assets/audio/bgm/level_1_bgm.mp3") 
+var ghost_eaten_audio_stream : AudioStream = preload("res://assets/audio/sfx/ghost_eaten.mp3")
 
-# Centralized Materials (SRP Compliance)
+# Centralized Materials
 var wall_material : StandardMaterial3D
 var player_material : StandardMaterial3D
 var ghost_frightened_material : StandardMaterial3D
-var ghost_materials : Dictionary = {} # Maps type to specific color material
+var ghost_materials : Dictionary = {}
 
 var ghost_types : Array[String] = ["Blinky", "Pinky", "Inky", "Clyde"]
 var spawned_ghosts_count : int = 0
 
-var level_data : Dictionary = {}
-var map_offset_x : float = 0.0
-var map_offset_z : float = 0.0
-
-# Injected entity tracking (SRP Compliance)
-var player_instance : Player = null
-var bgm_player : AudioStreamPlayer = null
-
-# List to temporarily store portal nodes for the linking pass
+var parent_node : Node3D = null
 var portals_to_link : Array[Dictionary] = []
 
-func _ready() -> void:
+func _init(parent: Node3D) -> void:
+	parent_node = parent
 	_initialize_materials()
-	_connect_game_manager_signals()
-	_setup_bgm() 
-	
-	var hud = get_parent().get_node_or_null("HUD") as HUD
-	if hud:
-		hud.start_game.connect(_on_start_game)
-	else:
-		_on_start_game()
 
-# Centralized visual resource creation
+# Compiles and setups materials procedurally
 func _initialize_materials() -> void:
-	# 1. Wall Material (Tube/Pipe Blue)
+	# 1. Wall Material
 	wall_material = StandardMaterial3D.new()
-	wall_material.albedo_color = Color(0.0, 0.0, 1.0) # Classic Blue
+	wall_material.albedo_color = Color(0.0, 0.0, 1.0) # Default Blue
 	wall_material.roughness = 0.2
 	wall_material.metallic = 0.1
 	
@@ -569,15 +679,354 @@ func _initialize_materials() -> void:
 	clyde_mat.albedo_color = Color(1.0, 0.6, 0.0) # Orange
 	ghost_materials["Clyde"] = clyde_mat
 
+# Main entry point to compile the 3D environment out of the level JSON data
+func build(level_data: Dictionary) -> void:
+	if not is_instance_valid(parent_node) or level_data.is_empty():
+		return
+		
+	# Apply dynamic wall color if provided
+	if level_data.has("wall_color"):
+		wall_material.albedo_color = Color(level_data["wall_color"])
+		
+	# Set up the post-processing Bloom and Glow environment (SRP Compliance)
+	_setup_world_environment()
+		
+	var layout : Array = level_data.get("layout", [])
+	var width : int = int(level_data.get("grid_width", 0))
+	var height : int = int(level_data.get("grid_height", 0))
+	
+	var map_offset_x : float = (float(width) * CELL_SIZE) / 2.0
+	var map_offset_z : float = (float(height) * CELL_SIZE) / 2.0
+	
+	for z in range(layout.size()):
+		var row : Array = layout[z]
+		for x in range(row.size()):
+			var cell_type : int = int(row[x])
+			var pos_x : float = (x * CELL_SIZE) - map_offset_x + (CELL_SIZE / 2.0)
+			var pos_z : float = (z * CELL_SIZE) - map_offset_z + (CELL_SIZE / 2.0)
+			var world_pos := Vector3(pos_x, 0.0, pos_z)
+			
+			match cell_type:
+				1: _create_wall(world_pos, x, z, level_data) 
+				2: _create_pellet(world_pos, false)
+				3:
+					# 25% chance of spawning a strategic Ice Pellet instead of a standard Power Pellet (OCP Compliance)
+					if randf() < 0.25:
+						_create_ice_pellet(world_pos)
+					else:
+						_create_pellet(world_pos, true)
+				4: _spawn_player(world_pos)
+				5: _spawn_ghost(world_pos, level_data)
+				6: _create_portal(world_pos, "Portal_A", "Portal_B")
+				7: _create_portal(world_pos, "Portal_B", "Portal_A")
+				8: _create_portal(world_pos, "Portal_C", "Portal_D") 
+				9: _create_portal(world_pos, "Portal_D", "Portal_C") 
+
+	# Link portals together statically once spawned
+	for link_info in portals_to_link:
+		var my_portal : Portal = link_info["portal"]
+		var partner_portal = parent_node.get_node_or_null(link_info["partner_name"]) as Portal
+		if partner_portal:
+			my_portal.initialize(partner_portal)
+
+# Programmatically configures and attaches a glowing post-processing Bloom world environment
+func _setup_world_environment() -> void:
+	var world_env := WorldEnvironment.new()
+	var env_res := Environment.new()
+	
+	# Configure high-quality additive Bloom and Glow offsets
+	env_res.background_mode = Environment.BG_CLEAR_COLOR
+	env_res.background_color = Color(0.01, 0.01, 0.01, 1.0) # Deep retro black space
+	env_res.glow_enabled = true
+	env_res.glow_intensity = 0.8
+	env_res.glow_strength = 1.0
+	env_res.glow_bloom = 0.25 # Soft bloom margin
+	env_res.glow_blend_mode = Environment.GLOW_BLEND_MODE_ADDITIVE
+	
+	world_env.environment = env_res
+	parent_node.add_child(world_env)
+	
+	# --- RESTORED GLOBAL SUNLIGHT ---
+	var main_node = parent_node.get_parent()
+	if is_instance_valid(main_node):
+		var dir_light = main_node.get_node_or_null("DirectionalLight3D") as DirectionalLight3D
+		if is_instance_valid(dir_light):
+			dir_light.light_energy = 1.0 
+			dir_light.light_color = Color(1.0, 1.0, 1.0) 
+
+# Instantiates procedurally designed wall meshes depending on the active level theme
+func _create_wall(pos: Vector3, x: int, z: int, level_data: Dictionary) -> void:
+	var static_body := StaticBody3D.new()
+	var rendering_style : String = level_data.get("rendering_style", "pipes")
+	
+	match rendering_style:
+		"blocks":
+			# STYLE A: Classic Solid Neon Arcade Cubes
+			var block_mesh := BoxMesh.new()
+			block_mesh.size = Vector3(CELL_SIZE, WALL_HEIGHT, CELL_SIZE)
+			
+			var block_instance := MeshInstance3D.new()
+			block_instance.mesh = block_mesh
+			block_instance.material_override = wall_material
+			block_instance.position.y = WALL_HEIGHT / 2.0
+			static_body.add_child(block_instance)
+			
+		"pillars":
+			# STYLE B: Retro-Futuristic Cylindrical Pillars topped with glowing spheres
+			# 1. Main vertical column
+			var pillar_mesh := CylinderMesh.new()
+			pillar_mesh.top_radius = 0.4
+			pillar_mesh.bottom_radius = 0.4
+			pillar_mesh.height = WALL_HEIGHT
+			pillar_mesh.radial_segments = 12
+			
+			var pillar_instance := MeshInstance3D.new()
+			pillar_instance.mesh = pillar_mesh
+			pillar_instance.material_override = wall_material
+			pillar_instance.position.y = WALL_HEIGHT / 2.0
+			static_body.add_child(pillar_instance)
+			
+			# 2. Glowing emissive sphere sitting exactly on top
+			var sphere_mesh := SphereMesh.new()
+			sphere_mesh.radius = 0.55
+			sphere_mesh.height = 1.1
+			
+			var glowing_material := StandardMaterial3D.new()
+			glowing_material.albedo_color = wall_material.albedo_color
+			glowing_material.emission_enabled = true
+			glowing_material.emission = wall_material.albedo_color * 0.65 
+			
+			var sphere_instance := MeshInstance3D.new()
+			sphere_instance.mesh = sphere_mesh
+			sphere_instance.material_override = glowing_material
+			sphere_instance.position.y = WALL_HEIGHT
+			static_body.add_child(sphere_instance)
+			
+		_: # "pipes" (Default)
+			# STYLE C: connected cylindrical pipeline rails (Pac-Mania Style)
+			var has_horizontal : bool = false
+			var has_vertical : bool = false
+			
+			var layout : Array = level_data.get("layout", [])
+			var width : int = int(level_data.get("grid_width", 0))
+			var height : int = int(level_data.get("grid_height", 0))
+			
+			if x > 0 and int(layout[z][x - 1]) == 1: has_horizontal = true
+			if x < width - 1 and int(layout[z][x + 1]) == 1: has_horizontal = true
+			
+			if z > 0 and int(layout[z - 1][x]) == 1: has_vertical = true
+			if z < height - 1 and int(layout[z + 1][x]) == 1: has_vertical = true
+			
+			if not has_horizontal and not has_vertical:
+				has_horizontal = true
+				has_vertical = true
+				
+			var pipe_mesh := CylinderMesh.new()
+			pipe_mesh.top_radius = 0.18 
+			pipe_mesh.bottom_radius = 0.18
+			pipe_mesh.height = CELL_SIZE 
+			pipe_mesh.radial_segments = 12 
+			
+			var create_pipe = func(offset_y: float, is_horiz: bool) -> MeshInstance3D:
+				var pipe_node := MeshInstance3D.new()
+				pipe_node.mesh = pipe_mesh
+				pipe_node.material_override = wall_material
+				pipe_node.position.y = offset_y
+				
+				if is_horiz:
+					pipe_node.rotation_degrees = Vector3(0.0, 0.0, 90.0)
+				else:
+					pipe_node.rotation_degrees = Vector3(90.0, 0.0, 0.0)
+					
+				return pipe_node
+				
+			if has_horizontal:
+				static_body.add_child(create_pipe.call(0.5, true))
+				static_body.add_child(create_pipe.call(1.5, true))
+				
+			if has_vertical:
+				static_body.add_child(create_pipe.call(0.5, false))
+				static_body.add_child(create_pipe.call(1.5, false))
+		
+	# --- PHYSICAL COLLIDER ---
+	var box_shape := BoxShape3D.new()
+	box_shape.size = Vector3(CELL_SIZE, 20.0, CELL_SIZE)
+	
+	var collision_shape := CollisionShape3D.new()
+	collision_shape.shape = box_shape
+	collision_shape.position.y = 10.0 
+	static_body.add_child(collision_shape)
+	
+	static_body.position = pos
+	parent_node.add_child(static_body)
+
+# Instantiates a standard or power pellet and connects its signals
+func _create_pellet(pos: Vector3, is_power: bool) -> void:
+	var pellet := Pellet.new()
+	pellet.is_power_pellet = is_power
+	pellet.position = pos
+	pellet.position.y = 0.5
+	
+	# Link signal back to orchestrator (DIP Compliance)
+	if parent_node.has_method("_on_pellet_eaten"):
+		pellet.eaten.connect(parent_node._on_pellet_eaten)
+		
+	parent_node.add_child(pellet)
+	
+	if GameManager:
+		GameManager.register_pellet()
+
+# Instantiates the custom Frost-Blue Ice Pellet and connects its signals
+func _create_ice_pellet(pos: Vector3) -> void:
+	var ice_pellet := IcePellet.new()
+	ice_pellet.position = pos
+	ice_pellet.position.y = 0.5
+	
+	# Connect callback directly to LevelManager orchestrator (DIP Compliance)
+	if parent_node.has_method("_on_ice_pellet_eaten"):
+		ice_pellet.ice_pellet_eaten.connect(parent_node._on_ice_pellet_eaten)
+		
+	parent_node.add_child(ice_pellet)
+	
+	if GameManager:
+		GameManager.register_pellet()
+
+func _spawn_player(pos: Vector3) -> void:
+	var player_instance := Player.new()
+	player_instance.spawn_position = pos
+	player_instance.position = pos
+	
+	player_instance.initialize(player_material, waka_audio_stream, death_audio_stream)
+	player_instance.position.y = player_instance.get_spawn_height_offset()
+	
+	# Set player reference dynamically on parent and link death logic
+	if "player_instance" in parent_node:
+		parent_node.player_instance = player_instance
+		
+	if parent_node.has_method("_on_player_death_completed"):
+		player_instance.death_completed.connect(parent_node._on_player_death_completed)
+		
+	parent_node.add_child(player_instance)
+	
+	# Spawns independent Camera node (SRP Compliance)
+	var camera := DioramaCamera.new()
+	parent_node.add_child(camera)
+
+func _spawn_ghost(pos: Vector3, level_data: Dictionary) -> void:
+	var ghost := Ghost.new()
+	
+	var ghost_type : String = ghost_types[spawned_ghosts_count % ghost_types.size()]
+	spawned_ghosts_count += 1
+	
+	ghost.position = pos
+	
+	var strategy : GhostBehavior
+	match ghost_type:
+		"Blinky": strategy = BlinkyBehavior.new()
+		"Pinky": strategy = PinkyBehavior.new()
+		"Inky": strategy = InkyBehavior.new()
+		"Clyde": strategy = ClydeBehavior.new()
+		_: strategy = GhostBehavior.new()
+		
+	var norm_mat : StandardMaterial3D = ghost_materials.get(ghost_type)
+	var layout : Array = level_data.get("layout", [])
+	var grid_w : int = int(level_data.get("grid_width", 0))
+	var grid_h : int = int(level_data.get("grid_height", 0))
+	
+	ghost.initialize(ghost_type, strategy, norm_mat, ghost_frightened_material, layout, grid_w, grid_h, ghost_eaten_audio_stream)
+	ghost.position.y = ghost.get_spawn_height_offset()
+	
+	# Link dynamic entity callback back to orchestrator (DIP Compliance)
+	if parent_node.has_method("_on_ghost_player_caught"):
+		ghost.player_caught.connect(parent_node._on_ghost_player_caught)
+		
+	parent_node.add_child(ghost)
+
+func _create_portal(pos: Vector3, my_name: String, partner_name: String) -> void:
+	var portal := Portal.new()
+	portal.name = my_name
+	portal.position = pos
+	portal.position.y = 0.8
+	parent_node.add_child(portal)
+	
+	portals_to_link.append({
+		"portal": portal,
+		"partner_name": partner_name
+	})
+
+==================================================
+FILE: ./scripts/core/level_manager.gd
+==================================================
+# ==============================================================================
+# Description: Parses the level JSON file, feeds the layout data to the global
+#              GameManager, and coordinates gameplay states and signals.
+#              SOLID Refactoring:
+#              - DYNAMIC COLD FREEZE EFFECTS: Added _on_ice_pellet_eaten to freeze 
+#                all active ghosts, tint them frost-cyan with custom glowing 
+#                materials, and restore their states smoothly after 4.0 seconds.
+#              - BONUS FRUIT TIMERS: Plays the bonus cherry.
+#              - DYNAMIC SOUNDTRACK LOADING: Dynamically loads background music.
+# Author: Enrique González Gutiérrez
+# Email: enrique.gonzalez.gutierrez@gmail.com
+# ==============================================================================
+extends Node3D
+class_name LevelManager
+
+# Active entities and players tracking
+var player_instance : Player = null
+var bgm_player : AudioStreamPlayer = null
+
+# Persistent level configurations
+var level_data : Dictionary = {}
+var map_offset_x : float = 0.0
+var map_offset_z : float = 0.0
+
+# Fruit spawning state tracking variables
+var fruit_spawn_timer : float = 0.0
+const FRUIT_SPAWN_DELAY : float = 15.0 # Spawns 15 seconds after level start
+const FRUIT_LIFETIME : float = 10.0 # Despawns after 10 seconds if not eaten
+var fruit_has_spawned_this_level : bool = false
+
+func _ready() -> void:
+	_connect_game_manager_signals()
+	
+	var hud = get_parent().get_node_or_null("HUD") as HUD
+	if hud:
+		hud.start_game.connect(_on_start_game)
+	else:
+		_on_start_game()
+
+func _process(delta: float) -> void:
+	# Handle Bonus Fruit Spawning loop dynamically (SRP Compliance)
+	if is_instance_valid(player_instance) and not fruit_has_spawned_this_level:
+		fruit_spawn_timer += delta
+		if fruit_spawn_timer >= FRUIT_SPAWN_DELAY:
+			_spawn_fruit_bonus()
+
 # Connect LevelManager to receive global signal notifications
 func _connect_game_manager_signals() -> void:
 	if GameManager:
 		GameManager.power_pellet_activated.connect(_on_power_pellet_activated)
 		GameManager.player_killed.connect(_on_player_killed)
 
-# Programmatically configures and plays the loop background music
+# Programmatically configures and plays the BGM dynamically matched to the level
 func _setup_bgm() -> void:
+	var level_idx : int = 1
+	if GameManager:
+		level_idx = GameManager.current_level
+		
+	var bgm_path := "res://assets/audio/bgm/level_%d_bgm.mp3" % level_idx
+	
+	if not FileAccess.file_exists(bgm_path):
+		bgm_path = "res://assets/audio/bgm/level_1_bgm.mp3"
+		
+	var bgm_stream : AudioStream = load(bgm_path)
+	
 	if bgm_stream:
+		if is_instance_valid(bgm_player):
+			bgm_player.stop()
+			bgm_player.queue_free()
+			
 		bgm_player = AudioStreamPlayer.new()
 		bgm_player.stream = bgm_stream
 		bgm_player.volume_db = -12.0 
@@ -587,9 +1036,22 @@ func _setup_bgm() -> void:
 
 # Triggered dynamically when the player clicks START GAME in the HUD Menu
 func _on_start_game() -> void:
-	if _load_level_data("res://data/level_01.json"):
-		_setup_bgm() # Play Level 1 background music
-		_build_environment() # Generate the 3D map procedural layout
+	# Reset local level fruit trackers
+	fruit_spawn_timer = 0.0
+	fruit_has_spawned_this_level = false
+	
+	var level_idx : int = 1
+	if GameManager:
+		level_idx = GameManager.current_level
+		
+	var level_path := "res://data/level_%02d.json" % level_idx
+	
+	if _load_level_data(level_path):
+		_setup_bgm() 
+		
+		# Instantiate our procedural LevelBuilder and assemble the 3D world (SRP Compliance)
+		var builder := LevelBuilder.new(self)
+		builder.build(level_data)
 
 # Loads and parses the JSON level configuration, executing validations
 func _load_level_data(file_path: String) -> bool:
@@ -609,8 +1071,8 @@ func _load_level_data(file_path: String) -> bool:
 		var width : int = int(level_data.get("grid_width", 0))
 		var height : int = int(level_data.get("grid_height", 0))
 		
-		# Validate the map design before spawning resources
-		if not _validate_map(layout, width, height):
+		# Validate the map design using our decoupled MapValidator (SRP Compliance)
+		if not MapValidator.validate_map(layout, width, height):
 			push_error("LEVEL LOADING ABORTED: Map validation failed.")
 			return false
 			
@@ -619,25 +1081,160 @@ func _load_level_data(file_path: String) -> bool:
 			GameManager.grid_width = width
 			GameManager.grid_height = height
 			
-		map_offset_x = (float(width) * CELL_SIZE) / 2.0
-		map_offset_z = (float(height) * CELL_SIZE) / 2.0
+		var cell_size : float = 2.0
+		map_offset_x = (float(width) * cell_size) / 2.0
+		map_offset_z = (float(height) * cell_size) / 2.0
 		return true
 	return false
 
-# Symmetrical mathematical validator ensuring 100% interconnected corridors with zero dead ends or plazas
-func _validate_map(layout: Array, width: int, height: int) -> bool:
+# Spawns a floating 3D Label above coordinates (used when eating ghosts)
+func _spawn_floating_score(pos: Vector3) -> void:
+	var score_text := FloatingScore3D.new()
+	add_child(score_text)
+	score_text.global_position = pos + Vector3(0.0, 1.2, 0.0)
+
+# Procedurally instantiates the custom double cherry fruit at Pac-Man's starting location
+func _spawn_fruit_bonus() -> void:
+	fruit_has_spawned_this_level = true
+	
+	var fruit := Fruit.new()
+	# Spawn exactly at Pac-Man's starting coordinate (Y offset is handled in fruit.gd)
+	fruit.position = player_instance.spawn_position
+	fruit.position.y = 0.5
+	
+	# Connect the custom points mutation callback
+	fruit.eaten.connect(_on_fruit_eaten)
+	
+	# Despawn Timer: auto-destroys the node if not eaten after 10 seconds
+	get_tree().create_timer(FRUIT_LIFETIME).timeout.connect(fruit.queue_free)
+	
+	add_child(fruit)
+	print("BONUS FRUIT GENERATED AT PLAYER STARTING GRID COORDINATE!")
+
+# Reward callback: grants points and spawns a golden-yellow +500 floating text
+func _on_fruit_eaten(points: int) -> void:
+	if GameManager:
+		GameManager.add_score(points)
+		
+	var score_text := FloatingScore3D.new()
+	# Inject custom dynamic score string and golden colors before adding to the tree (SRP Compliance)
+	score_text.text = "+%d" % points
+	score_text.modulate = Color(1.0, 1.0, 0.0) # Golden yellow
+	add_child(score_text)
+	score_text.global_position = player_instance.spawn_position + Vector3(0.0, 1.5, 0.0)
+
+# Reward callback: freezes all active ghosts and tints them frosty blue for 4.0 seconds (SRP/OCP Compliance)
+func _on_ice_pellet_eaten() -> void:
+	if GameManager:
+		# Award +150 points for strategic utility collection
+		GameManager.add_score(150)
+		GameManager.pellet_eaten()
+		
+	# 1. Freeze all active ghosts instantly (SRP/OCP Compliance)
+	get_tree().call_group("ghosts", "set_frozen", true)
+	_apply_ghost_frost_effect(true)
+	
+	# 2. Start a 4.0 seconds unfreeze timer
+	get_tree().create_timer(4.0).timeout.connect(func():
+		# 3. Restore movement and normal original materials dynamically (OCP Compliance)
+		get_tree().call_group("ghosts", "set_frozen", false)
+		_apply_ghost_frost_effect(false)
+	)
+
+# Helper to dynamically compile and swap ghost materials to frosty blue on freeze states (SRP Compliance)
+func _apply_ghost_frost_effect(enabled: bool) -> void:
+	var ghosts = get_tree().get_nodes_in_group("ghosts")
+	for ghost in ghosts:
+		if ghost is Ghost:
+			if enabled:
+				var frost_mat := StandardMaterial3D.new()
+				frost_mat.albedo_color = Color(0.0, 0.8, 1.0) # Glowing Frost Cyan
+				frost_mat.emission_enabled = true
+				frost_mat.emission = Color(0.0, 0.4, 0.8) # Frost Glow
+				ghost._apply_material(frost_mat)
+			else:
+				# Restore normal original behavioral colors (SRP Compliance)
+				ghost._apply_material(ghost.original_material)
+
+# --- SIGNAL ROUTING & GAMEPLAY ORCHESTRATION ---
+
+func _on_pellet_eaten(is_power: bool) -> void:
+	if GameManager:
+		if is_power:
+			GameManager.add_score(40)
+			GameManager.activate_power_pellet()
+		GameManager.pellet_eaten()
+
+func _on_ghost_player_caught(is_frightened: bool, catch_position: Vector3) -> void:
+	if GameManager:
+		if is_frightened:
+			GameManager.add_score(200)
+			_spawn_floating_score(catch_position)
+		else:
+			for ghost in get_tree().get_nodes_in_group("ghosts"):
+				if ghost.has_method("set_frozen"):
+					ghost.set_frozen(true)
+					
+			if bgm_player:
+				bgm_player.stream_paused = true
+					
+			if player_instance:
+				player_instance.die()
+
+func _on_player_death_completed() -> void:
+	if GameManager:
+		GameManager.lose_life()
+
+func _on_power_pellet_activated() -> void:
+	for ghost in get_tree().get_nodes_in_group("ghosts"):
+		if ghost.has_method("activate_frightened_mode"):
+			ghost.activate_frightened_mode()
+
+func _on_player_killed() -> void:
+	if bgm_player:
+		bgm_player.stream_paused = false
+		
+	# Reset level fruit timers on player death/reset (guarantees a fair chance to eat it again)
+	fruit_spawn_timer = 0.0
+	fruit_has_spawned_this_level = false
+	
+	for ghost in get_tree().get_nodes_in_group("ghosts"):
+		if ghost.has_method("reset_to_base"):
+			ghost.reset_to_base()
+
+==================================================
+FILE: ./scripts/core/map_validator.gd
+==================================================
+# ==============================================================================
+# Description: Refactored Map Validation Engine. Dedicated exclusively to 
+#              analysing grid topology, checking 2x2 hollow plazas, flood-fill 
+#              connectivity, and dead-ends.
+#              SOLID Refactoring:
+#              - SRP Compliance: Extracted entirely from LevelManager to isolate 
+#                validation metrics from procedural 3D rendering and spawning.
+# Author: Enrique González Gutiérrez
+# Email: enrique.gonzalez.gutierrez@gmail.com
+# ==============================================================================
+extends RefCounted
+class_name MapValidator
+
+# Constant matching the physical map scale
+const CELL_SIZE : float = 2.0
+
+# Performs exhaustive structural and topological validation of the map array
+static func validate_map(layout: Array, width: int, height: int) -> bool:
 	# 1. TEST FOR HOLLOW PLAZAS: Scans the grid for any 2x2 empty rooms
 	for z in range(height - 1):
 		for x in range(width - 1):
 			if layout[z][x] != 1 and layout[z][x+1] != 1 and layout[z+1][x] != 1 and layout[z+1][x+1] != 1:
-				# Allow exception ONLY inside the 5x5 Ghost House Foso (columns 12 to 16, rows 12 to 16)
-				if z >= 11 and z <= 15 and x >= 12 and x <= 16:
+				# Allow exception ONLY inside the Ghost House Foso (rows 11-17, cols 11-18)
+				if z >= 11 and z <= 17 and x >= 11 and x <= 18:
 					continue
 				push_error("MAP ERROR: Large hollow plaza (2x2 or larger) detected at row %d, col %d!" % [z, x])
 				_print_error_context(layout, x, z, width, height)
 				return false
 
-	# 2. FLOOD FILL CONNECTIVITY TEST: Performs BFS to ensure no pockets or blocked corridors exist
+	# 2. FLOOD FILL CONNECTIVITY TEST: Performs BFS to ensure no pocket regions or blocked corridors exist
 	var start_pos := Vector2i(-1, -1)
 	var total_walkable_cells : int = 0
 	
@@ -645,7 +1242,7 @@ func _validate_map(layout: Array, width: int, height: int) -> bool:
 		for x in range(width):
 			if layout[z][x] != 1:
 				total_walkable_cells += 1
-				if layout[z][x] == 4: # Player Spawn
+				if layout[z][x] == 4: # Player Spawn Point
 					start_pos = Vector2i(x, z)
 					
 	if start_pos == Vector2i(-1, -1):
@@ -700,7 +1297,7 @@ func _validate_map(layout: Array, width: int, height: int) -> bool:
 	return true
 
 # Helper method to print a gorgeous 3x3 text-art context map centered at the error coordinate
-func _print_error_context(layout: Array, center_x: int, center_z: int, width: int, height: int) -> void:
+static func _print_error_context(layout: Array, center_x: int, center_z: int, width: int, height: int) -> void:
 	var context_string := "\n--- MAP ERROR VISUAL CONTEXT (Centered at Row %d, Col %d) ---\n" % [center_z, center_x]
 	
 	# Scans the surrounding 3x3 tiles
@@ -719,251 +1316,6 @@ func _print_error_context(layout: Array, center_x: int, center_z: int, width: in
 		
 	context_string += "------------------------------------------------------------------"
 	push_error(context_string)
-
-# Iterates through the layout matrix and spawns the corresponding 3D entities
-func _build_environment() -> void:
-	var layout : Array = level_data.get("layout", [])
-	for z in range(layout.size()):
-		var row : Array = layout[z]
-		for x in range(row.size()):
-			var cell_type : int = int(row[x])
-			var pos_x : float = (x * CELL_SIZE) - map_offset_x + (CELL_SIZE / 2.0)
-			var pos_z : float = (z * CELL_SIZE) - map_offset_z + (CELL_SIZE / 2.0)
-			var world_pos := Vector3(pos_x, 0.0, pos_z)
-			
-			match cell_type:
-				1: _create_wall(world_pos, x, z) 
-				2: _create_pellet(world_pos, false)
-				3: _create_pellet(world_pos, true)
-				4: _spawn_player(world_pos)
-				5: _spawn_ghost(world_pos)
-				6: _create_portal(world_pos, "Portal_A", "Portal_B")
-				7: _create_portal(world_pos, "Portal_B", "Portal_A")
-				8: _create_portal(world_pos, "Portal_C", "Portal_D") 
-				9: _create_portal(world_pos, "Portal_D", "Portal_C") 
-
-	# Post-spawn pass: Link portal pairs together directly (DIP Compliance)
-	for link_info in portals_to_link:
-		var my_portal : Portal = link_info["portal"]
-		var partner_portal = get_node_or_null(link_info["partner_name"]) as Portal
-		if partner_portal:
-			my_portal.initialize(partner_portal)
-
-# Instantiates procedurally connected cylindrical pipeline rails (Pac-Mania Style)
-func _create_wall(pos: Vector3, x: int, z: int) -> void:
-	var static_body := StaticBody3D.new()
-	
-	# Determine neighboring wall tiles to orient pipes dynamically (SOLID OCP Compliance)
-	var has_horizontal : bool = false
-	var has_vertical : bool = false
-	
-	var layout : Array = level_data.get("layout", [])
-	var width : int = int(level_data.get("grid_width", 0))
-	var height : int = int(level_data.get("grid_height", 0))
-	
-	# Horizontal check (Left/Right)
-	if x > 0 and int(layout[z][x - 1]) == 1: has_horizontal = true
-	if x < width - 1 and int(layout[z][x + 1]) == 1: has_horizontal = true
-	
-	# Vertical check (Up/Down)
-	if z > 0 and int(layout[z - 1][x]) == 1: has_vertical = true
-	if z < height - 1 and int(layout[z + 1][x]) == 1: has_vertical = true
-	
-	# If isolated pillar, default to cross pipes
-	if not has_horizontal and not has_vertical:
-		has_horizontal = true
-		has_vertical = true
-		
-	# Define a smooth cylindrical tube mesh
-	var pipe_mesh := CylinderMesh.new()
-	pipe_mesh.top_radius = 0.18 # 0.36m diameter round pipe
-	pipe_mesh.bottom_radius = 0.18
-	pipe_mesh.height = CELL_SIZE # Spans the entire 2.0m tile
-	pipe_mesh.radial_segments = 12 # Optimized segment count for performance
-	
-	# Helper lambda to instantiate a pipe mesh instance
-	var create_pipe = func(offset_y: float, is_horiz: bool) -> MeshInstance3D:
-		var pipe_node := MeshInstance3D.new()
-		pipe_node.mesh = pipe_mesh
-		pipe_node.material_override = wall_material
-		pipe_node.position.y = offset_y
-		
-		if is_horiz:
-			# Rotate to point along X axis (East-West)
-			pipe_node.rotation_degrees = Vector3(0.0, 0.0, 90.0)
-		else:
-			# Rotate to point along Z axis (North-South)
-			pipe_node.rotation_degrees = Vector3(90.0, 0.0, 0.0)
-			
-		return pipe_node
-		
-	# Build double-deck parallel horizontal pipes (resting at Y=0.5m and Y=1.5m)
-	if has_horizontal:
-		static_body.add_child(create_pipe.call(0.5, true))
-		static_body.add_child(create_pipe.call(1.5, true))
-		
-	if has_vertical:
-		static_body.add_child(create_pipe.call(0.5, false))
-		static_body.add_child(create_pipe.call(1.5, false))
-		
-	# --- PHYSICAL COLLIDER (20.0m tall invisible wall remains intact) ---
-	var box_shape := BoxShape3D.new()
-	box_shape.size = Vector3(CELL_SIZE, 20.0, CELL_SIZE)
-	
-	var collision_shape := CollisionShape3D.new()
-	collision_shape.shape = box_shape
-	collision_shape.position.y = 10.0 
-	static_body.add_child(collision_shape)
-	
-	static_body.position = pos
-	add_child(static_body)
-
-# Instantiates a standard or power pellet and connects its signals
-func _create_pellet(pos: Vector3, is_power: bool) -> void:
-	var pellet := Pellet.new()
-	pellet.is_power_pellet = is_power
-	pellet.position = pos
-	pellet.position.y = 0.5
-	
-	# Connect pellet consumption to local router (DIP Compliance)
-	pellet.eaten.connect(_on_pellet_eaten)
-	
-	add_child(pellet)
-	
-	# Centralized pellet counter registration
-	if GameManager:
-		GameManager.register_pellet()
-
-# Instantiates the player character and injects its resources
-func _spawn_player(pos: Vector3) -> void:
-	player_instance = Player.new()
-	player_instance.spawn_position = pos
-	player_instance.position = pos
-	
-	# Dependency Injection (Munch and death audio streams injected)
-	player_instance.initialize(player_material, waka_audio_stream, death_audio_stream)
-	
-	# Dynamic height offset calculation based on player physical size
-	player_instance.position.y = player_instance.get_spawn_height_offset()
-	
-	# Listen to the decoupled death sequence completion event (SRP Compliance)
-	player_instance.death_completed.connect(_on_player_death_completed)
-	
-	add_child(player_instance)
-
-# Factory/DI method: Spawns a ghost, assigns strategy, and injects resources
-func _spawn_ghost(pos: Vector3) -> void:
-	var ghost := Ghost.new()
-	
-	# Assign sequential ghost type identity
-	var ghost_type : String = ghost_types[spawned_ghosts_count % ghost_types.size()]
-	spawned_ghosts_count += 1
-	
-	ghost.position = pos
-	
-	# Factory creation of concrete behavior strategies (OCP / DIP Compliance)
-	var strategy : GhostBehavior
-	match ghost_type:
-		"Blinky": strategy = BlinkyBehavior.new()
-		"Pinky": strategy = PinkyBehavior.new()
-		"Inky": strategy = InkyBehavior.new()
-		"Clyde": strategy = ClydeBehavior.new()
-		_: strategy = GhostBehavior.new()
-		
-	var norm_mat : StandardMaterial3D = ghost_materials.get(ghost_type)
-	var layout : Array = level_data.get("layout", [])
-	var grid_w : int = int(level_data.get("grid_width", 0))
-	var grid_h : int = int(level_data.get("grid_height", 0))
-	
-	# Inject dependencies
-	ghost.initialize(ghost_type, strategy, norm_mat, ghost_frightened_material, layout, grid_w, grid_h, ghost_eaten_audio_stream)
-	
-	# Dynamic height offset calculation based on ghost physical size
-	ghost.position.y = ghost.get_spawn_height_offset()
-	
-	# Listen to decoupled entity events (DIP Compliance)
-	ghost.player_caught.connect(_on_ghost_player_caught)
-	
-	add_child(ghost)
-
-# Instantiates a warp portal and registers it for the linking pass
-func _create_portal(pos: Vector3, my_name: String, partner_name: String) -> void:
-	var portal := Portal.new()
-	portal.name = my_name
-	portal.position = pos
-	portal.position.y = 0.8
-	add_child(portal)
-	
-	# Cache link configuration details for the post-spawn linking pass
-	portals_to_link.append({
-		"portal": portal,
-		"partner_name": partner_name
-	})
-
-# Programmatically spawns a 3D Floating Score label above the eaten ghost coordinate (SRP Compliance)
-func _spawn_floating_score(pos: Vector3) -> void:
-	var score_text := FloatingScore3D.new()
-	add_child(score_text)
-	
-	# Spawn the 3D text slightly above the ghost's center (e.g. Y offset + 1.2m)
-	score_text.global_position = pos + Vector3(0.0, 1.2, 0.0)
-
-# --- SIGNAL ROUTING & GAMEPLAY ORCHESTRATION ---
-
-# Signal callback: Routes pellet eating to global GameManager score mutations
-func _on_pellet_eaten(is_power: bool) -> void:
-	if GameManager:
-		if is_power:
-			GameManager.add_score(40)
-			GameManager.activate_power_pellet()
-		GameManager.pellet_eaten()
-
-# Signal callback: Routes ghost caught events to score increments or player death sequence triggers
-# FIXED: Renamed local parameter 'position' to 'catch_position' to prevent shadowing the Node3D base property
-func _on_ghost_player_caught(is_frightened: bool, catch_position: Vector3) -> void:
-	if GameManager:
-		if is_frightened:
-			# Ghost caught while frightened: reward score
-			GameManager.add_score(200)
-			
-			# Spawn the gorgeous rising 3D score popup right where the ghost was eaten!
-			_spawn_floating_score(catch_position)
-		else:
-			# Normal ghost caught Pac-Man:
-			# 1. Freeze all active ghosts in place (Game Feel / Polish)
-			for ghost in get_tree().get_nodes_in_group("ghosts"):
-				if ghost.has_method("set_frozen"):
-					ghost.set_frozen(true)
-					
-			# 2. Pause the background music dramatically during death sequence (SRP Compliance)
-			if bgm_player:
-				bgm_player.stream_paused = true
-					
-			# 3. Instruct Pac-Man to initiate his local sequential death
-			if player_instance:
-				player_instance.die()
-
-# Signal callback: Triggered ONLY after Pac-Man's death sequence finishes (audio + particles)
-func _on_player_death_completed() -> void:
-	if GameManager:
-		# Subtract life (This emits player_killed and automatically triggers unfreezes/resets)
-		GameManager.lose_life()
-
-# Global Signal: Tells all active ghosts to activate frightened mode
-func _on_power_pellet_activated() -> void:
-	for ghost in get_tree().get_nodes_in_group("ghosts"):
-		if ghost.has_method("activate_frightened_mode"):
-			ghost.activate_frightened_mode()
-
-# Global Signal: Tells all active ghosts to reset to spawn positions
-func _on_player_killed() -> void:
-	# Unpause background music when the game/player resets back to action
-	if bgm_player:
-		bgm_player.stream_paused = false
-		
-	for ghost in get_tree().get_nodes_in_group("ghosts"):
-		if ghost.has_method("reset_to_base"):
-			ghost.reset_to_base()
 
 ==================================================
 FILE: ./scripts/entities/behaviors/blinky_behavior.gd
@@ -989,6 +1341,8 @@ FILE: ./scripts/entities/behaviors/clyde_behavior.gd
 # ==============================================================================
 # Description: Cowardly/Wanderer behavior strategy for Clyde (Orange).
 #              Implements SOLID Open/Closed Principle (OCP).
+#              Updates: Overrode visual hooks to make Clyde plump and 
+#                       shift his pupils downward to look clumsy/worried.
 # Author: Enrique González Gutiérrez
 # Email: enrique.gonzalez.gutierrez@gmail.com
 # ==============================================================================
@@ -1008,12 +1362,29 @@ func get_target_position(_ghost: CharacterBody3D, player: Node3D) -> Vector3:
 		return _ghost.global_position
 	return _ghost.global_position
 
+# --- GRAPHICS OVERRIDES (SRP/OCP/LSP Compliance) ---
+
+func get_capsule_radius() -> float:
+	return 1.05 # Plump
+
+func get_capsule_height() -> float:
+	return 1.65 # Round
+
+func get_pupil_offsets() -> Dictionary:
+	# Shift both pupil offsets downwards to look worried/pokey (SRP/OCP Compliance)
+	return {
+		"left": Vector3(-0.35, 0.32, -0.93),
+		"right": Vector3(0.35, 0.32, -0.93)
+	}
+
 ==================================================
 FILE: ./scripts/entities/behaviors/inky_behavior.gd
 ==================================================
 # ==============================================================================
 # Description: Flanker/Tactician behavior strategy for Inky (Cyan).
 #              Implements SOLID Open/Closed Principle (OCP).
+#              Updates: Overrode visual hooks to make Inky stubby and 
+#                       offset his pupils inward to look cross-eyed.
 # Author: Enrique González Gutiérrez
 # Email: enrique.gonzalez.gutierrez@gmail.com
 # ==============================================================================
@@ -1023,7 +1394,6 @@ class_name InkyBehavior
 # Inky uses Blinky's position and the player's position to flank the player
 func get_target_position(_ghost: CharacterBody3D, player: Node3D) -> Vector3:
 	if player:
-		# Search the scene for Blinky to establish the tactical vector
 		var blinky : Node3D = null
 		var ghosts = _ghost.get_tree().get_nodes_in_group("ghosts")
 		
@@ -1038,12 +1408,29 @@ func get_target_position(_ghost: CharacterBody3D, player: Node3D) -> Vector3:
 		return player.global_position
 	return _ghost.global_position
 
+# --- GRAPHICS OVERRIDES (SRP/OCP/LSP Compliance) ---
+
+func get_capsule_radius() -> float:
+	return 1.0 # Stubby
+
+func get_capsule_height() -> float:
+	return 1.55 # Short
+
+func get_pupil_offsets() -> Dictionary:
+	# Shift both pupil offsets inward to look cross-eyed/derpy (SRP/OCP Compliance)
+	return {
+		"left": Vector3(-0.23, 0.4, -0.93),
+		"right": Vector3(0.23, 0.4, -0.93)
+	}
+
 ==================================================
 FILE: ./scripts/entities/behaviors/pinky_behavior.gd
 ==================================================
 # ==============================================================================
 # Description: Ambusher behavior strategy for Pinky (Pink).
 #              Implements SOLID Open/Closed Principle (OCP).
+#              Updates: Overrode visual hooks to make Pinky slender and 
+#                       attach a procedural pink head bow.
 # Author: Enrique González Gutiérrez
 # Email: enrique.gonzalez.gutierrez@gmail.com
 # ==============================================================================
@@ -1059,6 +1446,125 @@ func get_target_position(_ghost: CharacterBody3D, player: Node3D) -> Vector3:
 		return player.global_position
 	return _ghost.global_position
 
+# --- GRAPHICS OVERRIDES (SRP/OCP/LSP Compliance) ---
+
+func get_capsule_radius() -> float:
+	return 0.82 # Slender
+
+func get_capsule_height() -> float:
+	return 1.95 # Tall
+
+func attach_custom_decorations(visual_mesh: MeshInstance3D) -> void:
+	var bow_holder := Node3D.new()
+	
+	var bow_mat := StandardMaterial3D.new()
+	bow_mat.albedo_color = Color(1.0, 0.4, 0.6) # Neon pink bow
+	bow_mat.roughness = 0.3
+	
+	var bow_sphere_mesh := SphereMesh.new()
+	bow_sphere_mesh.radius = 0.18
+	bow_sphere_mesh.height = 0.36
+	
+	var left_bow := MeshInstance3D.new()
+	left_bow.mesh = bow_sphere_mesh
+	left_bow.material_override = bow_mat
+	left_bow.position = Vector3(-0.15, get_capsule_height() / 2.0 + 0.08, 0.0)
+	bow_holder.add_child(left_bow)
+	
+	var right_bow := MeshInstance3D.new()
+	right_bow.mesh = bow_sphere_mesh
+	right_bow.material_override = bow_mat
+	right_bow.position = Vector3(0.15, get_capsule_height() / 2.0 + 0.08, 0.0)
+	bow_holder.add_child(right_bow)
+	
+	visual_mesh.add_child(bow_holder)
+
+==================================================
+FILE: ./scripts/entities/diorama_camera.gd
+==================================================
+# ==============================================================================
+# Description: Independent tracking Camera3D. Handles specialized diorama 
+#              view perspective optics, steep tilt angles, and smooth position 
+#              interpolation (drag/inertia damping) relative to the Player.
+#              SOLID Refactoring & Polish:
+#              - NAUSEA-FREE LEAD INTERPOLATION: Swapped velocity tracking with 
+#                Pac-Man's stable current_direction vector, and isolated the 
+#                lead-offset into its own heavy LERP loop (0.05) to eliminate 
+#                jitter, sudden snaps, and camera motion sickness.
+#              - PROCEDURAL DRONE BOBBING: Subtle vertical hover float.
+# Author: Enrique González Gutiérrez
+# Email: enrique.gonzalez.gutierrez@gmail.com
+# ==============================================================================
+extends Camera3D
+class_name DioramaCamera
+
+# Configuration constants matching optimized diorama optics
+const CAMERA_FOV : float = 48.0
+const CAMERA_OFFSET := Vector3(0.0, 15.0, 6.0)
+const CAMERA_ROTATION_DEGREES := Vector3(-68.0, 0.0, 0.0)
+const LERP_WEIGHT : float = 0.08 # Main camera damping follow speed
+const SNAP_THRESHOLD : float = 15.0 # Max distance before snapping instantly
+
+# Immersive Animation Parameters (SRP/Juice Compliance)
+const LEAD_DISTANCE : float = 1.4 # Sized subtly to prevent viewport whiplash
+const BOBBING_AMPLITUDE : float = 0.10 # Gentle 10cm vertical float
+const BOBBING_SPEED : float = 1.2 # Speed of the hovering drone bob
+var time_passed : float = 0.0
+
+# Dynamic dampening state
+var current_lead_offset : Vector3 = Vector3.ZERO
+var player_target : Node3D = null
+
+func _ready() -> void:
+	# Configure visual perspective optics procedurally on startup
+	projection = Camera3D.PROJECTION_PERSPECTIVE
+	fov = CAMERA_FOV
+	rotation_degrees = CAMERA_ROTATION_DEGREES
+	current = true
+	
+	# Unparent the camera's spatial transform from its spawning parent (decouples rotation)
+	top_level = true
+	
+	# Randomize first bob phase to prevent robotic startup
+	time_passed = randf_range(0.0, 5.0)
+	
+	_find_player_target()
+
+# Dynamic search to find the active player target in the scene group
+func _find_player_target() -> void:
+	player_target = get_tree().get_first_node_in_group("player") as Node3D
+
+func _physics_process(delta: float) -> void:
+	if not is_instance_valid(player_target):
+		_find_player_target()
+		return
+		
+	time_passed += delta
+	
+	# 1. Calculate Stabilized Dynamic Look-Ahead (Lead-In)
+	var target_lead := Vector3.ZERO
+	# Query Pac-Man's stable current_direction to prevent velocity stutter noise (SRP/OCP Compliance)
+	if "current_direction" in player_target and player_target.current_direction != Vector3.ZERO:
+		target_lead = player_target.current_direction * LEAD_DISTANCE
+		
+	# Independently LERP the lead offset with a low weight (0.05) to guarantee buttery-smooth, nausea-free transitions
+	current_lead_offset = current_lead_offset.lerp(target_lead, 0.05)
+		
+	# 2. Calculate Cinematic Drone Bobbing (Gentle 10cm float)
+	var bobbing_y : float = sin(time_passed * BOBBING_SPEED) * BOBBING_AMPLITUDE
+	
+	# Assemble final target position
+	var target_pos : Vector3 = player_target.global_position + CAMERA_OFFSET + current_lead_offset
+	target_pos.y += bobbing_y
+	
+	# If the distance is too large (teleport/respawn), snap instantly
+	if global_position.distance_to(target_pos) > SNAP_THRESHOLD:
+		global_position = target_pos
+		current_lead_offset = target_lead # Reset offset instantly
+	else:
+		# Smooth spatial damping follow
+		global_position = global_position.lerp(target_pos, LERP_WEIGHT)
+
 ==================================================
 FILE: ./scripts/entities/floating_score.gd
 ==================================================
@@ -1066,8 +1572,8 @@ FILE: ./scripts/entities/floating_score.gd
 # Description: Lightweight Label3D component that displays a 3D score value 
 #              floating upwards in world space, smoothly fading out over time.
 #              SOLID Refactoring:
-#              - SRP: Completely isolated class dedicated to rendering and
-#                animating local 3D floating visual labels (Pac-Mania style).
+#              - SRP Compliance: Extracted hardcoded "200" values out of _ready() 
+#                to support dynamic text/scores (like +500 for fruit consumption).
 # Author: Enrique González Gutiérrez
 # Email: enrique.gonzalez.gutierrez@gmail.com
 # ==============================================================================
@@ -1083,10 +1589,12 @@ func _ready() -> void:
 	billboard = BaseMaterial3D.BILLBOARD_ENABLED
 	
 	# Design configuration
-	text = "200" # Classic Pac-Man score reward for eating ghosts
 	pixel_size = 0.012 # Adjust size to look crisp and clear in 3D space
-	modulate = Color(1.0, 1.0, 1.0, 1.0) # Bright white color
 	outline_modulate = Color(0.0, 0.0, 0.0, 1.0) # Black outline for maximum readability
+	
+	# Open Default: If no custom text has been injected, default to classic ghost score
+	if text == "":
+		text = "200"
 	
 	# Safety cleanup timer: guarantees node removal even if frame updates stall
 	var timer = get_tree().create_timer(1.0)
@@ -1104,24 +1612,166 @@ func _process(delta: float) -> void:
 		modulate.a = alpha
 
 ==================================================
+FILE: ./scripts/entities/fruit.gd
+==================================================
+# ==============================================================================
+# Description: Standalone Fruit bonus item (Area3D). Spawns procedurally as a 
+#              large, glossy double-cherry mesh, granting +500 points and 
+#              emitting eaten notifications upon player collision.
+#              SOLID Refactoring & Visual Polish:
+#              - SIZE UPGRADE: Enlarged the cherry spheres, stems, and leaves 
+#                by ~40% to make the dynamic bonus item highly readable and 
+#                visually prominent from the diorama camera view.
+# Author: Enrique González Gutiérrez
+# Email: enrique.gonzalez.gutierrez@gmail.com
+# ==============================================================================
+extends Area3D
+class_name Fruit
+
+# Emits the points value awarded upon consumption
+signal eaten(points: int)
+
+var fruit_material : StandardMaterial3D
+var stem_material : StandardMaterial3D
+
+# Internal visual component references
+var visual_holder : Node3D
+var time_passed : float = 0.0
+
+func _ready() -> void:
+	_configure_collision_layers()
+	_initialize_materials()
+	_build_fruit_visuals()
+	body_entered.connect(_on_body_entered)
+	
+	# Randomize initial time state slightly to stagger animations
+	time_passed = randf_range(0.0, 5.0)
+
+func _configure_collision_layers() -> void:
+	# Exist on Layer 0 (Detects Player on Layer 2)
+	collision_layer = 0
+	collision_mask = 2
+
+func _initialize_materials() -> void:
+	# 1. Glossy Cherry Red
+	fruit_material = StandardMaterial3D.new()
+	fruit_material.albedo_color = Color(1.0, 0.0, 0.2)
+	fruit_material.roughness = 0.1
+	fruit_material.metallic = 0.1
+	
+	# 2. Stem Green
+	stem_material = StandardMaterial3D.new()
+	stem_material.albedo_color = Color(0.0, 0.8, 0.1)
+	stem_material.roughness = 0.5
+
+# Programmatically constructs the enlarged double-cherry mesh
+func _build_fruit_visuals() -> void:
+	visual_holder = Node3D.new()
+	
+	# Enlarged cherry sphere meshes
+	var cherry_mesh := SphereMesh.new()
+	cherry_mesh.radius = 0.34
+	cherry_mesh.height = 0.68
+	
+	# 1. Left Cherry (Position adjusted outwards)
+	var left_cherry := MeshInstance3D.new()
+	left_cherry.mesh = cherry_mesh
+	left_cherry.material_override = fruit_material
+	left_cherry.position = Vector3(-0.25, 0.3, 0.0)
+	visual_holder.add_child(left_cherry)
+	
+	# 2. Right Cherry (Position adjusted outwards)
+	var right_cherry := MeshInstance3D.new()
+	right_cherry.mesh = cherry_mesh
+	right_cherry.material_override = fruit_material
+	right_cherry.position = Vector3(0.25, 0.3, 0.0)
+	visual_holder.add_child(right_cherry)
+	
+	# 3. Combined Stems (Thicker and longer green boxes)
+	var stem_mesh := BoxMesh.new()
+	stem_mesh.size = Vector3(0.1, 0.5, 0.1)
+	
+	var left_stem := MeshInstance3D.new()
+	left_stem.mesh = stem_mesh
+	left_stem.material_override = stem_material
+	left_stem.position = Vector3(-0.15, 0.6, 0.0)
+	left_stem.rotation_degrees = Vector3(0, 0, -22) # Angled left
+	visual_holder.add_child(left_stem)
+	
+	var right_stem := MeshInstance3D.new()
+	right_stem.mesh = stem_mesh
+	right_stem.material_override = stem_material
+	right_stem.position = Vector3(0.15, 0.6, 0.0)
+	right_stem.rotation_degrees = Vector3(0, 0, 22) # Angled right
+	visual_holder.add_child(right_stem)
+	
+	# 4. Joint Leaf (Slightly larger green sphere)
+	var leaf_mesh := SphereMesh.new()
+	leaf_mesh.radius = 0.13
+	leaf_mesh.height = 0.26
+	
+	var leaf := MeshInstance3D.new()
+	leaf.mesh = leaf_mesh
+	leaf.material_override = stem_material
+	leaf.position = Vector3(0.0, 0.8, 0.0)
+	visual_holder.add_child(leaf)
+	
+	# --- PHYSICAL COLLIDER ---
+	# Sphere shape expanded to match the new cherry boundaries
+	var sphere_shape := SphereShape3D.new()
+	sphere_shape.radius = 0.65
+	
+	var collision_shape := CollisionShape3D.new()
+	collision_shape.shape = sphere_shape
+	collision_shape.position.y = 0.45
+	
+	add_child(visual_holder)
+	add_child(collision_shape)
+
+func _process(delta: float) -> void:
+	if not is_instance_valid(visual_holder):
+		return
+		
+	time_passed += delta
+	
+	# 1. Rotate the cherries continuously on the Y-axis
+	visual_holder.rotate_y(1.2 * delta)
+	
+	# 2. Float gently up and down on a wide, premium-looking sine wave
+	visual_holder.position.y = sin(time_passed * 2.0) * 0.08
+
+func _on_body_entered(body: Node3D) -> void:
+	if body is Player:
+		# Trigger player eat sound (SRP Compliance)
+		if body.has_method("play_eat_sound"):
+			body.play_eat_sound()
+			
+		eaten.emit(500) # Emits +500 points value
+		queue_free()
+
+==================================================
 FILE: ./scripts/entities/ghost.gd
 ==================================================
 # ==============================================================================
 # Description: CharacterBody3D controller for Ghosts. Handles primitive capsule
 #              generation, collision-tested pathfinding, and coordinates
 #              with an abstract behavior strategy.
-#              SOLID Refactoring:
-#              - SRP: Removed body.respawn() call.
-#              - Polishing: Added a public `set_frozen` method to freeze ghosts.
-#              - Collision Fix: Only physically blocks with Layer 1 (Walls).
-#              - Visual Effects & OCP: Added a programmatic 3D particle explosion
-#                which dynamically matches the ghost's original color.
-#              - Giant Proportions: Increased size (radius 0.9, height 1.8).
-#              - OCP & DIP (Height Decoupling): Added `get_spawn_height_offset()`.
-#              - Aesthetic Polish: Procedural cartoon-style rotating eyes.
-#              - Real 3D Volumetric Collision: CapsuleShape3D player detector.
-#              - Position Broadcast: Updated the `player_caught` signal to emit
-#                the exact 3D world coordinate where the collision happened.
+#              SOLID Refactoring & Visual Polish:
+#              - OCP & SRP VISUAL COMPLIANCE: Completely stripped all character-specific 
+#                visual match blocks. Now queries the injected Behavior Strategy 
+#                dynamically on ready to compile custom sizes, pupil offsets, 
+#                and accessories.
+#              - LAMBDA MEMORY FIX: Connected the eaten particle despawn timer 
+#                directly to particles.queue_free.
+#              - ARCADE LANE QUEUEING: Implemented a longitudinal speed-damping sensor.
+#              - ROTATION BUG FIX: Restored the deleted rotation interpolation.
+#              - DEADLOCK ELIMINATION: Completely removed the "Soft Separation" physics block.
+#              - GHOSTLY HOVERING: Floats the entire ghost body gently up and down.
+#              - PROCEDURAL WAVY SKIRT: Generates 4 ruffling spheres.
+#              - CHASE / SCATTER ARCADE CYCLE: Implements classic state cycling.
+#              - DYNAMIC BLINKING RETRO EYES: Handles random eye-blinking.
+#              - ARCADE-ACCURATE LEAVING: Kinematic foso exit paths.
+#              - ONE-WAY FOSO DOOR: Exit-only door block.
 # Author: Enrique González Gutiérrez
 # Email: enrique.gonzalez.gutierrez@gmail.com
 # ==============================================================================
@@ -1132,7 +1782,7 @@ class_name Ghost
 signal player_caught(is_frightened: bool, catch_position: Vector3)
 
 # State Machine definitions
-enum State { LEAVING, CHASE, FRIGHTENED }
+enum State { LEAVING, CHASE, SCATTER, FRIGHTENED }
 var current_state : State = State.LEAVING
 
 # Movement constants
@@ -1166,13 +1816,30 @@ var eaten_audio : AudioStreamPlayer
 var current_direction : Vector3 = Vector3.FORWARD
 var next_direction : Vector3 = Vector3.FORWARD
 
+# State cycle timers (Arcade standard timings)
+var state_timer : float = 0.0
+const CHASE_DURATION : float = 20.0
+const SCATTER_DURATION : float = 7.0
+
 # Frightened timer variables
 var frightened_timer : float = 0.0
 const FRIGHTENED_DURATION : float = 7.0
 
+# Dynamic Eye Tracking Variables
+var eyes_holder : Node3D
+var is_blinking : bool = false
+var blink_timer : float = 0.0
+var blink_duration : float = 0.15
+var next_blink_time : float = 3.0 # Initial time before first blink
+
+# Dynamic Floating & Skirt Animation Variables (SRP Compliance)
+var hover_time : float = 0.0
+var skirt_spheres : Array[MeshInstance3D] = []
+var capsule_height : float = 1.8 # Cached dynamically from strategy on ready
+
 # Foso navigation state
 var spawn_position : Vector3
-var exit_position : Vector3 = Vector3(0.0, 0.8, -4.0) 
+var exit_position : Vector3 = Vector3(0.0, 0.9, -6.5) # Dynamic fallback default
 var is_inside_foso : bool = true 
 var is_frozen : bool = false # Freezes ghosts during Pac-Man's death sequence
 
@@ -1208,6 +1875,13 @@ func _ready() -> void:
 	_setup_player_detection()
 	_setup_audio()
 	
+	# Randomize first blink and hover timings to stagger animations
+	next_blink_time = randf_range(2.0, 5.0)
+	hover_time = randf_range(0.0, 5.0)
+	
+	# --- DYNAMIC GHOST HOUSE EXIT DETECTION ---
+	_detect_exit_position_dynamically()
+	
 	# Initialize directions randomly
 	current_direction = CARDINAL_DIRECTIONS.pick_random()
 	next_direction = current_direction
@@ -1217,6 +1891,30 @@ func _ready() -> void:
 	var grid_x : int = int(round((global_position.x + offset) / CELL_SIZE))
 	var grid_z : int = int(round((global_position.z + offset) / CELL_SIZE))
 	last_grid_pos = Vector2i(grid_x, grid_z)
+
+# Automatically locates the foso door dynamically to prevent pathing issues
+func _detect_exit_position_dynamically() -> void:
+	if level_layout.is_empty() or grid_width <= 0 or grid_height <= 0:
+		return
+		
+	# WARNING FIXED: Cast to float before division to resolve Integer Division compiler warnings
+	var center_x : int = int(float(grid_width) / 2.0)
+	
+	# Scan rows 10 to 13 (where foso doors are strictly located in generator templates)
+	for r in range(10, 14):
+		if r < grid_height:
+			# Check the center column and its adjacent columns
+			for c in [center_x, center_x - 1, center_x + 1]:
+				if c >= 0 and c < grid_width:
+					# Find the open door tile (0: Empty or 2: Pellet)
+					if level_layout[r][c] == 0 or level_layout[r][c] == 2:
+						var offset_x : float = (float(grid_width) * CELL_SIZE) / 2.0
+						var offset_z : float = (float(grid_height) * CELL_SIZE) / 2.0
+						var gate_x : float = (c * CELL_SIZE) - offset_x + (CELL_SIZE / 2.0)
+						var gate_z : float = (r * CELL_SIZE) - offset_z + (CELL_SIZE / 2.0)
+						# Push target position slightly forward to ensure they fully cross the door threshold
+						exit_position = Vector3(gate_x, 0.9, gate_z - 0.5)
+						return
 
 func _configure_collision_layers() -> void:
 	# Exist on Layer 3 (Ghosts)
@@ -1229,9 +1927,16 @@ func _build_ghost_visuals() -> void:
 	visual_mesh = MeshInstance3D.new()
 	var collision_shape := CollisionShape3D.new()
 	
-	# GIANT ARCADE SIZE: Diameter of 1.8m fills 90% of the 2.0m corridor width
+	# Default standard dimensions
 	var radius : float = 0.9
 	var height : float = 1.8
+	
+	# Query dynamic visual specifications from the Strategy (OCP/SRP Compliance)
+	if behavior_strategy:
+		radius = behavior_strategy.get_capsule_radius()
+		height = behavior_strategy.get_capsule_height()
+		
+	capsule_height = height # Cache local height for bottom skirt animation offsets
 	
 	var capsule_mesh := CapsuleMesh.new()
 	capsule_mesh.radius = radius
@@ -1246,7 +1951,7 @@ func _build_ghost_visuals() -> void:
 	visual_mesh.material_override = original_material
 	
 	# --- PROCEDURAL RETRO GHOST EYES ---
-	var eyes_holder := Node3D.new()
+	eyes_holder = Node3D.new()
 	
 	var sclera_mat := StandardMaterial3D.new()
 	sclera_mat.albedo_color = Color(1.0, 1.0, 1.0) # Pure White Sclera
@@ -1255,6 +1960,16 @@ func _build_ghost_visuals() -> void:
 	var pupil_mat := StandardMaterial3D.new()
 	pupil_mat.albedo_color = Color(0.0, 0.2, 1.0) # Classic Pac-Man Blue pupils
 	pupil_mat.roughness = 0.4
+	
+	# Default forward pupil offsets on face
+	var pupil_left_pos := Vector3(-0.35, 0.4, -0.75 - radius * 0.2)
+	var pupil_right_pos := Vector3(0.35, 0.4, -0.75 - radius * 0.2)
+	
+	# Query character-specific pupil offsets from Strategy (OCP/SRP Compliance)
+	if behavior_strategy:
+		var custom_offsets : Dictionary = behavior_strategy.get_pupil_offsets()
+		pupil_left_pos = custom_offsets.get("left", pupil_left_pos)
+		pupil_right_pos = custom_offsets.get("right", pupil_right_pos)
 	
 	# 1. Left Sclera Sphere (White Eye)
 	var left_sclera := MeshInstance3D.new()
@@ -1280,18 +1995,45 @@ func _build_ghost_visuals() -> void:
 	pupil_mesh.height = 0.16
 	left_pupil.mesh = pupil_mesh
 	left_pupil.material_override = pupil_mat
-	left_pupil.position = Vector3(-0.35, 0.4, -0.93) # Placed slightly in front of sclera
+	left_pupil.position = pupil_left_pos
 	eyes_holder.add_child(left_pupil)
 	
 	# 4. Right Pupil Sphere (Blue Pupil)
 	var right_pupil := MeshInstance3D.new()
-	right_pupil.mesh = pupil_mesh
+	right_pupil.mesh = pupil_mesh 
 	right_pupil.material_override = pupil_mat
-	right_pupil.position = Vector3(0.35, 0.4, -0.93)
+	right_pupil.position = pupil_right_pos
 	eyes_holder.add_child(right_pupil)
 	
-	# Add the eyes holder to visual_mesh so they rotate automatically with the body orientation
 	visual_mesh.add_child(eyes_holder)
+	
+	# --- PROCEDURAL RETRO WAVY SKIRT (SRP/OCP Compliance) ---
+	var skirt_radius : float = 0.28
+	var skirt_mesh := SphereMesh.new()
+	skirt_mesh.radius = skirt_radius
+	skirt_mesh.height = skirt_radius * 2.0
+	
+	# Calculate skirt offsets dynamically using body radius and height
+	var skirt_base_y = -height / 2.0
+	var skirt_offsets = [
+		Vector3(-radius * 0.5, skirt_base_y, 0.0),
+		Vector3(radius * 0.5, skirt_base_y, 0.0),
+		Vector3(0.0, skirt_base_y, -radius * 0.5),
+		Vector3(0.0, skirt_base_y, radius * 0.5)
+	]
+	
+	for i in range(skirt_offsets.size()):
+		var sphere := MeshInstance3D.new()
+		sphere.mesh = skirt_mesh
+		sphere.material_override = original_material # Uses active ghost color
+		sphere.position = skirt_offsets[i]
+		visual_mesh.add_child(sphere) # Child of body so it inherits transformations
+		skirt_spheres.append(sphere)
+		
+	# --- PROCEDURAL ACCESSORIES ATTACHMENT ---
+	# Ask Strategy to attach any unique decorations dynamically (OCP/SRP Compliance)
+	if behavior_strategy:
+		behavior_strategy.attach_custom_decorations(visual_mesh)
 	
 	# --- PHYSICAL COLLISION SHAPE ---
 	var capsule_shape := CapsuleShape3D.new()
@@ -1344,17 +2086,48 @@ func _physics_process(delta: float) -> void:
 		move_and_slide()
 		return
 
+	# --- ARCADE-ACCURATE LEAVING GUIDANCE ---
 	if is_inside_foso:
+		var target_x = exit_position.x
+		if abs(global_position.x - target_x) > 0.05:
+			var dir_x = sign(target_x - global_position.x)
+			velocity = Vector3(dir_x * FRIGHTENED_SPEED, 0.0, 0.0)
+			
+			var target_rotation_y = atan2(-velocity.x, -velocity.z)
+			rotation.y = lerp_angle(rotation.y, target_rotation_y, 0.2)
+		else:
+			global_position.x = target_x
+			velocity = Vector3(0.0, 0.0, -FRIGHTENED_SPEED)
+			rotation.y = lerp_angle(rotation.y, 0.0, 0.2) # Face North
+			
+		move_and_slide()
+		_process_ghost_animations(delta)
+		
+		# Gate threshold check
 		var pos_2d := Vector2(global_position.x, global_position.z)
 		var exit_2d := Vector2(exit_position.x, exit_position.z)
 		if pos_2d.distance_to(exit_2d) < 1.0:
 			is_inside_foso = false
-			if current_state == State.LEAVING:
+			current_state = State.CHASE
+			speed = BASE_SPEED
+			_apply_material(original_material)
+		return
+
+	# --- CHASE / SCATTER ARCADE CYCLE TIMERS ---
+	if not is_inside_foso and not is_frozen and current_state != State.FRIGHTENED:
+		state_timer += delta
+		if current_state == State.CHASE:
+			if state_timer >= CHASE_DURATION:
+				current_state = State.SCATTER
+				state_timer = 0.0
+				_choose_new_direction() 
+		elif current_state == State.SCATTER:
+			if state_timer >= SCATTER_DURATION:
 				current_state = State.CHASE
-				speed = BASE_SPEED
-				_apply_material(original_material)
-				
-	elif current_state == State.FRIGHTENED:
+				state_timer = 0.0
+				_choose_new_direction()
+
+	if current_state == State.FRIGHTENED:
 		frightened_timer -= delta
 		if frightened_timer <= 0.0:
 			_exit_frightened_state()
@@ -1389,41 +2162,102 @@ func _physics_process(delta: float) -> void:
 		
 	# --- BASE MOVEMENT & SMOOTH STEERING ALIGNMENT ---
 	if current_direction != Vector3.ZERO:
-		velocity = current_direction * speed
+		# --- ARCADE LONGITUDINAL SEPARATION ---
+		# Dynamically reduces trailing speed when following another ghost closely in the same corridor
+		var adjusted_speed : float = speed
+		if not is_inside_foso:
+			var ghosts = get_tree().get_nodes_in_group("ghosts")
+			for g in ghosts:
+				if g != self and is_instance_valid(g) and not g.is_inside_foso:
+					var to_g : Vector3 = g.global_position - global_position
+					var dist : float = to_g.length()
+					# Buffer distance of 1.8 meters prevents overlapping
+					if dist > 0.1 and dist < 1.8:
+						# Only slow down if the other ghost is directly ahead (high dot product)
+						if current_direction.dot(to_g.normalized()) > 0.7:
+							adjusted_speed = speed * 0.72 # Drop to 72% speed
+							break
+							
+		velocity = current_direction * adjusted_speed
+		
+		# --- DYNAMIC GRID OFFSET MATH ---
+		var offset_x : float = 32.0
+		var offset_z : float = 32.0
+		if GameManager and GameManager.grid_width > 0:
+			offset_x = (float(GameManager.grid_width) * CELL_SIZE) / 2.0
+		if GameManager and GameManager.grid_height > 0:
+			offset_z = (float(GameManager.grid_height) * CELL_SIZE) / 2.0
 		
 		if current_direction.x != 0.0:
-			var target_z = round(global_position.z / CELL_SIZE) * CELL_SIZE
+			var g_z = round((global_position.z + offset_z - (CELL_SIZE / 2.0)) / CELL_SIZE)
+			var target_z = g_z * CELL_SIZE - offset_z + (CELL_SIZE / 2.0)
 			velocity.z = (target_z - global_position.z) * ALIGNMENT_FORCE
 		elif current_direction.z != 0.0:
-			var target_x = round(global_position.x / CELL_SIZE) * CELL_SIZE
+			var g_x = round((global_position.x + offset_x - (CELL_SIZE / 2.0)) / CELL_SIZE)
+			var target_x = g_x * CELL_SIZE - offset_x + (CELL_SIZE / 2.0)
 			velocity.x = (target_x - global_position.x) * ALIGNMENT_FORCE
 	else:
 		velocity = Vector3.ZERO
 		
-	# --- SOFT SEPARATION (FLOCKING REPULSION) ---
-	var separation := Vector3.ZERO
-	var all_ghosts = get_tree().get_nodes_in_group("ghosts")
-	
-	for g in all_ghosts:
-		if g != self and is_instance_valid(g) and not is_inside_foso:
-			var dist = global_position.distance_to(g.global_position)
-			if dist > 0.0 and dist < 1.9:
-				var push_dir = (global_position - g.global_position).normalized()
-				separation += push_dir * (1.9 - dist) * 3.0
-				
-	velocity += separation
-		
-	# --- ROTATION & PHYSICS UPDATE ---
-	if current_direction != Vector3.ZERO:
-		var target_rotation_y = atan2(-current_direction.x, -current_direction.z)
-		rotation.y = lerp_angle(rotation.y, target_rotation_y, 0.2)
+	# --- MOBILITY DEADLOCK FIX ---
+	# Completely stripped soft separation vectors to ensure perfect corridor alignment and prevent friction jams
 		
 	move_and_slide()
+	_process_ghost_animations(delta)
 
-# Helper to swap visual materials safely
+# Orchestrates smooth hovering translations and ruffling leg waves (SRP Compliance)
+func _process_ghost_animations(delta: float) -> void:
+	if is_frozen:
+		return
+		
+	hover_time += delta
+	_process_eye_blinking(delta)
+	
+	# 1. Float the main capsule body gently up and down on a vertical sine wave
+	if is_instance_valid(visual_mesh):
+		visual_mesh.position.y = sin(hover_time * 3.0) * 0.06
+		
+	# 2. Ripple the skirt ruffles out-of-phase (shifted by PI/2) to simulate swimming tails
+	for i in range(skirt_spheres.size()):
+		var sphere = skirt_spheres[i]
+		if is_instance_valid(sphere):
+			var phase_offset : float = i * (PI / 2.0)
+			# Skirt base Y is calculated dynamically from body dimensions (DIP/SRP Compliance)
+			var skirt_base_y = -capsule_height / 2.0
+			sphere.position.y = skirt_base_y + sin(hover_time * 6.0 + phase_offset) * 0.08
+			
+	# 3. Rotate the ghost body smoothly towards its active moving direction (SRP/OCP Compliance)
+	if not is_inside_foso and current_direction != Vector3.ZERO:
+		var target_rotation_y = atan2(-current_direction.x, -current_direction.z)
+		rotation.y = lerp_angle(rotation.y, target_rotation_y, 0.2)
+
+# Handles the dynamic eye-blinking scale animation
+func _process_eye_blinking(delta: float) -> void:
+	if not is_instance_valid(eyes_holder):
+		return
+		
+	blink_timer += delta
+	if not is_blinking:
+		if blink_timer >= next_blink_time:
+			# Shut eyes closed
+			is_blinking = true
+			blink_timer = 0.0
+			eyes_holder.scale.y = 0.05
+	else:
+		if blink_timer >= blink_duration:
+			# Re-open eyes and calculate randomized next interval
+			is_blinking = false
+			blink_timer = 0.0
+			next_blink_time = randf_range(2.5, 6.0)
+			eyes_holder.scale.y = 1.0
+
+# Helper to swap visual materials safely across the entire body (including skirt ruffles)
 func _apply_material(mat: StandardMaterial3D) -> void:
 	if visual_mesh and mat:
 		visual_mesh.material_override = mat
+		for sphere in skirt_spheres:
+			if is_instance_valid(sphere):
+				sphere.material_override = mat
 
 # Performs a mathematical check in the injected level matrix to see if a cell is open (Not a wall)
 func _get_matrix_open_directions() -> Array:
@@ -1435,11 +2269,19 @@ func _get_matrix_open_directions() -> Array:
 	var grid_x : int = int(round((global_position.x + offset) / CELL_SIZE))
 	var grid_z : int = int(round((global_position.z + offset) / CELL_SIZE))
 	
+	# One-way foso gate coordinates
+	var gate_y = 12
+	var gate_x = int(float(grid_width) / 2.0)
+	
 	for dir in CARDINAL_DIRECTIONS:
 		var target_x : int = grid_x + int(dir.x)
 		var target_z : int = grid_z + int(dir.z)
 		
 		if target_x >= 0 and target_x < grid_width and target_z >= 0 and target_z < grid_height:
+			# ONE-WAY DOOR RULE: If outside the foso, treat the gate as a solid wall
+			if not is_inside_foso and target_x == gate_x and target_z == gate_y:
+				continue
+				
 			var cell_type : int = int(level_layout[target_z][target_x])
 			if cell_type != 1: 
 				open_dirs.append(dir)
@@ -1469,6 +2311,21 @@ func _choose_new_direction() -> void:
 
 	if is_inside_foso:
 		target_pos = exit_position
+	elif current_state == State.SCATTER:
+		# Direct corner targets matching classic arcade corners (OCP Compliance)
+		var offset_x = (float(grid_width) * CELL_SIZE) / 2.0
+		var offset_z = (float(grid_height) * CELL_SIZE) / 2.0
+		var min_x = CELL_SIZE - offset_x + (CELL_SIZE / 2.0)
+		var max_x = (float(grid_width - 2) * CELL_SIZE) - offset_x + (CELL_SIZE / 2.0)
+		var min_z = CELL_SIZE - offset_z + (CELL_SIZE / 2.0)
+		var max_z = (float(grid_height - 2) * CELL_SIZE) - offset_z + (CELL_SIZE / 2.0)
+		
+		match ghost_type:
+			"Blinky": target_pos = Vector3(max_x, 0.9, min_z) # Top-Right
+			"Pinky": target_pos = Vector3(min_x, 0.9, min_z)  # Top-Left
+			"Inky": target_pos = Vector3(max_x, 0.9, max_z)   # Bottom-Right
+			"Clyde": target_pos = Vector3(min_x, 0.9, max_z)  # Bottom-Left
+			_: target_pos = Vector3(min_x, 0.9, min_z)
 	elif current_state == State.FRIGHTENED:
 		var best_dir = possible_directions[0]
 		var max_dist : float = -1.0
@@ -1477,7 +2334,7 @@ func _choose_new_direction() -> void:
 			var dist : float = next_pos.distance_to(player.global_position)
 			if dist > max_dist:
 				max_dist = dist
-				best_dir = dir
+				break
 		next_direction = best_dir
 		return
 	else:
@@ -1512,6 +2369,7 @@ func activate_frightened_mode() -> void:
 func _exit_frightened_state() -> void:
 	current_state = State.CHASE
 	speed = BASE_SPEED
+	state_timer = 0.0 # Reset cycle timer
 	_apply_material(original_material)
 
 # Public method: Resets ghost back to base (DIP Compliance)
@@ -1521,6 +2379,7 @@ func reset_to_base() -> void:
 	is_inside_foso = true 
 	current_state = State.LEAVING
 	speed = BASE_SPEED
+	state_timer = 0.0 # Reset cycle timer
 	_apply_material(original_material)
 	
 	current_direction = CARDINAL_DIRECTIONS.pick_random()
@@ -1577,8 +2436,8 @@ func play_eaten_particles() -> void:
 	particles.global_position = eaten_position
 	particles.emitting = true
 	
-	var timer = get_tree().create_timer(1.0)
-	timer.timeout.connect(func(): particles.queue_free())
+	# --- DIRECT METHOD CONNECTION FIX ---
+	get_tree().create_timer(1.0).timeout.connect(particles.queue_free)
 
 # Handles player intersection and emits state notification signals
 func _on_player_detected(body: Node3D) -> void:
@@ -1604,6 +2463,9 @@ FILE: ./scripts/entities/ghost_behavior.gd
 # ==============================================================================
 # Description: Base class (Strategy Pattern) for Ghost targeting behaviors.
 #              Enables strict adherence to SOLID Open/Closed Principle (OCP).
+#              Updates: Added virtual hooks for customized character-specific 
+#                       mesh proportions, pupil offsets, and accessories to 
+#                       comply with SRP, OCP, and LSP.
 # Author: Enrique González Gutiérrez
 # Email: enrique.gonzalez.gutierrez@gmail.com
 # ==============================================================================
@@ -1613,10 +2475,123 @@ class_name GhostBehavior
 # Virtual method to be overridden by specific ghost behavior subclasses
 # Returns the 3D target coordinate that the ghost should navigate towards
 func get_target_position(ghost: CharacterBody3D, player: Node3D) -> Vector3:
-	# Fallback target is always the player's direct position
 	if player:
 		return player.global_position
 	return ghost.global_position
+
+# --- VIRTUAL GRAPHICS HOOKS (SRP / OCP / LSP Compliance) ---
+
+# Overridden by subclasses to define their unique physical radius proportions
+func get_capsule_radius() -> float:
+	return 0.9 # Default standard radius
+
+# Overridden by subclasses to define their unique physical height proportions
+func get_capsule_height() -> float:
+	return 1.8 # Default standard height
+
+# Overridden by subclasses to offset pupil centers dynamically (e.g. cross-eyed or sad gazes)
+func get_pupil_offsets() -> Dictionary:
+	return {
+		"left": Vector3(-0.35, 0.4, -0.93),
+		"right": Vector3(0.35, 0.4, -0.93)
+	}
+
+# Overridden by subclasses to procedurally construct and parent visual accessories
+func attach_custom_decorations(_visual_mesh: MeshInstance3D) -> void:
+	pass # Optional hook (e.g. Pinky's bow ribbon)
+
+==================================================
+FILE: ./scripts/entities/ice_pellet.gd
+==================================================
+# ==============================================================================
+# Description: Standalone Frost-Blue Ice Utility Pellet (Area3D). Spawns 
+#              procedurally as a floating, rotating neon diamond, emitting 
+#              eaten notifications upon player collision.
+#              SOLID Refactoring:
+#              - SRP Compliance: Fully isolated visual representation and 
+#                collision detection from other items.
+# Author: Enrique González Gutiérrez
+# Email: enrique.gonzalez.gutierrez@gmail.com
+# ==============================================================================
+extends Area3D
+class_name IcePellet
+
+# Emitted when eaten to let orchestrators freeze active ghosts
+signal ice_pellet_eaten()
+
+var ice_material : StandardMaterial3D
+
+# Internal visual component references
+var mesh_instance : MeshInstance3D
+var time_passed : float = 0.0
+
+func _ready() -> void:
+	add_to_group("pellets") # Belongs to pellets group so it maintains victory counts
+	_configure_collision_layers()
+	_initialize_material()
+	_build_pellet_visuals()
+	body_entered.connect(_on_body_entered)
+	
+	# Randomize initial phase slightly to stagger animations
+	time_passed = randf_range(0.0, 5.0)
+
+func _configure_collision_layers() -> void:
+	# Exist on Layer 0 (Detects Player on Layer 2)
+	collision_layer = 0
+	collision_mask = 2
+
+func _initialize_material() -> void:
+	# Glowing Frost-Cyan material
+	ice_material = StandardMaterial3D.new()
+	ice_material.albedo_color = Color(0.0, 0.8, 1.0)
+	ice_material.emission_enabled = true
+	ice_material.emission = Color(0.0, 0.4, 0.8) # Frosty glow
+
+# Programmatically constructs the rotating diamond mesh
+func _build_pellet_visuals() -> void:
+	mesh_instance = MeshInstance3D.new()
+	var collision_shape := CollisionShape3D.new()
+	
+	# Rotated box mesh to form a perfect diamond shape
+	var box_mesh := BoxMesh.new()
+	box_mesh.size = Vector3(0.35, 0.35, 0.35)
+	mesh_instance.mesh = box_mesh
+	mesh_instance.material_override = ice_material
+	
+	# Pre-rotate by 45 degrees on X and Z axes to form the diamond
+	mesh_instance.rotation_degrees = Vector3(45.0, 0.0, 45.0)
+	
+	# Custom capsule collider sized to fit the diamond boundaries
+	var sphere_shape := SphereShape3D.new()
+	sphere_shape.radius = 0.35
+	collision_shape.shape = sphere_shape
+	
+	add_child(mesh_instance)
+	add_child(collision_shape)
+
+func _process(delta: float) -> void:
+	if not is_instance_valid(mesh_instance):
+		return
+		
+	time_passed += delta
+	
+	# 1. Rotate the diamond continuously on the Y-axis
+	mesh_instance.rotate_y(1.5 * delta)
+	
+	# 2. Float gently up and down on a smooth, low-amplitude sine wave
+	mesh_instance.position.y = sin(time_passed * 2.5) * 0.06
+
+func _on_body_entered(body: Node3D) -> void:
+	if body is Player:
+		# Trigger player eat sound (SRP Compliance)
+		if body.has_method("play_eat_sound"):
+			body.play_eat_sound()
+			
+		# Emit notification to let orchestrator pause ghosts
+		ice_pellet_eaten.emit()
+		
+		# Self-destroy
+		queue_free()
 
 ==================================================
 FILE: ./scripts/entities/pellet.gd
@@ -1624,10 +2599,11 @@ FILE: ./scripts/entities/pellet.gd
 # ==============================================================================
 # Description: Script for the pellet entity (Area3D) that joins the "pellets" 
 #              group and detects Player class collisions on Layer 2.
-#              SOLID Refactoring:
+#              SOLID Refactoring & Visual Polish:
+#              - DYNAMIC PROCEDURAL ROTATION & FLOAT: Added a process loop to 
+#                continuously spin the pellet on its Y axis and float it gently 
+#                up and down on a smooth, low-amplitude sine-wave.
 #              - DIP: Completely decoupled from the GameManager singleton. 
-#                Instead of directly mutating global scores, it emits an `eaten` 
-#                signal, leaving gameplay state management to the orchestrating classes.
 # Author: Enrique González Gutiérrez
 # Email: enrique.gonzalez.gutierrez@gmail.com
 # ==============================================================================
@@ -1640,12 +2616,19 @@ signal eaten(is_power: bool)
 @export var is_power_pellet : bool = false
 var pellet_material : StandardMaterial3D
 
+# Internal visual component references
+var mesh_instance : MeshInstance3D
+var time_passed : float = 0.0
+
 func _ready() -> void:
 	add_to_group("pellets")
 	_configure_collision_layers()
 	_initialize_material()
 	_build_pellet_visuals()
 	body_entered.connect(_on_body_entered)
+	
+	# Randomize initial time state slightly to prevent all pellets from floating in robotic unison
+	time_passed = randf_range(0.0, 5.0)
 
 func _configure_collision_layers() -> void:
 	collision_layer = 0 
@@ -1660,7 +2643,7 @@ func _initialize_material() -> void:
 		pellet_material.albedo_color = Color(1.0, 1.0, 0.0) 
 
 func _build_pellet_visuals() -> void:
-	var mesh_instance := MeshInstance3D.new()
+	mesh_instance = MeshInstance3D.new()
 	var collision_shape := CollisionShape3D.new()
 	var radius : float = 0.35 if is_power_pellet else 0.15
 	
@@ -1676,6 +2659,18 @@ func _build_pellet_visuals() -> void:
 	
 	add_child(mesh_instance)
 	add_child(collision_shape)
+
+func _process(delta: float) -> void:
+	if not is_instance_valid(mesh_instance):
+		return
+		
+	time_passed += delta
+	
+	# 1. Rotate the pellet continuously on the Y-axis
+	mesh_instance.rotate_y(1.5 * delta)
+	
+	# 2. Float gently up and down on a smooth, low-amplitude sine wave
+	mesh_instance.position.y = sin(time_passed * 2.5) * 0.06
 
 func _on_body_entered(body: Node3D) -> void:
 	if body is Player:
@@ -1695,16 +2690,15 @@ FILE: ./scripts/entities/player.gd
 # ==============================================================================
 # Description: CharacterBody3D controller for Pac-Man. Handles movement inputs,
 #              visual mesh rotation, and continuous arcade movement.
-#              Features an ORTHOGRAPHIC top-down camera to prevent 3D perspective.
-#              SOLID Refactoring:
-#              - SRP & State Machine: Added a self-contained `DEAD` state.
-#              - Collision Fix: Only physically blocks with Layer 1 (Walls).
+#              SOLID Refactoring & Visual Polish:
+#              - LAMBDA MEMORY FIX: Connected the death particle despawn timer 
+#                directly to particles.queue_free. This lets Godot auto-disconnect 
+#                the signal if the level reloads early, preventing lambda-capture errors.
+#              - PROCEDURAL CHEWING MOUTH: Instantiates an unshaded matte-black mouth.
+#              - DYNAMIC BLINKING RETRO EYES: Procedurally generates white scleras.
+#              - SRP Refactoring (Step 2): Completely stripped all Camera3D setup.
+#              - DYNAMIC ALIGNMENT FIX: Calculates grid offset dynamically.
 #              - Giant Arcade Proportions: Giant 1.7m diameter sphere.
-#              - Dynamic Cinematic Camera: Perspective Follow Camera.
-#              - OPTIMIZED PERSPECTIVE: Calibrated camera offsets (Y=15.0, Z=6.0,
-#                Pitch=-68, FOV=48.0) to achieve a gorgeous, highly readable
-#                Diorama/Tilt-Shift style. This completely prevents foreground
-#                walls from blocking Pac-Man and the lower lanes.
 # Author: Enrique González Gutiérrez
 # Email: enrique.gonzalez.gutierrez@gmail.com
 # ==============================================================================
@@ -1731,7 +2725,24 @@ var death_stream : AudioStream
 var visual_mesh : MeshInstance3D 
 var munch_audio : AudioStreamPlayer
 var death_audio : AudioStreamPlayer
-var camera_holder : Node3D # Tilted independent pivot for smooth tracking
+
+# Dynamic Eye Tracking Variables
+var eyes_holder : Node3D
+var pupil_material : StandardMaterial3D
+var is_blinking : bool = false
+var blink_timer : float = 0.0
+var blink_duration : float = 0.15
+var next_blink_time : float = 3.0 # Initial time before first blink
+
+# Invincibility Power State Variables (Arcade Juice)
+var is_powered_up : bool = false
+var power_timer : float = 0.0
+const POWER_DURATION : float = 7.0 # Matches Ghost Frightened duration
+var power_particles : GPUParticles3D = null
+
+# Dynamic Chewing Mouth Variables (SRP/Juice Compliance)
+var mouth_instance : MeshInstance3D
+var mouth_time : float = 0.0
 
 # Gameplay State
 var spawn_position : Vector3
@@ -1753,8 +2764,14 @@ func _ready() -> void:
 	add_to_group("player")
 	_configure_collision_layers()
 	_build_player_visuals()
-	_setup_camera()
 	_setup_audio()
+	
+	# Randomize first blink timing to stagger animations
+	next_blink_time = randf_range(2.0, 5.0)
+	
+	# Connect dynamically to global power pellet activations (DIP Compliance)
+	if GameManager:
+		GameManager.power_pellet_activated.connect(activate_power_up)
 	
 	# Automatically calibrate virtual floor based on injected height coordinate (SOLID DIP)
 	virtual_floor_y = global_position.y
@@ -1766,44 +2783,94 @@ func _configure_collision_layers() -> void:
 	collision_mask = 1
 
 func _build_player_visuals() -> void:
-	visual_mesh = MeshInstance3D.new()
 	var collision_shape := CollisionShape3D.new()
+	visual_mesh = MeshInstance3D.new()
 	
 	var radius : float = 0.85
 	
+	# Main Pac-Man body sphere
 	var sphere_mesh := SphereMesh.new()
 	sphere_mesh.radius = radius
 	sphere_mesh.height = radius * 2.0
 	visual_mesh.mesh = sphere_mesh
 	visual_mesh.material_override = player_material
 	
+	# --- PROCEDURAL BLINKING PAC-MAN EYES ---
+	eyes_holder = Node3D.new()
+	
+	var sclera_mat := StandardMaterial3D.new()
+	sclera_mat.albedo_color = Color(1.0, 1.0, 1.0) # White Sclera
+	sclera_mat.roughness = 0.6
+	
+	# Keep an instance reference to pupil_material so we can dynamically tint it on power states
+	pupil_material = StandardMaterial3D.new()
+	pupil_material.albedo_color = Color(0.0, 0.8, 0.1) # Glowing Neon Green Pupil
+	pupil_material.roughness = 0.4
+	
+	# Eye mesh shapes
+	var sclera_mesh := SphereMesh.new()
+	sclera_mesh.radius = 0.20
+	sclera_mesh.height = 0.40
+	
+	var pupil_mesh := SphereMesh.new()
+	pupil_mesh.radius = 0.08
+	pupil_mesh.height = 0.16
+	
+	# 1. Left Sclera (White)
+	var left_sclera := MeshInstance3D.new()
+	left_sclera.mesh = sclera_mesh
+	left_sclera.material_override = sclera_mat
+	left_sclera.position = Vector3(-0.35, 0.45, -0.65)
+	eyes_holder.add_child(left_sclera)
+	
+	# 2. Right Sclera (White)
+	var right_sclera := MeshInstance3D.new()
+	right_sclera.mesh = sclera_mesh
+	right_sclera.material_override = sclera_mat
+	right_sclera.position = Vector3(0.35, 0.45, -0.65)
+	eyes_holder.add_child(right_sclera)
+	
+	# 3. Left Pupil (Green)
+	var left_pupil := MeshInstance3D.new()
+	left_pupil.mesh = pupil_mesh
+	left_pupil.material_override = pupil_material
+	left_pupil.position = Vector3(-0.35, 0.45, -0.83)
+	eyes_holder.add_child(left_pupil)
+	
+	# 4. Right Pupil (Green)
+	var right_pupil := MeshInstance3D.new()
+	right_pupil.mesh = pupil_mesh
+	right_pupil.material_override = pupil_material
+	right_pupil.position = Vector3(0.35, 0.45, -0.83)
+	eyes_holder.add_child(right_pupil)
+	
+	# Attach eyes to the visual mesh so they rotate dynamically with Pac-Man
+	visual_mesh.add_child(eyes_holder)
+	
+	# --- PROCEDURAL RETRO CHEWING MOUTH (SRP/OCP Compliance) ---
+	var mouth_mat := StandardMaterial3D.new()
+	mouth_mat.albedo_color = Color(0.01, 0.01, 0.01) # Deep shadow black
+	mouth_mat.roughness = 1.0
+	mouth_mat.shading_mode = StandardMaterial3D.SHADING_MODE_UNSHADED # Unshaded for black abyss effect
+	
+	var mouth_box := BoxMesh.new()
+	mouth_box.size = Vector3(1.0, 1.0, 0.5) # Base unit box to scale dynamically
+	
+	mouth_instance = MeshInstance3D.new()
+	mouth_instance.mesh = mouth_box
+	mouth_instance.material_override = mouth_mat
+	mouth_instance.position = Vector3(0.0, -0.15, -0.62) # Positioned on front lower face
+	mouth_instance.scale = Vector3(0.5, 0.1, 0.5) # Start closed
+	
+	visual_mesh.add_child(mouth_instance) # Child of body so it rotates with Pac-Man
+	
+	# --- PHYSICAL COLLIDER ---
 	var sphere_shape := SphereShape3D.new()
 	sphere_shape.radius = radius
 	collision_shape.shape = sphere_shape
 	
 	add_child(visual_mesh)
 	add_child(collision_shape)
-
-# Set up an optimized dynamic perspective following camera (Diorama style)
-func _setup_camera() -> void:
-	camera_holder = Node3D.new()
-	camera_holder.top_level = true
-	
-	add_child(camera_holder)
-	camera_holder.global_position = global_position
-	
-	var camera := Camera3D.new()
-	camera.projection = Camera3D.PROJECTION_PERSPECTIVE
-	
-	# OPTIMIZED OPTICS: Narrower FOV + steeper tilt angle acts like a cinematic
-	# telephoto lens, rendering a clean, perfectly readable 3D diorama map view.
-	camera.fov = 48.0 
-	camera.position = Vector3(0.0, 15.0, 6.0)
-	camera.rotation_degrees = Vector3(-68.0, 0.0, 0.0)
-	
-	camera.current = true
-	
-	camera_holder.add_child(camera)
 
 # Sets up separate, non-overlapping audio channels
 func _setup_audio() -> void:
@@ -1838,6 +2905,8 @@ func die() -> void:
 	if visual_mesh:
 		visual_mesh.visible = false
 		
+	# Clean up any active power particle trails on death
+	_deactivate_power_up()
 	play_death_particles()
 	
 	if death_audio and death_audio.stream:
@@ -1895,8 +2964,8 @@ func play_death_particles() -> void:
 	particles.global_position = death_position
 	particles.emitting = true
 	
-	var timer = get_tree().create_timer(1.0)
-	timer.timeout.connect(func(): particles.queue_free())
+	# --- DIRECT METHOD CONNECTION FIX ---
+	get_tree().create_timer(1.0).timeout.connect(particles.queue_free)
 
 # Teleports the player back to start
 func respawn() -> void:
@@ -1913,22 +2982,81 @@ func _actual_respawn() -> void:
 	if visual_mesh:
 		visual_mesh.visible = true
 	
-	# Instant camera snap back to spawn coordinate to prevent sliding confusion
-	if is_instance_valid(camera_holder):
-		camera_holder.global_position = spawn_position
-		
 	is_dead = false
 
 # Public API helper
 func get_spawn_height_offset() -> float:
 	return 0.85
 
-func _physics_process(delta: float) -> void:
-	# Keep the camera following smoothly even when Pac-Man is dead
-	if is_instance_valid(camera_holder):
-		# Buttery-smooth LERP interpolation (0.08) creates elegant drag/damping inertia
-		camera_holder.global_position = camera_holder.global_position.lerp(global_position, 0.08)
+# --- POWER UP SEQUENCE (JUICE COMPLIANCE) ---
 
+# Public Callback: Triggers invincibility state transformations (OCP Compliance)
+func activate_power_up() -> void:
+	is_powered_up = true
+	power_timer = POWER_DURATION
+	
+	# 1. Glow body to a vibrant neon golden-orange
+	player_material.albedo_color = Color(1.0, 0.45, 0.0) # Golden Orange
+	player_material.emission_enabled = true
+	player_material.emission = Color(1.0, 0.25, 0.0) # Golden Glow
+	
+	# 2. Shift pupils to an angry glowing neon-red
+	if pupil_material:
+		pupil_material.albedo_color = Color(1.0, 0.0, 0.0) # Fierce Red
+		pupil_material.emission_enabled = true
+		pupil_material.emission = Color(1.0, 0.0, 0.0) # Red Glow
+		
+	# 3. Spawn subtle gold sparkle particle aura
+	if not is_instance_valid(power_particles):
+		_spawn_power_particles()
+
+# Programmatically configures and attaches a glowing aura trail underneath Pac-Man
+func _spawn_power_particles() -> void:
+	power_particles = GPUParticles3D.new()
+	
+	var mesh := BoxMesh.new()
+	mesh.size = Vector3(0.08, 0.08, 0.08)
+	
+	var p_mat := StandardMaterial3D.new()
+	p_mat.albedo_color = Color(1.0, 0.8, 0.0) # Golden sparkles
+	p_mat.shading_mode = StandardMaterial3D.SHADING_MODE_UNSHADED
+	mesh.material = p_mat
+	power_particles.draw_pass_1 = mesh
+	
+	var proc_mat := ParticleProcessMaterial.new()
+	proc_mat.emission_shape = ParticleProcessMaterial.EMISSION_SHAPE_SPHERE
+	proc_mat.emission_sphere_radius = 0.5
+	proc_mat.direction = Vector3.UP
+	proc_mat.spread = 45.0
+	proc_mat.initial_velocity_min = 1.0
+	proc_mat.initial_velocity_max = 2.0
+	proc_mat.gravity = Vector3(0.0, -2.0, 0.0)
+	
+	power_particles.process_material = proc_mat
+	power_particles.amount = 15
+	power_particles.lifetime = 0.5
+	
+	add_child(power_particles)
+	power_particles.position = Vector3(0.0, -0.2, 0.0) # Centered at feet level
+
+# Restores the original visual colors and clears particle emitters
+func _deactivate_power_up() -> void:
+	is_powered_up = false
+	
+	# Restore normal body
+	player_material.albedo_color = Color(1.0, 1.0, 0.0) # Yellow
+	player_material.emission_enabled = false
+	
+	# Restore normal green pupils
+	if pupil_material:
+		pupil_material.albedo_color = Color(0.0, 0.8, 0.1) # Green
+		pupil_material.emission_enabled = false
+		
+	# Delete the particle trail
+	if is_instance_valid(power_particles):
+		power_particles.queue_free()
+
+func _physics_process(delta: float) -> void:
 	if is_dead:
 		velocity = Vector3.ZERO
 		move_and_slide()
@@ -1944,13 +3072,90 @@ func _physics_process(delta: float) -> void:
 		global_position.y = virtual_floor_y
 		is_jumping = false
 		
-	# Trigger Jump: spacebar (mapped to ui_select by default)
+	# Trigger Jump: spacebar
 	if Input.is_action_just_pressed("ui_select") and not is_jumping:
 		velocity.y = JUMP_VELOCITY
 		is_jumping = true
 
+	# --- INVINCIBILITY CYCLE PROCESSOR ---
+	if is_powered_up:
+		power_timer -= delta
+		if power_timer <= 0.0:
+			_deactivate_power_up()
+		else:
+			# Cooldown Warning: blink body, eyes, and sparks during the final 2.5 seconds
+			if power_timer <= 2.5:
+				var blink = int(power_timer * 5.0) % 2 == 0
+				if blink:
+					# Temporarily show original colors
+					player_material.albedo_color = Color(1.0, 1.0, 0.0)
+					player_material.emission_enabled = false
+					if pupil_material:
+						pupil_material.albedo_color = Color(0.0, 0.8, 0.1)
+						pupil_material.emission_enabled = false
+					if is_instance_valid(power_particles):
+						power_particles.emitting = false
+				else:
+					# Return to golden glow
+					player_material.albedo_color = Color(1.0, 0.45, 0.0)
+					player_material.emission_enabled = true
+					player_material.emission = Color(1.0, 0.25, 0.0)
+					if pupil_material:
+						pupil_material.albedo_color = Color(1.0, 0.0, 0.0)
+						pupil_material.emission_enabled = true
+						pupil_material.emission = Color(1.0, 0.0, 0.0)
+					if is_instance_valid(power_particles):
+						power_particles.emitting = true
+
 	_handle_arcade_input()
 	_process_arcade_movement()
+	_process_eye_blinking(delta)
+	_process_mouth_animation(delta)
+
+# Orchestrates smooth chewing and dynamic mouth-stretching while running (SRP Compliance)
+func _process_mouth_animation(delta: float) -> void:
+	if not is_instance_valid(mouth_instance) or is_dead:
+		return
+		
+	# Only chew if Pac-Man is actively moving (velocity magnitude is high)
+	if velocity.length() > 0.1:
+		mouth_time += delta
+		# Fast biting cycle (24.0 rad/s)
+		# Biting factor oscillates cleanly between 0.0 and 1.0
+		var bite_factor : float = (sin(mouth_time * 24.0) + 1.0) / 2.0
+		
+		# Squash and Stretch: scale mouth vertically while stretching cheeks horizontally
+		mouth_instance.scale.y = lerpf(0.05, 0.72, bite_factor)
+		mouth_instance.scale.x = lerpf(0.5, 0.62, bite_factor)
+	else:
+		# Relax mouth to a slightly open line when static
+		mouth_instance.scale.y = 0.12
+		mouth_instance.scale.x = 0.52
+
+# Handles the dynamic eye-blinking scale animation
+func _process_eye_blinking(delta: float) -> void:
+	if not is_instance_valid(eyes_holder):
+		return
+		
+	# Skip standard blinking cycles if Pac-Man is in a focused, angry invincibility state
+	if is_powered_up:
+		eyes_holder.scale.y = 1.0 # Keep eyes wide open
+		return
+		
+	blink_timer += delta
+	if not is_blinking:
+		if blink_timer >= next_blink_time:
+			# Shut eyes closed
+			is_blinking = true
+			blink_timer = 0.0
+			eyes_holder.scale.y = 0.05
+	else:
+		if blink_timer >= blink_duration:
+			# Re-open eyes and calculate randomized next interval
+			is_blinking = false
+			blink_timer = 0.0
+			next_blink_time = randf_range(2.5, 6.0)
+			eyes_holder.scale.y = 1.0
 
 func _handle_arcade_input() -> void:
 	var input_dir := Input.get_vector("ui_left", "ui_right", "ui_up", "ui_down")
@@ -1975,11 +3180,22 @@ func _process_arcade_movement() -> void:
 		velocity = current_direction * SPEED
 		velocity.y = y_vel
 		
+		# --- DYNAMIC GRID OFFSET MATH ---
+		# Calculates offsets dynamically using global map bounds to prevent even/odd size mismatches
+		var offset_x : float = 32.0
+		var offset_z : float = 32.0
+		if GameManager and GameManager.grid_width > 0:
+			offset_x = (float(GameManager.grid_width) * CELL_SIZE) / 2.0
+		if GameManager and GameManager.grid_height > 0:
+			offset_z = (float(GameManager.grid_height) * CELL_SIZE) / 2.0
+		
 		if current_direction.x != 0.0:
-			var target_z = round(global_position.z / CELL_SIZE) * CELL_SIZE
+			var g_z = round((global_position.z + offset_z - (CELL_SIZE / 2.0)) / CELL_SIZE)
+			var target_z = g_z * CELL_SIZE - offset_z + (CELL_SIZE / 2.0)
 			velocity.z = (target_z - global_position.z) * ALIGNMENT_FORCE
 		elif current_direction.z != 0.0:
-			var target_x = round(global_position.x / CELL_SIZE) * CELL_SIZE
+			var g_x = round((global_position.x + offset_x - (CELL_SIZE / 2.0)) / CELL_SIZE)
+			var target_x = g_x * CELL_SIZE - offset_x + (CELL_SIZE / 2.0)
 			velocity.x = (target_x - global_position.x) * ALIGNMENT_FORCE
 			
 		var target_rotation_y = atan2(-current_direction.x, -current_direction.z)
@@ -2057,20 +3273,277 @@ func _on_body_exited(body: Node3D) -> void:
 		body.remove_meta("last_portal")
 
 ==================================================
+FILE: ./scripts/ui/credits.gd
+==================================================
+# ==============================================================================
+# Description: Independent cinematic scrolling Credits screen. Programmatically 
+#              constructs and crawls vertical rolling labels over a darkened 
+#              background, ending in a neon "Thank You" splash.
+#              SOLID Refactoring & Fixes:
+#              - CANVASLAYER FIX: Correctly implemented a root Control container 
+#                (main_container) inside the CanvasLayer to handle all anchor 
+#                presets and viewport rect calculations without throwing base 
+#                object errors.
+#              - CROSS-PLATFORM INPUT: Added InputEventScreenTouch support.
+# Author: Enrique González Gutiérrez
+# Email: enrique.gonzalez.gutierrez@gmail.com
+# ==============================================================================
+extends CanvasLayer
+class_name CreditsScreen
+
+const SCROLL_SPEED : float = 45.0 # Pixels per second
+const FADE_SPEED : float = 1.2 # Thank you text fade speed
+
+# Credits Roll Configuration Data (Enrique's Professional Profile)
+var credits_data : Array[Dictionary] = [
+	{"text": "PAC-MAN 3D", "type": "title"},
+	{"text": "A modern 3D arcade reimagining", "type": "subtitle"},
+	{"text": "", "type": "spacer_large"},
+	
+	{"text": "LEAD DEVELOPER & SOFTWARE ARCHITECT", "type": "header"},
+	{"text": "Enrique González Gutiérrez", "type": "name"},
+	{"text": "Senior Software Engineer  |  PHP (Laravel & Symfony)\nSystem Architecture  |  Fullstack & DevOps  |  Remoto ES\nInca, Balearic Islands, Spain", "type": "subtitle"},
+	{"text": "", "type": "spacer_large"},
+	
+	{"text": "PROFESSIONAL PROFILE", "type": "header"},
+	{"text": "A veteran Senior Software Engineer with nearly 20 years of hands-on experience designing, scaling, and maintaining complex distributed systems. Possessing complete engineering autonomy to navigate the entire product lifecycle—from pixel-perfect Frontend applications (React/TypeScript) to robust, high-traffic Backend architectures and fully automated containerized deployments (Docker/CI-CD).", "type": "paragraph"},
+	{"text": "", "type": "spacer_large"},
+	
+	{"text": "ARCHITECTURAL PHILOSOPHY", "type": "header"},
+	{"text": "Engineering is about pragmatism and reliability. Architecture is not an abstract theory, but a primary tool to build highly maintainable, secure, and profitable software. Expert in implementing Domain-Driven Design (DDD), Hexagonal Architectures (Ports & Adapters), and Event-Sourcing models to decouple core business domains from infrastructure dependencies.", "type": "paragraph"},
+	{"text": "", "type": "spacer_large"},
+	
+	{"text": "ENGINEERING HIGHLIGHTS", "type": "header"},
+	{"text": "● PERFORMANCE OPTIMIZATION\nSpecialized in critical database optimization. At Habitissimo, engineered a massive data-layer redesign on high-traffic MySQL systems, achieving a 40% reduction in query latencies.\n\n● DEVOPS & INFRASTRUCTURE\nExpertise in automating environments with Docker, GNU Make, and robust GitLab/GitHub CI-CD pipelines, guaranteeing absolute environment parity and high-availability deployments.", "type": "paragraph"},
+	{"text": "", "type": "spacer_large"},
+	
+	{"text": "procedural research & side projects", "type": "header"},
+	{"text": "● SHORTFORGE / Z-REALISM AI (Python)\nDesigned and orchestrated a local AI visual production studio, utilizing Hexagonal Architecture to decouple PyTorch inference models from FastAPI/Redis workers. Implemented sequential VRAM offloading to run heavy LLMs (Llama 3.1) and SDXL Lightning under strict hardware limitations (6GB VRAM).\n\n● BREWPOINT POS (PostgreSQL RPC)\nDeveloped an enterprise-grade transactional POS system for Web/iOS/Android. Encapsulated core financial business logic inside PostgreSQL RPC functions to guarantee atomic, consistent transactions.\n\n● NUMISTA (Laravel 12)\nAn e-commerce multi-tenant architecture utilizing Domain-Driven Design and a dynamic Entity-Attribute-Value (EAV) data model for collectibles management.\n\n● AETHELGARD (TypeScript & Redis)\nA persistent, concurrent MUD game engine. Uses Redis Mutex locks for atomic cross-entity concurrency and Ports & Adapters to decouple game states from Telnet and WebSockets protocols.", "type": "paragraph"},
+	{"text": "", "type": "spacer_large"},
+	
+	{"text": "PROFESSIONAL TIMELINE", "type": "header"},
+	{"text": "● Senior Backend Engineer  |  Transformación Digital  (2025 - 2026)\n● Senior Software Engineer  |  Habitissimo  (2019 - 2025)\n● Senior Fullstack Engineer  |  EISI SOFT  (2018 - 2019)\n● Senior Fullstack Developer  |  Kitmaker Entertainment  (2015 - 2018)\n● Senior PHP Developer & Tech Consultant  |  Independent  (2010 - 2015)", "type": "timeline"},
+	{"text": "", "type": "spacer_large"},
+	
+	{"text": "CORE TECHNOLOGIES", "type": "header"},
+	{"text": "PHP  •  Laravel  •  Symfony  •  Software Architecture  •  Docker  •  PostgreSQL  •  Python  •  Redis", "type": "subtitle"},
+	{"text": "", "type": "spacer_large"},
+	
+	{"text": "SPECIAL THANKS", "type": "header"},
+	{"text": "Godot Engine Community\nJolt Physics 3D\nRetro Arcade Pioneers\n\nAND YOU!\nThank you for playing!", "type": "name"}
+]
+
+# Internal UI components
+var main_container : Control
+var bg_rect : TextureRect
+var scroll_container : Control
+var vbox_container : VBoxContainer
+var thank_you_label : Label
+var credits_bgm_player : AudioStreamPlayer
+
+# State tracking
+var is_scroll_finished : bool = false
+var thank_you_alpha : float = 0.0
+var is_mobile : bool = false
+
+func _ready() -> void:
+	# Detect mobile/web platform for dynamic text
+	is_mobile = OS.has_feature("mobile") or OS.has_feature("web")
+	
+	# Create the root Control container to hold all UI elements inside this CanvasLayer
+	main_container = Control.new()
+	add_child(main_container)
+	main_container.set_anchors_and_offsets_preset(Control.PRESET_FULL_RECT)
+	
+	_build_background()
+	_build_credits_scroller()
+	_build_thank_you_splash()
+	_setup_credits_bgm()
+
+# Programmatically builds the full-screen background
+func _build_background() -> void:
+	bg_rect = TextureRect.new()
+	bg_rect.expand_mode = TextureRect.EXPAND_IGNORE_SIZE
+	bg_rect.stretch_mode = TextureRect.STRETCH_KEEP_ASPECT_COVERED
+	main_container.add_child(bg_rect)
+	bg_rect.set_anchors_and_offsets_preset(Control.PRESET_FULL_RECT)
+	
+	# Defensive Fallback: Try loading credits_bg, fallback to main_menu_bg if not found
+	var bg_tex = load("res://assets/ui/images/credits_bg.png")
+	if not bg_tex:
+		bg_tex = load("res://assets/ui/images/main_menu_bg.png")
+	bg_rect.texture = bg_tex
+	
+	# Add a dark cinematic overlay to increase text contrast
+	var darken_overlay := ColorRect.new()
+	darken_overlay.color = Color(0.0, 0.0, 0.0, 0.78)
+	bg_rect.add_child(darken_overlay)
+	darken_overlay.set_anchors_and_offsets_preset(Control.PRESET_FULL_RECT)
+
+# Procedurally constructs the vertical rolling label stack
+func _build_credits_scroller() -> void:
+	scroll_container = Control.new()
+	main_container.add_child(scroll_container)
+	
+	# Anchor to top-left so position.y is directly equivalent to viewport pixels
+	scroll_container.set_anchors_and_offsets_preset(Control.PRESET_TOP_LEFT)
+	
+	# Center horizontally and place completely off-screen at the bottom of the viewport
+	var viewport_size = get_viewport().get_visible_rect().size
+	scroll_container.position.x = viewport_size.x / 2.0
+	scroll_container.position.y = viewport_size.y + 100.0 # Starts fully hidden below
+	
+	vbox_container = VBoxContainer.new()
+	vbox_container.add_theme_constant_override("separation", 24)
+	vbox_container.alignment = BoxContainer.ALIGNMENT_CENTER
+	scroll_container.add_child(vbox_container)
+	
+	# Anchor to CENTER_TOP so the top of the vbox sits exactly on scroll_container's Y position
+	# This prevents massive text layouts from overlapping the screen on start
+	vbox_container.set_anchors_and_offsets_preset(Control.PRESET_CENTER_TOP)
+	vbox_container.grow_horizontal = Control.GROW_DIRECTION_BOTH
+	
+	# Parse data and generate labels dynamically
+	for line in credits_data:
+		if line["type"] == "spacer_small":
+			var spacer := Control.new()
+			spacer.custom_minimum_size = Vector2(0, 16)
+			vbox_container.add_child(spacer)
+			continue
+		elif line["type"] == "spacer_large":
+			var spacer := Control.new()
+			spacer.custom_minimum_size = Vector2(0, 48)
+			vbox_container.add_child(spacer)
+			continue
+			
+		var label := Label.new()
+		label.text = line["text"]
+		label.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+		vbox_container.add_child(label)
+		
+		match line["type"]:
+			"title":
+				label.add_theme_font_size_override("font_size", 54)
+				label.add_theme_color_override("font_color", Color(1.0, 1.0, 0.0)) # Yellow
+				label.add_theme_color_override("font_outline_color", Color(0.0, 0.0, 1.0)) # Blue outline
+				label.add_theme_constant_override("outline_size", 10)
+			"subtitle":
+				label.add_theme_font_size_override("font_size", 18)
+				label.add_theme_color_override("font_color", Color(0.6, 0.6, 0.6))
+			"header":
+				label.text = label.text.to_upper()
+				label.add_theme_font_size_override("font_size", 18)
+				label.add_theme_color_override("font_color", Color(0.0, 1.0, 1.0)) # Cyan
+				label.add_theme_constant_override("outline_size", 4)
+				label.add_theme_color_override("font_outline_color", Color(0,0,0))
+			"name":
+				label.add_theme_font_size_override("font_size", 24)
+				label.add_theme_color_override("font_color", Color(0.9, 0.9, 0.9))
+			"timeline":
+				label.add_theme_font_size_override("font_size", 16)
+				label.add_theme_color_override("font_color", Color(0.8, 0.8, 0.8))
+				label.add_theme_constant_override("line_spacing", 6)
+			"paragraph":
+				# Enable text wrapping on a comfortable reading column width
+				label.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
+				label.custom_minimum_size = Vector2(800, 0)
+				label.add_theme_font_size_override("font_size", 15)
+				label.add_theme_color_override("font_color", Color(0.85, 0.85, 0.85))
+				label.add_theme_constant_override("line_spacing", 6)
+
+# Builds the hidden "THANK YOU" label sitting at the center of the screen
+func _build_thank_you_splash() -> void:
+	thank_you_label = Label.new()
+	thank_you_label.text = "THANK YOU FOR PLAYING"
+	thank_you_label.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+	thank_you_label.add_theme_font_size_override("font_size", 48)
+	thank_you_label.add_theme_color_override("font_color", Color(1.0, 1.0, 0.0)) # Neon Yellow
+	thank_you_label.add_theme_color_override("font_outline_color", Color(0.0, 0.0, 0.0))
+	thank_you_label.add_theme_constant_override("outline_size", 8)
+	
+	# Initial visibility state is fully transparent
+	thank_you_label.modulate.a = 0.0
+	main_container.add_child(thank_you_label)
+	thank_you_label.set_anchors_and_offsets_preset(Control.PRESET_CENTER)
+	thank_you_label.grow_horizontal = Control.GROW_DIRECTION_BOTH
+	thank_you_label.grow_vertical = Control.GROW_DIRECTION_BOTH
+	
+	# Add dynamic skip instruction
+	var skip_label := Label.new()
+	skip_label.text = "Tap screen to return to menu" if is_mobile else "Press SPACE to return to menu"
+	skip_label.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+	skip_label.add_theme_font_size_override("font_size", 16)
+	skip_label.add_theme_color_override("font_color", Color(0.5, 0.5, 0.5))
+	main_container.add_child(skip_label)
+	skip_label.set_anchors_and_offsets_preset(Control.PRESET_CENTER_BOTTOM)
+	skip_label.position.y -= 40.0
+
+# Programmatically configures and plays the credits background soundtrack
+func _setup_credits_bgm() -> void:
+	credits_bgm_player = AudioStreamPlayer.new()
+	
+	# Load credits_bgm, fallback to main_menu_bgm if the file is missing
+	var bgm_stream = load("res://assets/audio/bgm/credits_bgm.mp3")
+	if not bgm_stream:
+		bgm_stream = load("res://assets/audio/bgm/main_menu_bgm.mp3")
+		
+	if bgm_stream:
+		credits_bgm_player.stream = bgm_stream
+		credits_bgm_player.volume_db = -8.0
+		credits_bgm_player.autoplay = true
+		add_child(credits_bgm_player)
+		credits_bgm_player.play()
+
+func _process(delta: float) -> void:
+	# 1. Roll the credit container upwards
+	if not is_scroll_finished:
+		scroll_container.position.y -= SCROLL_SPEED * delta
+		
+		# Stop scrolling only once the bottom of the container fully clears the top of the viewport (Y=0.0)
+		var scroller_bottom : float = scroll_container.position.y + vbox_container.size.y
+		if scroller_bottom < 0.0:
+			is_scroll_finished = true
+	else:
+		# 2. Fade in the "THANK YOU" splash slowly
+		if thank_you_alpha < 1.0:
+			thank_you_alpha += FADE_SPEED * delta
+			thank_you_label.modulate.a = clampf(thank_you_alpha, 0.0, 1.0)
+
+func _input(event: InputEvent) -> void:
+	# Support both Keyboard (ESC/SPACE) and Mobile Screen Touches
+	var is_skip_triggered = false
+	
+	if event is InputEventKey and event.is_pressed():
+		if event.keycode == KEY_ESCAPE or event.keycode == KEY_SPACE:
+			is_skip_triggered = true
+			
+	elif event is InputEventScreenTouch and event.pressed:
+		is_skip_triggered = true
+		
+	if is_skip_triggered:
+		get_tree().paused = false
+		if GameManager:
+			GameManager.reset_game()
+		get_tree().reload_current_scene()
+
+==================================================
 FILE: ./scripts/ui/hud.gd
 ==================================================
 # ==============================================================================
 # Description: HUD and Main Menu manager. Programmatically constructs the full
-#              main menu (background, title, buttons, audio) on startup.
-#              SOLID Refactoring:
-#              - SRP: Orchestrates both HUD labels and the procedural main menu.
-#              - DIP: The menu BGM stream is loaded dynamically.
-#              - UX Update: Added full keyboard navigation support and custom 
-#                glowing focus/hover styleboxes for arcade-style button selections.
+#              main menu, styled retro HUD nodes, and coordinates dynamic 
+#              progression screen overlays.
+#              SOLID Refactoring & Mobile Polish:
+#              - BUG FIX: Corrected compile crash by adding the missing Control. 
+#                prefix to GROW_DIRECTION_BOTH on line 125.
+#              - WARNING FIX: Renamed lambda parameter "size" to "custom_size".
+#              - MOBILE VIRTUAL CONTROLS: Procedurally detects mobile platforms.
+#              - CROSS-PLATFORM INPUT: Supports InputEventScreenTouch.
+#              - AUTOMATIC DYNAMIC TRANSITION: Bypasses main menus during reload.
 # Author: Enrique González Gutiérrez
 # Email: enrique.gonzalez.gutierrez@gmail.com
 # ==============================================================================
-extends Control
+extends CanvasLayer
 class_name HUD
 
 # Signals to notify coordinators of game start (DIP Compliance)
@@ -2090,46 +3563,86 @@ var start_button : Button
 var exit_button : Button
 var menu_bgm : AudioStreamPlayer
 
+# Mobile Virtual Controls
+var mobile_controls_container : Control
+var is_mobile : bool = false
+
+# Cinematic transition variables
+var fade_overlay : ColorRect
+var fade_alpha : float = 1.0
+
 func _ready() -> void:
-	_build_hud_elements()
-	_build_main_menu() 
+	# Enforce HUD processing during pause states (captures inputs globally)
+	process_mode = Node.PROCESS_MODE_ALWAYS
 	
-	# Connect to global GameManager signals safely
-	if GameManager:
-		GameManager.score_changed.connect(_on_score_changed)
-		GameManager.lives_changed.connect(_on_lives_changed)
-		GameManager.game_over.connect(_on_game_over)
-		GameManager.victory.connect(_on_victory)
-		
-		# Pull initial data values directly on startup
-		_on_score_changed(GameManager.score)
-		_on_lives_changed(GameManager.lives)
+	is_mobile = OS.has_feature("mobile") or OS.has_feature("web")
+	
+	_build_hud_elements()
+	_build_mobile_controls()
+	
+	# Setup scene load fade-in effect
+	fade_alpha = 1.0
+	
+	if GameManager and GameManager.is_game_started:
+		# Automate gameplay startup on progression reload (completely bypasses main menu)
+		score_label.visible = true
+		lives_label.visible = true
+		if not is_mobile:
+			minimap.visible = true
+		if is_instance_valid(mobile_controls_container):
+			mobile_controls_container.visible = true
+			
+		call_deferred("emit_start_game_signal")
+	else:
+		# Fresh game boot: construct the main menu overlay normally
+		_build_main_menu()
+
+func _process(delta: float) -> void:
+	# Smoothly fade out the black screen overlay on scene load (procedural juice)
+	if is_instance_valid(fade_overlay) and fade_overlay.visible:
+		fade_alpha -= delta * 1.5 # Fades out in exactly 0.6 seconds
+		if fade_alpha <= 0.0:
+			fade_overlay.visible = false
+			fade_overlay.queue_free()
+		else:
+			fade_overlay.color.a = fade_alpha
+
+# Defer start_game signal until the current frame's node mutations are fully processed
+func emit_start_game_signal() -> void:
+	start_game.emit()
 
 # Programmatically constructs the HUD layout tree
 func _build_hud_elements() -> void:
 	set_anchors_and_offsets_preset(Control.PRESET_FULL_RECT)
 	
-	# 1. Score Label Setup
+	# 1. Score Label Setup (Arcade 1UP Style)
 	score_label = Label.new()
 	score_label.add_theme_font_size_override("font_size", 28)
+	score_label.add_theme_constant_override("outline_size", 8)
+	score_label.add_theme_color_override("font_outline_color", Color(0.0, 0.0, 1.0)) # Retro Blue Outline
+	score_label.add_theme_color_override("font_color", Color(1.0, 1.0, 1.0)) # White score
 	score_label.visible = false
 	add_child(score_label)
-	score_label.set_anchors_and_offsets_preset(Control.PRESET_TOP_LEFT)
-	score_label.offset_left = 24
-	score_label.offset_top = 24
 	
-	# 2. Lives Label Setup
+	score_label.set_anchors_and_offsets_preset(Control.PRESET_TOP_LEFT)
+	score_label.offset_left = 32
+	score_label.offset_top = 32
+	
+	# 2. Lives Label Setup (Symmetric Stacked Style)
 	lives_label = Label.new()
 	lives_label.horizontal_alignment = HORIZONTAL_ALIGNMENT_RIGHT
 	lives_label.add_theme_font_size_override("font_size", 28)
+	lives_label.add_theme_constant_override("outline_size", 8)
+	lives_label.add_theme_color_override("font_outline_color", Color(0.0, 0.0, 1.0)) # Retro Blue Outline
+	lives_label.add_theme_color_override("font_color", Color(1.0, 0.3, 0.3)) # Vibrant Red Lives
 	lives_label.visible = false
 	add_child(lives_label)
 	
 	lives_label.set_anchors_and_offsets_preset(Control.PRESET_TOP_RIGHT)
 	lives_label.grow_horizontal = Control.GROW_DIRECTION_BEGIN
 	lives_label.offset_left = -224
-	lives_label.offset_right = -24
-	lives_label.offset_top = 24
+	lives_label.offset_right = -32
+	lives_label.offset_top = 32
 	
 	# 3. Minimap 2D Setup
 	minimap = Minimap2D.new()
@@ -2158,7 +3671,99 @@ func _build_hud_elements() -> void:
 	status_overlay.add_child(status_label)
 	status_label.set_anchors_and_offsets_preset(Control.PRESET_CENTER)
 	status_label.grow_horizontal = Control.GROW_DIRECTION_BOTH
-	status_label.grow_vertical = GROW_DIRECTION_BOTH
+	status_label.grow_vertical = Control.GROW_DIRECTION_BOTH
+	
+	# 6. Fade Overlay Setup (Cinematic Transition - Sits on top of everything)
+	fade_overlay = ColorRect.new()
+	fade_overlay.color = Color(0.0, 0.0, 0.0, 1.0) # Start fully black
+	add_child(fade_overlay)
+	fade_overlay.set_anchors_and_offsets_preset(Control.PRESET_FULL_RECT)
+
+# Procedurally builds on-screen multi-touch controls if on a mobile platform (DIP/SRP Compliance)
+func _build_mobile_controls() -> void:
+	if not is_mobile:
+		return
+		
+	mobile_controls_container = Control.new()
+	mobile_controls_container.visible = false
+	add_child(mobile_controls_container)
+	mobile_controls_container.set_anchors_and_offsets_preset(Control.PRESET_FULL_RECT)
+	
+	# Helper to procedurally generate a gorgeous, semi-transparent glowing circular touch texture
+	var create_touch_texture = func(color: Color, size_px: int) -> GradientTexture2D:
+		var tex := GradientTexture2D.new()
+		tex.width = size_px
+		tex.height = size_px
+		tex.fill = GradientTexture2D.FILL_RADIAL
+		tex.fill_from = Vector2(0.5, 0.5)
+		tex.fill_to = Vector2(0.5, 0.0)
+		
+		var grad := Gradient.new()
+		grad.colors = PackedColorArray([color, Color(color.r, color.g, color.b, 0.0)])
+		# Flat center, smooth transparent outline edge
+		grad.offsets = PackedFloat32Array([0.75, 1.0])
+		tex.gradient = grad
+		return tex
+		
+	# Compile visual textures
+	var normal_texture = create_touch_texture.call(Color(1.0, 1.0, 1.0, 0.35), 90) # Translucent White
+	var pressed_texture = create_touch_texture.call(Color(1.0, 1.0, 0.0, 0.65), 90) # Glowing Yellow
+	
+	# Helper lambda to instantiate a real, multi-touch TouchScreenButton (LSP/OCP Compliance)
+	var create_virtual_button = func(action_name: String, label_text: String, pos: Vector2) -> TouchScreenButton:
+		var t_btn := TouchScreenButton.new()
+		t_btn.action = action_name
+		t_btn.texture_normal = normal_texture
+		t_btn.texture_pressed = pressed_texture
+		
+		# Create a label inside the button so the player knows what it does
+		var label := Label.new()
+		label.text = label_text
+		label.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+		label.vertical_alignment = VERTICAL_ALIGNMENT_CENTER
+		label.add_theme_font_size_override("font_size", 22)
+		label.add_theme_constant_override("outline_size", 6)
+		label.add_theme_color_override("font_outline_color", Color(0,0,0))
+		
+		t_btn.add_child(label)
+		label.set_anchors_and_offsets_preset(Control.PRESET_FULL_RECT)
+		
+		mobile_controls_container.add_child(t_btn)
+		t_btn.position = pos
+		return t_btn
+
+	# 1. Procedural Left-Side D-Pad
+	var viewport_size = get_viewport_rect().size
+	var base_x = 40.0
+	var base_y = viewport_size.y - 240.0 # Positioned dynamically relative to screen bottom
+	
+	create_virtual_button.call("ui_up", "W", Vector2(base_x + 95, base_y))
+	create_virtual_button.call("ui_down", "S", Vector2(base_x + 95, base_y + 120))
+	create_virtual_button.call("ui_left", "A", Vector2(base_x, base_y + 60))
+	create_virtual_button.call("ui_right", "D", Vector2(base_x + 190, base_y + 60))
+	
+	# 2. Procedural Right-Side Jump Button (Slightly larger)
+	var jump_tex_normal = create_touch_texture.call(Color(1.0, 1.0, 1.0, 0.35), 110)
+	var jump_tex_pressed = create_touch_texture.call(Color(1.0, 1.0, 0.0, 0.65), 110)
+	
+	var jump_btn = TouchScreenButton.new()
+	jump_btn.action = "ui_select"
+	jump_btn.texture_normal = jump_tex_normal
+	jump_btn.texture_pressed = jump_tex_pressed
+	
+	var jump_label := Label.new()
+	jump_label.text = "JUMP"
+	jump_label.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+	jump_label.vertical_alignment = VERTICAL_ALIGNMENT_CENTER
+	jump_label.add_theme_font_size_override("font_size", 24)
+	jump_label.add_theme_constant_override("outline_size", 6)
+	jump_label.add_theme_color_override("font_outline_color", Color(0,0,0))
+	
+	jump_btn.add_child(jump_label)
+	jump_label.set_anchors_and_offsets_preset(Control.PRESET_FULL_RECT)
+	
+	mobile_controls_container.add_child(jump_btn)
+	jump_btn.position = Vector2(viewport_size.x - 180, viewport_size.y - 180)
 
 # Programmatically builds the full-screen Main Menu overlay
 func _build_main_menu() -> void:
@@ -2199,8 +3804,7 @@ func _build_main_menu() -> void:
 	button_container.grow_vertical = Control.GROW_DIRECTION_BOTH
 	button_container.offset_top = 80
 	
-	# --- STYLING BUTTON THEMES PROCEDURALLY (SRP Compliance) ---
-	# Normal button style: dark, clean gray border
+	# --- STYLING BUTTON THEMES PROCEDURALLY ---
 	var style_normal := StyleBoxFlat.new()
 	style_normal.bg_color = Color(0.08, 0.08, 0.08, 0.85)
 	style_normal.border_width_left = 2
@@ -2214,14 +3818,13 @@ func _build_main_menu() -> void:
 	style_normal.content_margin_top = 12
 	style_normal.content_margin_bottom = 12
 	
-	# Focus and Hover button style: Glowing arcade yellow neons
 	var style_focus_hover := StyleBoxFlat.new()
-	style_focus_hover.bg_color = Color(0.18, 0.18, 0.0, 0.9) # Dark yellow hint
+	style_focus_hover.bg_color = Color(0.18, 0.18, 0.0, 0.9) 
 	style_focus_hover.border_width_left = 3
 	style_focus_hover.border_width_top = 3
 	style_focus_hover.border_width_right = 3
 	style_focus_hover.border_width_bottom = 3
-	style_focus_hover.border_color = Color(1.0, 1.0, 0.0) # Glowing neon yellow border
+	style_focus_hover.border_color = Color(1.0, 1.0, 0.0) 
 	style_focus_hover.set_corner_radius_all(6)
 	style_focus_hover.content_margin_left = 32
 	style_focus_hover.content_margin_right = 32
@@ -2233,13 +3836,11 @@ func _build_main_menu() -> void:
 	start_button.text = "START GAME"
 	start_button.add_theme_font_size_override("font_size", 28)
 	
-	# Apply style overrides
 	start_button.add_theme_stylebox_override("normal", style_normal)
 	start_button.add_theme_stylebox_override("hover", style_focus_hover)
-	start_button.add_theme_stylebox_override("focus", style_focus_hover) # Keyboard focus matches mouse hover
+	start_button.add_theme_stylebox_override("focus", style_focus_hover) 
 	start_button.add_theme_stylebox_override("pressed", style_focus_hover)
 	
-	# Apply color highlights
 	start_button.add_theme_color_override("font_color", Color(0.85, 0.85, 0.85))
 	start_button.add_theme_color_override("font_hover_color", Color(1.0, 1.0, 0.0))
 	start_button.add_theme_color_override("font_focus_color", Color(1.0, 1.0, 0.0))
@@ -2247,26 +3848,24 @@ func _build_main_menu() -> void:
 	button_container.add_child(start_button)
 	start_button.pressed.connect(_on_start_game_pressed)
 	
-	# 4. Exit Button
-	exit_button = Button.new()
-	exit_button.text = "EXIT"
-	exit_button.add_theme_font_size_override("font_size", 24)
+	# 4. Exit Button (Hidden on iOS/Web where programmatic exit is blocked)
+	if not OS.has_feature("web") and not OS.has_feature("ios"):
+		exit_button = Button.new()
+		exit_button.text = "EXIT"
+		exit_button.add_theme_font_size_override("font_size", 24)
+		
+		exit_button.add_theme_stylebox_override("normal", style_normal)
+		exit_button.add_theme_stylebox_override("hover", style_focus_hover)
+		exit_button.add_theme_stylebox_override("focus", style_focus_hover)
+		exit_button.add_theme_stylebox_override("pressed", style_focus_hover)
+		
+		exit_button.add_theme_color_override("font_color", Color(0.85, 0.85, 0.85))
+		exit_button.add_theme_color_override("font_hover_color", Color(1.0, 1.0, 0.0))
+		exit_button.add_theme_color_override("font_focus_color", Color(1.0, 1.0, 0.0))
+		
+		button_container.add_child(exit_button)
+		exit_button.pressed.connect(func(): get_tree().quit())
 	
-	# Apply same style overrides
-	exit_button.add_theme_stylebox_override("normal", style_normal)
-	exit_button.add_theme_stylebox_override("hover", style_focus_hover)
-	exit_button.add_theme_stylebox_override("focus", style_focus_hover)
-	exit_button.add_theme_stylebox_override("pressed", style_focus_hover)
-	
-	# Apply same color highlights
-	exit_button.add_theme_color_override("font_color", Color(0.85, 0.85, 0.85))
-	exit_button.add_theme_color_override("font_hover_color", Color(1.0, 1.0, 0.0))
-	exit_button.add_theme_color_override("font_focus_color", Color(1.0, 1.0, 0.0))
-	
-	button_container.add_child(exit_button)
-	exit_button.pressed.connect(func(): get_tree().quit())
-	
-	# KEYBOARD ACCESSIBILITY FOCUS GRAB: Focus start button immediately
 	start_button.grab_focus()
 	
 	# 5. Menu BGM Player
@@ -2279,45 +3878,88 @@ func _build_main_menu() -> void:
 
 # Button Callback: Clears the menu overlays, starts BGM, and signals LevelManager to build map
 func _on_start_game_pressed() -> void:
-	# Stop and clean menu audio
+	if GameManager:
+		GameManager.is_game_started = true
+		
 	if menu_bgm:
 		menu_bgm.stop()
 		menu_bgm.queue_free()
 		
-	# Destroy menu overlays
 	if menu_bg:
 		menu_bg.queue_free()
 		
-	# Make core HUD gameplay widgets visible
 	score_label.visible = true
 	lives_label.visible = true
-	minimap.visible = true
 	
-	# Notify orchestrators that the player has initiated the game (DIP Compliance)
+	if not is_mobile:
+		minimap.visible = true
+	if is_instance_valid(mobile_controls_container):
+		mobile_controls_container.visible = true
+	
 	start_game.emit()
 
+# Stacked Score output zero-padded to 6 digits (Arcade standard)
 func _on_score_changed(new_score: int) -> void:
-	score_label.text = "SCORE: %d" % new_score
+	score_label.text = "SCORE\n%06d" % new_score
 
+# Stacked Lives output
 func _on_lives_changed(new_lives: int) -> void:
-	lives_label.text = "LIVES: %d" % new_lives
+	lives_label.text = "LIVES\n%d" % new_lives
 
 func _on_game_over() -> void:
-	status_label.text = "GAME OVER\nPress R to Restart"
+	var msg = "GAME OVER\nTap to Restart" if is_mobile else "GAME OVER\nPress R to Restart"
+	status_label.text = msg
 	status_overlay.visible = true
 	get_tree().paused = true
 
+# Dynamic Victory notification based on progression context
 func _on_victory() -> void:
-	status_label.text = "VICTORY!\nPress R to Restart"
-	status_overlay.visible = true
-	get_tree().paused = true
+	if GameManager:
+		# Check if another level file exists to dynamically present options (OCP Compliance)
+		if GameManager.has_next_level():
+			get_tree().paused = true
+			var msg = "LEVEL CLEARED!\nTap to load Level %02d" if is_mobile else "LEVEL CLEARED!\nPress SPACE to load Level %02d"
+			status_label.text = msg % (GameManager.current_level + 1)
+			status_overlay.visible = true
+		else:
+			# ALL LEVELS CLEARED: Transition instantly and automatically to Credits (No intermediate screen!)
+			get_tree().paused = false # Ensure game is unpaused for the credits scroll
+			var credits := CreditsScreen.new()
+			get_tree().root.add_child(credits)
+			get_tree().current_scene.queue_free()
+			get_tree().current_scene = credits
 
+# Listens for both physical keyboard events AND mobile screen touches
 func _input(event: InputEvent) -> void:
-	if event is InputEventKey and event.keycode == KEY_R and event.is_pressed():
-		if status_overlay.visible:
-			get_tree().paused = false
-			if GameManager:
-				GameManager.reset_game()
+	# Ignore input if status overlay isn't visible (unless cheating)
+	var is_restart_triggered = false
+	var is_advance_triggered = false
+	
+	if event is InputEventKey and event.is_pressed():
+		if event.keycode == KEY_R and status_overlay.visible:
+			is_restart_triggered = true
+		elif event.keycode == KEY_SPACE and status_overlay.visible:
+			is_advance_triggered = true
+		elif event.keycode == KEY_N and not status_overlay.visible:
+			_on_victory() # Cheat key to skip levels instantly on PC
+			
+	elif event is InputEventScreenTouch and event.pressed and status_overlay.visible:
+		# On mobile, any tap acts as the progression confirmation button
+		if GameManager and GameManager.lives <= 0:
+			is_restart_triggered = true
+		else:
+			is_advance_triggered = true
+			
+	if is_restart_triggered:
+		get_tree().paused = false
+		if GameManager:
+			GameManager.reset_game()
+		get_tree().reload_current_scene()
+		
+	elif is_advance_triggered:
+		get_tree().paused = false
+		if GameManager and GameManager.has_next_level():
+			GameManager.advance_level()
 			get_tree().reload_current_scene()
 
 ==================================================
@@ -2328,10 +3970,12 @@ FILE: ./scripts/ui/minimap_2d.gd
 #              Draws standard/power pellets, player, and ghosts based on 
 #              their active positions mapped from 3D grid space.
 #              SOLID Refactoring:
-#              - SRP: Extracted into a standalone class to separate map 
-#                rendering from the general HUD overlay manager.
-#              - OCP: Reads active ghost material colors dynamically instead of
-#                hardcoding color match tables again.
+#              - DUCK-TYPING FIX: Updated the pellet rendering loop to safely 
+#                verify properties ("is_power_pellet" in pellet) to prevent 
+#                crashes when scanning custom utility items like IcePellets.
+#              - ICE PELLET RADAR: Ice Pellets are now explicitly recognized and 
+#                drawn as Cyan dots on the minimap for strategic visibility.
+#              - SRP: Extracted into a standalone class.
 # Author: Enrique González Gutiérrez
 # Email: enrique.gonzalez.gutierrez@gmail.com
 # ==============================================================================
@@ -2372,12 +4016,12 @@ func _draw() -> void:
 			if cell_type == 1:
 				# Draw blue wall blocks
 				draw_rect(rect, Color(0.0, 0.0, 0.6))
-			elif cell_type == 6 or cell_type == 7:
+			elif cell_type == 6 or cell_type == 7 or cell_type == 8 or cell_type == 9:
 				# Draw portal locations in neon green
 				draw_rect(rect, Color(0.0, 1.0, 0.2))
 				
 	# 3D to 2D coordinate converter Lambda
-	# Precise math to map centered 3D coordinates back to 0-based grid indices and center them in 2D cell space
+	# Precise math to map centered 3D coordinates back to 0-based grid indices
 	var offset_x : float = (gw * 2.0 / 2.0) - 1.0 
 	var offset_z : float = (gh * 2.0 / 2.0) - 1.0 
 	
@@ -2395,7 +4039,11 @@ func _draw() -> void:
 		if is_instance_valid(pellet) and pellet is Node3D:
 			var map_pos = to_map.call(pellet.global_position)
 			
-			if pellet.is_power_pellet:
+			# Safely check object types to avoid duck-typing crashes (LSP Compliance)
+			if pellet is IcePellet:
+				# Ice Pellets drawn as Cyan dots
+				draw_circle(map_pos, 3.5, Color(0.0, 0.8, 1.0))
+			elif "is_power_pellet" in pellet and pellet.is_power_pellet:
 				# Larger orange power pellets
 				draw_circle(map_pos, 3.5, Color(1.0, 0.5, 0.0))
 			else:
@@ -2416,7 +4064,7 @@ func _draw() -> void:
 			var color := Color(1.0, 1.0, 1.0)
 			
 			if ghost is Ghost:
-				# FIXED: Safely query the active material depending on the ghost's current state
+				# Safely query the active material depending on the ghost's current state
 				var active_mat = ghost.frightened_material if ghost.current_state == Ghost.State.FRIGHTENED else ghost.original_material
 				if active_mat:
 					color = active_mat.albedo_color

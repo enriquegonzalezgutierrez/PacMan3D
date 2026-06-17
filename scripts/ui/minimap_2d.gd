@@ -3,11 +3,10 @@
 #              Draws standard/power pellets, player, and ghosts based on 
 #              their active positions mapped from 3D grid space.
 #              SOLID Refactoring:
-#              - DUCK-TYPING FIX: Updated the pellet rendering loop to safely 
-#                verify properties ("is_power_pellet" in pellet) to prevent 
-#                crashes when scanning custom utility items like IcePellets.
-#              - ICE PELLET RADAR: Ice Pellets are now explicitly recognized and 
-#                drawn as Cyan dots on the minimap for strategic visibility.
+#              - LSP/OCP COMPLIANCE: Eradicated duck-typing and explicit class 
+#                checks ("is IcePellet") in the rendering loop. The minimap now 
+#                calls polymorphic methods on the items to determine how to draw 
+#                them, making the system closed to modification but open to extension.
 #              - SRP: Extracted into a standalone class.
 # Author: Enrique González Gutiérrez
 # Email: enrique.gonzalez.gutierrez@gmail.com
@@ -66,22 +65,14 @@ func _draw() -> void:
 		var map_y = (grid_z + 0.5) * cell_h
 		return Vector2(map_x, map_y)
 		
-	# 2. Draw Pellets dynamically by querying their active nodes
+	# 2. Draw Pellets dynamically using Polymorphism (LSP/OCP Compliance)
 	var pellets = get_tree().get_nodes_in_group("pellets")
 	for pellet in pellets:
 		if is_instance_valid(pellet) and pellet is Node3D:
-			var map_pos = to_map.call(pellet.global_position)
-			
-			# Safely check object types to avoid duck-typing crashes (LSP Compliance)
-			if pellet is IcePellet:
-				# Ice Pellets drawn as Cyan dots
-				draw_circle(map_pos, 3.5, Color(0.0, 0.8, 1.0))
-			elif "is_power_pellet" in pellet and pellet.is_power_pellet:
-				# Larger orange power pellets
-				draw_circle(map_pos, 3.5, Color(1.0, 0.5, 0.0))
-			else:
-				# Small yellow standard pellets
-				draw_circle(map_pos, 1.5, Color(1.0, 1.0, 0.0))
+			# Safely query polymorphic drawing properties exposed by the entities
+			if pellet.has_method("get_minimap_color") and pellet.has_method("get_minimap_radius"):
+				var map_pos = to_map.call(pellet.global_position)
+				draw_circle(map_pos, pellet.get_minimap_radius(), pellet.get_minimap_color())
 				
 	# 3. Draw Player
 	var player = get_tree().get_first_node_in_group("player") as Node3D

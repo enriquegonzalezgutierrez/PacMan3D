@@ -3,20 +3,21 @@
 #              constructs and crawls vertical rolling labels over a darkened 
 #              background, ending in a neon "Thank You" splash.
 #              SOLID Refactoring & Fixes:
-#              - BUG FIX: Corrected compilation crash by swapping PRESET_TOP_CENTER 
-#                with the correct Godot constant PRESET_CENTER_TOP on line 143.
-#              - POSITION FIX: Anchored scroller to TOP_LEFT and vbox to CENTER_TOP 
-#                to guarantee massive layouts start 100% hidden below the screen.
+#              - CANVASLAYER FIX: Correctly implemented a root Control container 
+#                (main_container) inside the CanvasLayer to handle all anchor 
+#                presets and viewport rect calculations without throwing base 
+#                object errors.
+#              - CROSS-PLATFORM INPUT: Added InputEventScreenTouch support.
 # Author: Enrique González Gutiérrez
 # Email: enrique.gonzalez.gutierrez@gmail.com
 # ==============================================================================
-extends Control
+extends CanvasLayer
 class_name CreditsScreen
 
 const SCROLL_SPEED : float = 45.0 # Pixels per second
 const FADE_SPEED : float = 1.2 # Thank you text fade speed
 
-# Credits Roll Configuration Data (Enrique's Professional Profile)
+# Credits Roll Configuration Data (Project Specific)
 var credits_data : Array[Dictionary] = [
 	{"text": "PAC-MAN 3D", "type": "title"},
 	{"text": "A modern 3D arcade reimagining", "type": "subtitle"},
@@ -24,38 +25,35 @@ var credits_data : Array[Dictionary] = [
 	
 	{"text": "LEAD DEVELOPER & SOFTWARE ARCHITECT", "type": "header"},
 	{"text": "Enrique González Gutiérrez", "type": "name"},
-	{"text": "Senior Software Engineer  |  PHP (Laravel & Symfony)\nSystem Architecture  |  Fullstack & DevOps  |  Remoto ES\nInca, Balearic Islands, Spain", "type": "subtitle"},
+	{"text": "enrique.gonzalez.gutierrez@gmail.com", "type": "subtitle"},
 	{"text": "", "type": "spacer_large"},
 	
-	{"text": "PROFESSIONAL PROFILE", "type": "header"},
-	{"text": "A veteran Senior Software Engineer with nearly 20 years of hands-on experience designing, scaling, and maintaining complex distributed systems. Possessing complete engineering autonomy to navigate the entire product lifecycle—from pixel-perfect Frontend applications (React/TypeScript) to robust, high-traffic Backend architectures and fully automated containerized deployments (Docker/CI-CD).", "type": "paragraph"},
+	{"text": "PROCEDURAL LEVEL DESIGN", "type": "header"},
+	{"text": "Python-based DFS/BFS Maze Generator\nDynamic Connectivity & Topological Validator\nProcedural Mesh Assembly (Pipes, Blocks, Pillars)", "type": "paragraph"},
 	{"text": "", "type": "spacer_large"},
 	
-	{"text": "ARCHITECTURAL PHILOSOPHY", "type": "header"},
-	{"text": "Engineering is about pragmatism and reliability. Architecture is not an abstract theory, but a primary tool to build highly maintainable, secure, and profitable software. Expert in implementing Domain-Driven Design (DDD), Hexagonal Architectures (Ports & Adapters), and Event-Sourcing models to decouple core business domains from infrastructure dependencies.", "type": "paragraph"},
+	{"text": "AI & GAMEPLAY MECHANICS", "type": "header"},
+	{"text": "Strategy Pattern Ghost Behaviors (Blinky, Pinky, Inky, Clyde)\nSolid State Machine AI (Chase, Scatter, Frightened)\nPhysics-based Kinematic Diorama Camera\nCustom 3D Movement Dynamics", "type": "paragraph"},
 	{"text": "", "type": "spacer_large"},
 	
-	{"text": "ENGINEERING HIGHLIGHTS", "type": "header"},
-	{"text": "● PERFORMANCE OPTIMIZATION\nSpecialized in critical database optimization. At Habitissimo, engineered a massive data-layer redesign on high-traffic MySQL systems, achieving a 40% reduction in query latencies.\n\n● DEVOPS & INFRASTRUCTURE\nExpertise in automating environments with Docker, GNU Make, and robust GitLab/GitHub CI-CD pipelines, guaranteeing absolute environment parity and high-availability deployments.", "type": "paragraph"},
+	{"text": "GRAPHICS & VISUAL POLISH", "type": "header"},
+	{"text": "Dynamic Neon Lighting & Post-Processing Bloom\nProcedural Primitive 3D Character Models\nProcedural Retro Animations (Skirt Ruffles, Blinking Eyes)", "type": "paragraph"},
 	{"text": "", "type": "spacer_large"},
 	
-	{"text": "procedural research & side projects", "type": "header"},
-	{"text": "● SHORTFORGE / Z-REALISM AI (Python)\nDesigned and orchestrated a local AI visual production studio, utilizing Hexagonal Architecture to decouple PyTorch inference models from FastAPI/Redis workers. Implemented sequential VRAM offloading to run heavy LLMs (Llama 3.1) and SDXL Lightning under strict hardware limitations (6GB VRAM).\n\n● BREWPOINT POS (PostgreSQL RPC)\nDeveloped an enterprise-grade transactional POS system for Web/iOS/Android. Encapsulated core financial business logic inside PostgreSQL RPC functions to guarantee atomic, consistent transactions.\n\n● NUMISTA (Laravel 12)\nAn e-commerce multi-tenant architecture utilizing Domain-Driven Design and a dynamic Entity-Attribute-Value (EAV) data model for collectibles management.\n\n● AETHELGARD (TypeScript & Redis)\nA persistent, concurrent MUD game engine. Uses Redis Mutex locks for atomic cross-entity concurrency and Ports & Adapters to decouple game states from Telnet and WebSockets protocols.", "type": "paragraph"},
-	{"text": "", "type": "spacer_large"},
-	
-	{"text": "PROFESSIONAL TIMELINE", "type": "header"},
-	{"text": "● Senior Backend Engineer  |  Transformación Digital  (2025 - 2026)\n● Senior Software Engineer  |  Habitissimo  (2019 - 2025)\n● Senior Fullstack Engineer  |  EISI SOFT  (2018 - 2019)\n● Senior Fullstack Developer  |  Kitmaker Entertainment  (2015 - 2018)\n● Senior PHP Developer & Tech Consultant  |  Independent  (2010 - 2015)", "type": "timeline"},
+	{"text": "AUDIO & SFX", "type": "header"},
+	{"text": "Dynamic BGM Tracks\nRetro Arcade Sound Effects (Waka-Waka, Siren)", "type": "paragraph"},
 	{"text": "", "type": "spacer_large"},
 	
 	{"text": "CORE TECHNOLOGIES", "type": "header"},
-	{"text": "PHP  •  Laravel  •  Symfony  •  Software Architecture  •  Docker  •  PostgreSQL  •  Python  •  Redis", "type": "subtitle"},
+	{"text": "Godot Engine 4\nGDScript\nJolt Physics 3D\nPython", "type": "paragraph"},
 	{"text": "", "type": "spacer_large"},
 	
 	{"text": "SPECIAL THANKS", "type": "header"},
-	{"text": "Godot Engine Community\nJolt Physics 3D\nRetro Arcade Pioneers\n\nAND YOU!\nThank you for playing!", "type": "name"}
+	{"text": "Godot Engine Community\nJolt Physics Team\nRetro Arcade Pioneers\n\nAND YOU!\nThank you for playing!", "type": "name"}
 ]
 
 # Internal UI components
+var main_container : Control
 var bg_rect : TextureRect
 var scroll_container : Control
 var vbox_container : VBoxContainer
@@ -65,10 +63,16 @@ var credits_bgm_player : AudioStreamPlayer
 # State tracking
 var is_scroll_finished : bool = false
 var thank_you_alpha : float = 0.0
+var is_mobile : bool = false
 
 func _ready() -> void:
-	# Enforce full screen preset
-	set_anchors_and_offsets_preset(Control.PRESET_FULL_RECT)
+	# Detect mobile/web platform for dynamic text
+	is_mobile = OS.has_feature("mobile") or OS.has_feature("web")
+	
+	# Create the root Control container to hold all UI elements inside this CanvasLayer
+	main_container = Control.new()
+	add_child(main_container)
+	main_container.set_anchors_and_offsets_preset(Control.PRESET_FULL_RECT)
 	
 	_build_background()
 	_build_credits_scroller()
@@ -80,7 +84,7 @@ func _build_background() -> void:
 	bg_rect = TextureRect.new()
 	bg_rect.expand_mode = TextureRect.EXPAND_IGNORE_SIZE
 	bg_rect.stretch_mode = TextureRect.STRETCH_KEEP_ASPECT_COVERED
-	add_child(bg_rect)
+	main_container.add_child(bg_rect)
 	bg_rect.set_anchors_and_offsets_preset(Control.PRESET_FULL_RECT)
 	
 	# Defensive Fallback: Try loading credits_bg, fallback to main_menu_bg if not found
@@ -98,18 +102,18 @@ func _build_background() -> void:
 # Procedurally constructs the vertical rolling label stack
 func _build_credits_scroller() -> void:
 	scroll_container = Control.new()
-	add_child(scroll_container)
+	main_container.add_child(scroll_container)
 	
 	# Anchor to top-left so position.y is directly equivalent to viewport pixels
 	scroll_container.set_anchors_and_offsets_preset(Control.PRESET_TOP_LEFT)
 	
 	# Center horizontally and place completely off-screen at the bottom of the viewport
-	var viewport_size = get_viewport_rect().size
+	var viewport_size = get_viewport().get_visible_rect().size
 	scroll_container.position.x = viewport_size.x / 2.0
 	scroll_container.position.y = viewport_size.y + 100.0 # Starts fully hidden below
 	
 	vbox_container = VBoxContainer.new()
-	vbox_container.add_theme_constant_override("separation", 16)
+	vbox_container.add_theme_constant_override("separation", 24)
 	vbox_container.alignment = BoxContainer.ALIGNMENT_CENTER
 	scroll_container.add_child(vbox_container)
 	
@@ -178,10 +182,20 @@ func _build_thank_you_splash() -> void:
 	
 	# Initial visibility state is fully transparent
 	thank_you_label.modulate.a = 0.0
-	add_child(thank_you_label)
+	main_container.add_child(thank_you_label)
 	thank_you_label.set_anchors_and_offsets_preset(Control.PRESET_CENTER)
 	thank_you_label.grow_horizontal = Control.GROW_DIRECTION_BOTH
-	thank_you_label.grow_vertical = GROW_DIRECTION_BOTH
+	thank_you_label.grow_vertical = Control.GROW_DIRECTION_BOTH
+	
+	# Add dynamic skip instruction
+	var skip_label := Label.new()
+	skip_label.text = "Tap screen to return to menu" if is_mobile else "Press SPACE to return to menu"
+	skip_label.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+	skip_label.add_theme_font_size_override("font_size", 16)
+	skip_label.add_theme_color_override("font_color", Color(0.5, 0.5, 0.5))
+	main_container.add_child(skip_label)
+	skip_label.set_anchors_and_offsets_preset(Control.PRESET_CENTER_BOTTOM)
+	skip_label.position.y -= 40.0
 
 # Programmatically configures and plays the credits background soundtrack
 func _setup_credits_bgm() -> void:
@@ -215,10 +229,18 @@ func _process(delta: float) -> void:
 			thank_you_label.modulate.a = clampf(thank_you_alpha, 0.0, 1.0)
 
 func _input(event: InputEvent) -> void:
-	# Press ESC or SPACE to skip/exit the credits and return to the main menu scene
+	# Support both Keyboard (ESC/SPACE) and Mobile Screen Touches
+	var is_skip_triggered = false
+	
 	if event is InputEventKey and event.is_pressed():
 		if event.keycode == KEY_ESCAPE or event.keycode == KEY_SPACE:
-			get_tree().paused = false
-			if GameManager:
-				GameManager.reset_game()
-			get_tree().reload_current_scene()
+			is_skip_triggered = true
+			
+	elif event is InputEventScreenTouch and event.pressed:
+		is_skip_triggered = true
+		
+	if is_skip_triggered:
+		get_tree().paused = false
+		if GameManager:
+			GameManager.reset_game()
+		get_tree().reload_current_scene()

@@ -5,7 +5,9 @@
 #              - DYNAMIC PROCEDURAL ROTATION & FLOAT: Added a process loop to 
 #                continuously spin the pellet on its Y axis and float it gently 
 #                up and down on a smooth, low-amplitude sine-wave.
-#              - DIP: Completely decoupled from the GameManager singleton. 
+#              - DIP: Completely decoupled from the GameManager singleton.
+#              - LSP/OCP COMPLIANCE: Exposes minimap drawing properties via 
+#                polymorphic methods to prevent duck-typing in Minimap2D.
 # Author: Enrique González Gutiérrez
 # Email: enrique.gonzalez.gutierrez@gmail.com
 # ==============================================================================
@@ -85,3 +87,13 @@ func _on_body_entered(body: Node3D) -> void:
 		
 		# Self-destroy
 		queue_free()
+
+# --- MINIMAP POLYMORPHISM (LSP/OCP COMPLIANCE) ---
+# These methods allow the Minimap to query drawing instructions without needing
+# to know the specific class type of the pellet.
+
+func get_minimap_color() -> Color:
+	return Color(1.0, 0.5, 0.0) if is_power_pellet else Color(1.0, 1.0, 0.0)
+
+func get_minimap_radius() -> float:
+	return 3.5 if is_power_pellet else 1.5

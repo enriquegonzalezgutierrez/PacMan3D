@@ -2,11 +2,14 @@
 # Description: HUD and Main Menu manager. Programmatically constructs the full
 #              main menu, styled retro HUD nodes, and coordinates dynamic 
 #              progression screen overlays.
-#              SOLID Refactoring:
-#              - AUTOMATIC DYNAMIC TRANSITION: Checks GameManager session states 
-#                on ready to completely bypass main menus during level reloads, 
-#                while executing a cinematic procedural fade-from-black.
-#              - ARCADE HUD STYLING: Redesigned the Score and Lives labels.
+#              SOLID Refactoring & Mobile Polish:
+#              - BUG FIX: Corrected compile crash by adding the missing Control. 
+#                prefix to GROW_DIRECTION_BOTH on line 125.
+#              - NODE TYPE FIX: Changed inheritance to 'Control' to perfectly 
+#                match the 'main.tscn' node type, resolving assignment crashes.
+#              - MOBILE VIRTUAL CONTROLS: Procedurally detects mobile platforms.
+#              - CROSS-PLATFORM INPUT: Supports InputEventScreenTouch.
+#              - AUTOMATIC DYNAMIC TRANSITION: Bypasses main menus during reload.
 # Author: Enrique González Gutiérrez
 # Email: enrique.gonzalez.gutierrez@gmail.com
 # ==============================================================================
@@ -30,15 +33,22 @@ var start_button : Button
 var exit_button : Button
 var menu_bgm : AudioStreamPlayer
 
-# Cinematic transition variables (SRP/Juice Compliance)
+# Mobile Virtual Controls
+var mobile_controls_container : Control
+var is_mobile : bool = false
+
+# Cinematic transition variables
 var fade_overlay : ColorRect
 var fade_alpha : float = 1.0
 
 func _ready() -> void:
-	# Enforce HUD processing during pause states (captures R and SPACE key inputs)
+	# Enforce HUD processing during pause states (captures inputs globally)
 	process_mode = Node.PROCESS_MODE_ALWAYS
 	
+	is_mobile = OS.has_feature("mobile") or OS.has_feature("web")
+	
 	_build_hud_elements()
+	_build_mobile_controls()
 	
 	# Setup scene load fade-in effect
 	fade_alpha = 1.0
@@ -47,7 +57,11 @@ func _ready() -> void:
 		# Automate gameplay startup on progression reload (completely bypasses main menu)
 		score_label.visible = true
 		lives_label.visible = true
-		minimap.visible = true
+		if not is_mobile:
+			minimap.visible = true
+		if is_instance_valid(mobile_controls_container):
+			mobile_controls_container.visible = true
+			
 		call_deferred("emit_start_game_signal")
 	else:
 		# Fresh game boot: construct the main menu overlay normally
@@ -69,6 +83,7 @@ func emit_start_game_signal() -> void:
 
 # Programmatically constructs the HUD layout tree
 func _build_hud_elements() -> void:
+	# Now that this script extends Control, this method works perfectly:
 	set_anchors_and_offsets_preset(Control.PRESET_FULL_RECT)
 	
 	# 1. Score Label Setup (Arcade 1UP Style)
@@ -127,13 +142,100 @@ func _build_hud_elements() -> void:
 	status_overlay.add_child(status_label)
 	status_label.set_anchors_and_offsets_preset(Control.PRESET_CENTER)
 	status_label.grow_horizontal = Control.GROW_DIRECTION_BOTH
-	status_label.grow_vertical = GROW_DIRECTION_BOTH
+	status_label.grow_vertical = Control.GROW_DIRECTION_BOTH
 	
 	# 6. Fade Overlay Setup (Cinematic Transition - Sits on top of everything)
 	fade_overlay = ColorRect.new()
 	fade_overlay.color = Color(0.0, 0.0, 0.0, 1.0) # Start fully black
 	add_child(fade_overlay)
 	fade_overlay.set_anchors_and_offsets_preset(Control.PRESET_FULL_RECT)
+
+# Procedurally builds on-screen multi-touch controls if on a mobile platform (DIP/SRP Compliance)
+func _build_mobile_controls() -> void:
+	if not is_mobile:
+		return
+		
+	mobile_controls_container = Control.new()
+	mobile_controls_container.visible = false
+	add_child(mobile_controls_container)
+	mobile_controls_container.set_anchors_and_offsets_preset(Control.PRESET_FULL_RECT)
+	
+	# Helper to procedurally generate a gorgeous, semi-transparent glowing circular touch texture
+	var create_touch_texture = func(color: Color, size_px: int) -> GradientTexture2D:
+		var tex := GradientTexture2D.new()
+		tex.width = size_px
+		tex.height = size_px
+		tex.fill = GradientTexture2D.FILL_RADIAL
+		tex.fill_from = Vector2(0.5, 0.5)
+		tex.fill_to = Vector2(0.5, 0.0)
+		
+		var grad := Gradient.new()
+		grad.colors = PackedColorArray([color, Color(color.r, color.g, color.b, 0.0)])
+		# Flat center, smooth transparent outline edge
+		grad.offsets = PackedFloat32Array([0.75, 1.0])
+		tex.gradient = grad
+		return tex
+		
+	# Compile visual textures
+	var normal_texture = create_touch_texture.call(Color(1.0, 1.0, 1.0, 0.35), 90) # Translucent White
+	var pressed_texture = create_touch_texture.call(Color(1.0, 1.0, 0.0, 0.65), 90) # Glowing Yellow
+	
+	# Helper lambda to instantiate a real, multi-touch TouchScreenButton (LSP/OCP Compliance)
+	var create_virtual_button = func(action_name: String, label_text: String, pos: Vector2) -> TouchScreenButton:
+		var t_btn := TouchScreenButton.new()
+		t_btn.action = action_name
+		t_btn.texture_normal = normal_texture
+		t_btn.texture_pressed = pressed_texture
+		
+		# Create a label inside the button so the player knows what it does
+		var label := Label.new()
+		label.text = label_text
+		label.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+		label.vertical_alignment = VERTICAL_ALIGNMENT_CENTER
+		label.add_theme_font_size_override("font_size", 22)
+		label.add_theme_constant_override("outline_size", 6)
+		label.add_theme_color_override("font_outline_color", Color(0,0,0))
+		
+		t_btn.add_child(label)
+		label.set_anchors_and_offsets_preset(Control.PRESET_FULL_RECT)
+		
+		mobile_controls_container.add_child(t_btn)
+		t_btn.position = pos
+		return t_btn
+
+	# 1. Procedural Left-Side D-Pad
+	# As a Control node, we can use get_viewport_rect() natively
+	var viewport_size = get_viewport_rect().size
+	var base_x = 40.0
+	var base_y = viewport_size.y - 240.0 # Positioned dynamically relative to screen bottom
+	
+	create_virtual_button.call("ui_up", "W", Vector2(base_x + 95, base_y))
+	create_virtual_button.call("ui_down", "S", Vector2(base_x + 95, base_y + 120))
+	create_virtual_button.call("ui_left", "A", Vector2(base_x, base_y + 60))
+	create_virtual_button.call("ui_right", "D", Vector2(base_x + 190, base_y + 60))
+	
+	# 2. Procedural Right-Side Jump Button (Slightly larger)
+	var jump_tex_normal = create_touch_texture.call(Color(1.0, 1.0, 1.0, 0.35), 110)
+	var jump_tex_pressed = create_touch_texture.call(Color(1.0, 1.0, 0.0, 0.65), 110)
+	
+	var jump_btn = TouchScreenButton.new()
+	jump_btn.action = "ui_select"
+	jump_btn.texture_normal = jump_tex_normal
+	jump_btn.texture_pressed = jump_tex_pressed
+	
+	var jump_label := Label.new()
+	jump_label.text = "JUMP"
+	jump_label.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+	jump_label.vertical_alignment = VERTICAL_ALIGNMENT_CENTER
+	jump_label.add_theme_font_size_override("font_size", 24)
+	jump_label.add_theme_constant_override("outline_size", 6)
+	jump_label.add_theme_color_override("font_outline_color", Color(0,0,0))
+	
+	jump_btn.add_child(jump_label)
+	jump_label.set_anchors_and_offsets_preset(Control.PRESET_FULL_RECT)
+	
+	mobile_controls_container.add_child(jump_btn)
+	jump_btn.position = Vector2(viewport_size.x - 180, viewport_size.y - 180)
 
 # Programmatically builds the full-screen Main Menu overlay
 func _build_main_menu() -> void:
@@ -218,22 +320,23 @@ func _build_main_menu() -> void:
 	button_container.add_child(start_button)
 	start_button.pressed.connect(_on_start_game_pressed)
 	
-	# 4. Exit Button
-	exit_button = Button.new()
-	exit_button.text = "EXIT"
-	exit_button.add_theme_font_size_override("font_size", 24)
-	
-	exit_button.add_theme_stylebox_override("normal", style_normal)
-	exit_button.add_theme_stylebox_override("hover", style_focus_hover)
-	exit_button.add_theme_stylebox_override("focus", style_focus_hover)
-	exit_button.add_theme_stylebox_override("pressed", style_focus_hover)
-	
-	exit_button.add_theme_color_override("font_color", Color(0.85, 0.85, 0.85))
-	exit_button.add_theme_color_override("font_hover_color", Color(1.0, 1.0, 0.0))
-	exit_button.add_theme_color_override("font_focus_color", Color(1.0, 1.0, 0.0))
-	
-	button_container.add_child(exit_button)
-	exit_button.pressed.connect(func(): get_tree().quit())
+	# 4. Exit Button (Hidden on iOS/Web where programmatic exit is blocked)
+	if not OS.has_feature("web") and not OS.has_feature("ios"):
+		exit_button = Button.new()
+		exit_button.text = "EXIT"
+		exit_button.add_theme_font_size_override("font_size", 24)
+		
+		exit_button.add_theme_stylebox_override("normal", style_normal)
+		exit_button.add_theme_stylebox_override("hover", style_focus_hover)
+		exit_button.add_theme_stylebox_override("focus", style_focus_hover)
+		exit_button.add_theme_stylebox_override("pressed", style_focus_hover)
+		
+		exit_button.add_theme_color_override("font_color", Color(0.85, 0.85, 0.85))
+		exit_button.add_theme_color_override("font_hover_color", Color(1.0, 1.0, 0.0))
+		exit_button.add_theme_color_override("font_focus_color", Color(1.0, 1.0, 0.0))
+		
+		button_container.add_child(exit_button)
+		exit_button.pressed.connect(func(): get_tree().quit())
 	
 	start_button.grab_focus()
 	
@@ -259,7 +362,11 @@ func _on_start_game_pressed() -> void:
 		
 	score_label.visible = true
 	lives_label.visible = true
-	minimap.visible = true
+	
+	if not is_mobile:
+		minimap.visible = true
+	if is_instance_valid(mobile_controls_container):
+		mobile_controls_container.visible = true
 	
 	start_game.emit()
 
@@ -272,7 +379,8 @@ func _on_lives_changed(new_lives: int) -> void:
 	lives_label.text = "LIVES\n%d" % new_lives
 
 func _on_game_over() -> void:
-	status_label.text = "GAME OVER\nPress R to Restart"
+	var msg = "GAME OVER\nTap to Restart" if is_mobile else "GAME OVER\nPress R to Restart"
+	status_label.text = msg
 	status_overlay.visible = true
 	get_tree().paused = true
 
@@ -282,7 +390,8 @@ func _on_victory() -> void:
 		# Check if another level file exists to dynamically present options (OCP Compliance)
 		if GameManager.has_next_level():
 			get_tree().paused = true
-			status_label.text = "LEVEL CLEARED!\nPress SPACE to load Level %02d" % (GameManager.current_level + 1)
+			var msg = "LEVEL CLEARED!\nTap to load Level %02d" if is_mobile else "LEVEL CLEARED!\nPress SPACE to load Level %02d"
+			status_label.text = msg % (GameManager.current_level + 1)
 			status_overlay.visible = true
 		else:
 			# ALL LEVELS CLEARED: Transition instantly and automatically to Credits (No intermediate screen!)
@@ -292,24 +401,35 @@ func _on_victory() -> void:
 			get_tree().current_scene.queue_free()
 			get_tree().current_scene = credits
 
+# Listens for both physical keyboard events AND mobile screen touches
 func _input(event: InputEvent) -> void:
+	# Ignore input if status overlay isn't visible (unless cheating)
+	var is_restart_triggered = false
+	var is_advance_triggered = false
+	
 	if event is InputEventKey and event.is_pressed():
-		# 1. Restart level: R key
 		if event.keycode == KEY_R and status_overlay.visible:
-			get_tree().paused = false
-			if GameManager:
-				GameManager.reset_game()
-			get_tree().reload_current_scene()
-			
-		# 2. Advance / View Credits: SPACE key
+			is_restart_triggered = true
 		elif event.keycode == KEY_SPACE and status_overlay.visible:
-			if GameManager:
-				get_tree().paused = false
-				if GameManager.has_next_level():
-					# Load the next procedural level
-					GameManager.advance_level()
-					get_tree().reload_current_scene()
-					
-		# 3. Cheat Key: Press N during gameplay to instantly skip the level
+			is_advance_triggered = true
 		elif event.keycode == KEY_N and not status_overlay.visible:
-			_on_victory()
+			_on_victory() # Cheat key to skip levels instantly on PC
+			
+	elif event is InputEventScreenTouch and event.pressed and status_overlay.visible:
+		# On mobile, any tap acts as the progression confirmation button
+		if GameManager and GameManager.lives <= 0:
+			is_restart_triggered = true
+		else:
+			is_advance_triggered = true
+			
+	if is_restart_triggered:
+		get_tree().paused = false
+		if GameManager:
+			GameManager.reset_game()
+		get_tree().reload_current_scene()
+		
+	elif is_advance_triggered:
+		get_tree().paused = false
+		if GameManager and GameManager.has_next_level():
+			GameManager.advance_level()
+			get_tree().reload_current_scene()
