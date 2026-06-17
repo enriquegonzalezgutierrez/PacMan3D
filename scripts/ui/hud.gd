@@ -18,8 +18,13 @@
 #                immediately when the game starts.
 #              Phase 4 Updates:
 #              - WILD RIFT STYLE JOYSTICK: Replaced the rigid 4-button D-Pad with a 
-#                procedural, multi-touch 360-degree analog Virtual Joystick (220px) 
-#                and enlarged the JUMP button to 150px for ultimate mobile comfort.
+#                procedural, multi-touch 360-degree analog Virtual Joystick.
+#              - MASSIVE CONTROL SCALING: Increased Joystick diameter to 320px 
+#                (knob 130px) and JUMP button to 220px to ensure premium ergonomic 
+#                comfort and accessibility on high-DPI modern mobile viewports.
+#              - SYSTEM GENERATION LOADING OVERLAY: Added hide_status_overlay() API 
+#                and deferred frame yielding (await process_frame) to force Godot 
+#                to render the "PLEASE WAIT" banner before blocking the thread to build.
 # Author: Enrique González Gutiérrez
 # Email: enrique.gonzalez.gutierrez@gmail.com
 # ==============================================================================
@@ -187,7 +192,7 @@ func _build_hud_elements() -> void:
 	add_child(fade_overlay)
 	fade_overlay.set_anchors_and_offsets_preset(Control.PRESET_FULL_RECT)
 
-# Procedurally builds the modern virtual analog stick and enlarged touch buttons (Phase 4)
+# Procedurally builds the massive virtual analog stick and enlarged touch buttons (Phase 4)
 func _build_mobile_controls() -> void:
 	if not is_mobile:
 		return
@@ -199,12 +204,12 @@ func _build_mobile_controls() -> void:
 	
 	var viewport_size = get_viewport_rect().size
 	
-	# 1. Instantiate the procedural 360-degree analog Virtual Joystick (Wild Rift Style)
+	# 1. Instantiate the procedural 360-degree analog Virtual Joystick (Sized up massively to 320px)
 	var joystick := VirtualJoystick.new()
 	mobile_controls_container.add_child(joystick)
 	
-	# Position at bottom-left corner comfortably
-	joystick.position = Vector2(80.0, viewport_size.y - 300.0)
+	# Position at bottom-left corner with comfortable thumb clearances
+	joystick.position = Vector2(100.0, viewport_size.y - 420.0)
 	
 	# 2. Helper to procedurally generate a gorgeous, semi-transparent glowing circular touch texture for JUMP
 	var create_touch_texture = func(color: Color, size_px: int) -> GradientTexture2D:
@@ -221,8 +226,8 @@ func _build_mobile_controls() -> void:
 		tex.gradient = grad
 		return tex
 		
-	# Compile JUMP visual textures (Enlarged to 150px)
-	var jump_size_px : int = 150
+	# Compile JUMP visual textures (Sized up massively to 220px)
+	var jump_size_px : int = 220
 	var normal_texture = create_touch_texture.call(Color(1.0, 1.0, 1.0, 0.35), jump_size_px) # Translucent White
 	var pressed_texture = create_touch_texture.call(Color(1.0, 1.0, 0.0, 0.65), jump_size_px) # Glowing Yellow
 	
@@ -236,8 +241,8 @@ func _build_mobile_controls() -> void:
 	jump_label.text = "JUMP"
 	jump_label.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
 	jump_label.vertical_alignment = VERTICAL_ALIGNMENT_CENTER
-	jump_label.add_theme_font_size_override("font_size", 28) # Large crisp text
-	jump_label.add_theme_constant_override("outline_size", 8)
+	jump_label.add_theme_font_size_override("font_size", 34) # Larger readable text
+	jump_label.add_theme_constant_override("outline_size", 10)
 	jump_label.add_theme_color_override("font_outline_color", Color(0,0,0))
 	
 	jump_btn.add_child(jump_label)
@@ -245,7 +250,7 @@ func _build_mobile_controls() -> void:
 	
 	mobile_controls_container.add_child(jump_btn)
 	# Positioned symmetrically at the bottom-right corner
-	jump_btn.position = Vector2(viewport_size.x - 230.0, viewport_size.y - 230.0)
+	jump_btn.position = Vector2(viewport_size.x - 320.0, viewport_size.y - 320.0)
 
 # Programmatically builds the full-screen Main Menu overlay
 func _build_main_menu() -> void:
@@ -378,8 +383,22 @@ func _on_start_game_pressed() -> void:
 		minimap.visible = true
 	if is_instance_valid(mobile_controls_container):
 		mobile_controls_container.visible = true
+		
+	# --- PHASE 4: INITIAL GENERATION LOADING SCREEN ---
+	# Display a beautiful loading overlay before block generation triggers
+	status_label.text = "GENERATING SYSTEM...\nPLEASE WAIT"
+	status_overlay.visible = true
+	
+	# Force Godot to yield and physically render the loading overlay to the screen 
+	# on PC and Mobile BEFORE starting the heavy 3D construction thread! (SRP/UX Compliance)
+	await get_tree().process_frame
 	
 	start_game.emit()
+
+# Public API to safely hide the status overlay once level building completes
+func hide_status_overlay() -> void:
+	if is_instance_valid(status_overlay):
+		status_overlay.visible = false
 
 # Stacked Score output zero-padded to 6 digits (Arcade standard)
 func _on_score_changed(new_score: int) -> void:
@@ -412,7 +431,7 @@ func _on_victory_transition_triggered() -> void:
 
 # Listens for both physical keyboard events AND mobile screen touches
 func _input(event: InputEvent) -> void:
-	# Ignore input if status overlay isn't visible
+	# Ignore input if status overlay isn't visible (unless cheating)
 	var is_restart_triggered = false
 	
 	if event is InputEventKey and event.is_pressed():
@@ -440,8 +459,8 @@ func _input(event: InputEvent) -> void:
 # standard key action presses inside the native Godot Input registry.
 # ==============================================================================
 class VirtualJoystick extends Control:
-	var base_radius : float = 110.0 # Sized up for 1080p thumb comfort
-	var knob_radius : float = 45.0
+	var base_radius : float = 160.0 # Sized up significantly for 1080p high-DPI thumb comfort
+	var knob_radius : float = 65.0 # Enlarged central knob
 	var is_dragging : bool = false
 	var touch_id : int = -1
 	
@@ -457,20 +476,20 @@ class VirtualJoystick extends Control:
 	}
 	
 	func _ready() -> void:
-		custom_minimum_size = Vector2(220, 220)
-		base_center = Vector2(110, 110)
+		custom_minimum_size = Vector2(320, 320) # Sized up to match new base dimensions
+		base_center = Vector2(160, 160)
 		knob_pos = base_center
 		
 	func _draw() -> void:
 		# 1. Draw Translucent Base ring
 		draw_circle(base_center, base_radius, Color(0.08, 0.08, 0.1, 0.45))
 		# Neon cyan thick border
-		draw_arc(base_center, base_radius, 0, TAU, 32, Color(0.0, 0.8, 1.0, 0.6), 4.0)
+		draw_arc(base_center, base_radius, 0, TAU, 32, Color(0.0, 0.8, 1.0, 0.6), 5.0)
 		
 		# 2. Draw Translucent Glowing Knob
 		draw_circle(knob_pos, knob_radius, Color(1.0, 1.0, 0.0, 0.65)) # Glowing yellow
 		# Orange neon border for high-contrast visibility
-		draw_arc(knob_pos, knob_radius, 0, TAU, 24, Color(1.0, 0.5, 0.0, 0.8), 2.5)
+		draw_arc(knob_pos, knob_radius, 0, TAU, 24, Color(1.0, 0.5, 0.0, 0.8), 3.0)
 		
 	func _gui_input(event: InputEvent) -> void:
 		if event is InputEventScreenTouch:

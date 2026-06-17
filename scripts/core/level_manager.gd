@@ -19,6 +19,8 @@
 #              - SPEED OVERLOAD ORCHESTRATION: Integrated the speed_pellet_eaten 
 #                callback to award points, progress levels, and trigger an 
 #                electric snap camera shake.
+#              - DISMISS SYSTEM LOADING OVERLAY: Added programmatic HUD overlay 
+#                dismissal once 3D level assembly completes, preventing lag illusions.
 # Author: Enrique González Gutiérrez
 # Email: enrique.gonzalez.gutierrez@gmail.com
 # ==============================================================================
@@ -97,6 +99,13 @@ func _on_start_game() -> void:
 		# Instantiate our procedural LevelBuilder and assemble the 3D world (SRP Compliance)
 		var builder := LevelBuilder.new(self)
 		builder.build(level_data)
+		
+		# --- DISMISS SYSTEM GENERATION OVERLAY (Phase 4 UX Compliance) ---
+		# Safely locate the HUD and dismiss the "PLEASE WAIT" loading screen 
+		# now that the heavy 3D physical world assembly is complete.
+		var hud = get_parent().get_node_or_null("HUD") as HUD
+		if is_instance_valid(hud):
+			hud.hide_status_overlay()
 
 # Loads and parses the JSON level configuration, executing validations
 func _load_level_data(file_path: String) -> bool:
