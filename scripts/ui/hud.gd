@@ -29,9 +29,10 @@
 #              - RENDER YIELD FIX: Replaced process_frame with a 0.05s physical timer 
 #                to absolutely guarantee the GPU draws the loading screen to the 
 #                monitor before the CPU thread blocks to build the 3D level.
-#              - RESPONSIVE MINIMAP ANCHOR: Switched from static pixel offsets to 
-#                relative viewport anchors (0.85 X, 0.25 Y) so the minimap always 
-#                renders safely on screen regardless of mobile aspect ratios.
+#              - DYNAMIC RESPONSIVE MINIMAP: Programmed context-aware layout 
+#                offsets for the Minimap. Hugs the tight bottom-right corner 
+#                on PC (16:9), and dynamically offsets upwards on Mobile to avoid 
+#                overlapping with the giant 220px JUMP thumb control.
 # Author: Enrique González Gutiérrez
 # Email: enrique.gonzalez.gutierrez@gmail.com
 # ==============================================================================
@@ -175,25 +176,33 @@ func _build_hud_elements() -> void:
 	
 	# 4. Minimap 2D Setup (Enlarged to 280x280 for Full HD readability)
 	minimap = Minimap2D.new()
-	minimap.map_size = Vector2(280, 280) # Sized up elegantly
+	var map_dim = 280
+	minimap.map_size = Vector2(map_dim, map_dim) 
 	minimap.visible = false
 	add_child(minimap)
 	
-	# --- RESPONSIVE MINIMAP ANCHOR FIX ---
-	# Anchor the minimap dynamically to 85% of screen width and 25% of screen height
-	# This ensures it always renders safely on ultra-wide Android screens.
-	minimap.set_anchors_preset(Control.PRESET_CENTER)
-	minimap.anchor_left = 0.85
-	minimap.anchor_right = 0.85
-	minimap.anchor_top = 0.25
-	minimap.anchor_bottom = 0.25
-	minimap.grow_horizontal = Control.GROW_DIRECTION_BOTH
-	minimap.grow_vertical = Control.GROW_DIRECTION_BOTH
-	# Zero out pixel offsets so it relies 100% on the relative percentage anchors
-	minimap.offset_left = -140
-	minimap.offset_right = 140
-	minimap.offset_top = -140
-	minimap.offset_bottom = 140
+	# --- DYNAMIC RESPONSIVE MINIMAP ANCHOR FIX ---
+	# Anchor cleanly to the bottom-right corner dynamically based on the active platform
+	minimap.set_anchors_and_offsets_preset(Control.PRESET_BOTTOM_RIGHT)
+	minimap.grow_horizontal = Control.GROW_DIRECTION_BEGIN
+	minimap.grow_vertical = Control.GROW_DIRECTION_BEGIN
+	
+	# Right margin is consistent across devices
+	var right_margin = -32
+	minimap.offset_left = -map_dim + right_margin
+	minimap.offset_right = right_margin
+	
+	if is_mobile:
+		# On Mobile, push the minimap safely UP (Y offset) so it sits directly ABOVE 
+		# the giant 220px JUMP button, guaranteeing no thumb interference.
+		var bottom_margin = -280 
+		minimap.offset_top = -map_dim + bottom_margin
+		minimap.offset_bottom = bottom_margin
+	else:
+		# On PC, hug the bottom right corner normally
+		var bottom_margin = -32 
+		minimap.offset_top = -map_dim + bottom_margin
+		minimap.offset_bottom = bottom_margin
 	
 	# 5. Status Full-Screen Overlay
 	status_overlay = ColorRect.new()
@@ -425,7 +434,6 @@ func _on_start_game_pressed() -> void:
 	lives_label.visible = true
 	
 	# --- MOBILE MINIMAP VISIBILITY OVERRIDE ---
-	# Now the minimap is fully visible and rendered on mobile platforms as well!
 	minimap.visible = true
 	
 	if is_instance_valid(mobile_controls_container):
