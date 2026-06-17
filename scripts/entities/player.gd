@@ -18,7 +18,9 @@
 #                scaling velocity by +50% (to 10.5) for 5.0 seconds.
 #              - ELECTRIC SPARK AURA: Procedurally attaches a bright electric-cyan 
 #                GPUParticles3D spark emitter during speed boosts.
-#              - TYPO CORRECTION: Fixed 'var_blink_timer' spacing syntax compile error.
+#              - GLOWING MOTION LIGHT TRAIL: Programmed a highly responsive 
+#                GPUParticles3D ribbon-style light trail that dynamically changes 
+#                color (Yellow, Gold, Cyan) depending on active states.
 # Author: Enrique González Gutiérrez
 # Email: enrique.gonzalez.gutierrez@gmail.com
 # ==============================================================================
@@ -50,7 +52,7 @@ var death_audio : AudioStreamPlayer
 var eyes_holder : Node3D
 var pupil_material : StandardMaterial3D
 var is_blinking : bool = false
-var blink_timer : float = 0.0 # Restored standard var syntax
+var blink_timer : float = 0.0
 var blink_duration : float = 0.15
 var next_blink_time : float = 3.0 # Initial time before first blink
 
@@ -70,6 +72,10 @@ var speed_boost_timer : float = 0.0
 const SPEED_BOOST_DURATION : float = 5.0
 const BOOSTED_SPEED : float = 10.5 # +50% faster than standard 7.0 speed
 var speed_particles : GPUParticles3D = null
+
+# Phase 4 Continuous Energy Motion Trail Variables
+var motion_trail : GPUParticles3D = null
+var motion_trail_material : StandardMaterial3D = null
 
 # Gameplay State
 var spawn_position : Vector3
@@ -92,6 +98,9 @@ func _ready() -> void:
 	_configure_collision_layers()
 	_build_player_visuals()
 	_setup_audio()
+	
+	# Programmatically attach the premium visual motion light trail (Phase 4)
+	_spawn_motion_trail_particles()
 	
 	# Randomize first blink timing to stagger animations
 	next_blink_time = randf_range(2.0, 5.0)
@@ -235,6 +244,11 @@ func die() -> void:
 	# Clean up any active power particle trails on death
 	_deactivate_power_up()
 	_deactivate_speed_boost()
+	
+	# Safely disable the motion trail on death
+	if is_instance_valid(motion_trail):
+		motion_trail.emitting = false
+		
 	play_death_particles()
 	
 	if death_audio and death_audio.stream:
@@ -309,6 +323,10 @@ func _actual_respawn() -> void:
 	
 	if visual_mesh:
 		visual_mesh.visible = true
+		
+	# Re-enable the motion trail on respawn
+	if is_instance_valid(motion_trail):
+		motion_trail.emitting = false
 	
 	is_dead = false
 
@@ -431,6 +449,74 @@ func _deactivate_speed_boost() -> void:
 	is_speed_boosted = false
 	if is_instance_valid(speed_particles):
 		speed_particles.queue_free()
+
+
+# --- PHASE 4: CONTINUOUS ENERGY MOTION TRAIL ---
+
+# Programmatically configures and attaches the continuous neon light-trail
+func _spawn_motion_trail_particles() -> void:
+	motion_trail = GPUParticles3D.new()
+	motion_trail.name = "MotionTrail"
+	
+	# Visual sphere mesh constituting the trail segments
+	var sphere_mesh := SphereMesh.new()
+	sphere_mesh.radius = 0.16
+	sphere_mesh.height = 0.32
+	
+	motion_trail_material = StandardMaterial3D.new()
+	motion_trail_material.shading_mode = StandardMaterial3D.SHADING_MODE_UNSHADED
+	motion_trail_material.albedo_color = Color(1.0, 1.0, 0.0) # Default Yellow
+	motion_trail_material.emission_enabled = true
+	motion_trail_material.emission = Color(0.5, 0.5, 0.0) # Gentle neon glow
+	
+	sphere_mesh.material = motion_trail_material
+	motion_trail.draw_pass_1 = sphere_mesh
+	
+	var proc_mat := ParticleProcessMaterial.new()
+	proc_mat.emission_shape = ParticleProcessMaterial.EMISSION_SHAPE_SPHERE
+	proc_mat.emission_sphere_radius = 0.15 # Tightly centered
+	proc_mat.direction = Vector3.ZERO # Particles drop static in space as player moves
+	proc_mat.gravity = Vector3.ZERO
+	proc_mat.initial_velocity_min = 0.0
+	proc_mat.initial_velocity_max = 0.0
+	
+	# Exponentially scales down particles over lifetime to form a perfect tapering trail tail
+	var curve := Curve.new()
+	curve.add_point(Vector2(0.0, 1.0))
+	curve.add_point(Vector2(1.0, 0.0))
+	
+	var curve_tex := CurveTexture.new()
+	curve_tex.curve = curve
+	proc_mat.scale_curve = curve_tex
+	
+	motion_trail.process_material = proc_mat
+	motion_trail.amount = 40
+	motion_trail.lifetime = 0.35 # Ribbon trails vanish quickly
+	motion_trail.emitting = false # Checked dynamically inside movement loop
+	
+	add_child(motion_trail)
+	motion_trail.position = Vector3(0.0, -0.1, 0.0) # Positioned at floor/feet level
+
+# Sincroniza dinámicamente el color y energía de emisión de la estela según los estados activos
+func _update_motion_trail_materials() -> void:
+	if not is_instance_valid(motion_trail_material):
+		return
+		
+	if is_speed_boosted:
+		# Overload Speed: Intense Electric Cyan
+		motion_trail_material.albedo_color = Color(0.0, 1.0, 1.0)
+		motion_trail_material.emission = Color(0.0, 0.8, 1.0)
+		motion_trail_material.emission_energy_multiplier = randf_range(1.0, 1.5) # Dynamic electrical hum
+	elif is_powered_up:
+		# Invincible: Intense Glowing Fire Gold
+		motion_trail_material.albedo_color = Color(1.0, 0.45, 0.0)
+		motion_trail_material.emission = Color(1.0, 0.2, 0.0)
+		motion_trail_material.emission_energy_multiplier = 1.2
+	else:
+		# Standard movement: Clean glowing yellow
+		motion_trail_material.albedo_color = Color(1.0, 1.0, 0.0)
+		motion_trail_material.emission = Color(0.6, 0.6, 0.0)
+		motion_trail_material.emission_energy_multiplier = 0.8
 
 
 func _physics_process(delta: float) -> void:
@@ -591,5 +677,11 @@ func _process_arcade_movement() -> void:
 		var y_vel = velocity.y
 		velocity = Vector3.ZERO
 		velocity.y = y_vel
+		
+	# --- MOTION TRAIL EMITTER ACTIVATION ---
+	# Emit glowing trailing particles only when Pac-Man is actively moving
+	if is_instance_valid(motion_trail):
+		_update_motion_trail_materials() # Sync color palette
+		motion_trail.emitting = (velocity.length() > 0.1)
 		
 	move_and_slide()
