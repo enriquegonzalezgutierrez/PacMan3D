@@ -1,7 +1,7 @@
 # ==============================================================================
 # Description: Procedural Level Assembler / 3D Mesh Factory. Hand-crafts 
-#              materials, builds wall styles (Pipes, Blocks, Pillars), spawns 
-#              gameplay entities, and links portals.
+#              materials, builds wall styles (Pipes, Blocks, Pillars, Circuits), 
+#              spawns gameplay entities, and links portals.
 #              SOLID Refactoring:
 #              - PROBABILISTIC SPAWNING: Added a 25% chance of spawning a strategic, 
 #                frost-blue IcePellet instead of a standard Power Pellet, 
@@ -26,6 +26,10 @@
 #              - SPEED PELLET PROBABILISTIC SPAWNING (OCP Compliance): Added 
 #                SpeedPellet (lightning bolt) spawning on corner cells (type 3) 
 #                under a balanced 60/20/20 probability split.
+#              Phase 4 Updates:
+#              - CYBER CIRCUITS THEME: Developed a fourth modular maze style ("circuits") 
+#                featuring matte obsidian board panels wrapped with glowing, 
+#                tint-matched holographic micro-conduits and corner nodes.
 # Author: Enrique González Gutiérrez
 # Email: enrique.gonzalez.gutierrez@gmail.com
 # ==============================================================================
@@ -239,6 +243,58 @@ func _create_wall(pos: Vector3, x: int, z: int, level_data: Dictionary) -> void:
 			sphere_instance.material_override = glowing_material
 			sphere_instance.position.y = WALL_HEIGHT
 			static_body.add_child(sphere_instance)
+			
+		"circuits":
+			# STYLE D: Holographic Cyber Circuit Boards (Phase 4)
+			# 1. Base Silicon Matte Panel (Obsidian Slate Color)
+			var base_mesh := BoxMesh.new()
+			base_mesh.size = Vector3(CELL_SIZE, WALL_HEIGHT, CELL_SIZE)
+			
+			var dark_mat := StandardMaterial3D.new()
+			dark_mat.albedo_color = Color(0.04, 0.04, 0.06) # Matte Obsidian black
+			dark_mat.roughness = 0.8
+			dark_mat.metallic = 0.3
+			
+			var base_instance := MeshInstance3D.new()
+			base_instance.mesh = base_mesh
+			base_instance.material_override = dark_mat
+			base_instance.position.y = WALL_HEIGHT / 2.0
+			static_body.add_child(base_instance)
+			
+			# 2. Glowing Holographic Circuit Tracks (Dynamic level tint color matched)
+			var track_mat := StandardMaterial3D.new()
+			track_mat.albedo_color = wall_material.albedo_color
+			track_mat.emission_enabled = true
+			track_mat.emission = wall_material.albedo_color * 0.8 # Cyber bloom emissive glow
+			track_mat.roughness = 0.1
+			
+			# Horizontal wrapping data bus track
+			var horiz_mesh := BoxMesh.new()
+			horiz_mesh.size = Vector3(CELL_SIZE + 0.03, 0.08, CELL_SIZE + 0.03) # Protrudes slightly out
+			
+			var horiz_line := MeshInstance3D.new()
+			horiz_line.mesh = horiz_mesh
+			horiz_line.material_override = track_mat
+			horiz_line.position.y = WALL_HEIGHT * 0.65 # Symmetrical top third line
+			static_body.add_child(horiz_line)
+			
+			# Vertical Corner Nodes (Square pillars at the corners that connect continuous boards)
+			var node_mesh := BoxMesh.new()
+			node_mesh.size = Vector3(0.08, WALL_HEIGHT + 0.02, 0.08) # Protrudes outwards on X/Z
+			
+			var corner_offsets : Array[Vector3] = [
+				Vector3(-CELL_SIZE/2.0, WALL_HEIGHT/2.0, -CELL_SIZE/2.0),
+				Vector3(CELL_SIZE/2.0, WALL_HEIGHT/2.0, -CELL_SIZE/2.0),
+				Vector3(-CELL_SIZE/2.0, WALL_HEIGHT/2.0, CELL_SIZE/2.0),
+				Vector3(CELL_SIZE/2.0, WALL_HEIGHT/2.0, CELL_SIZE/2.0)
+			]
+			
+			for offset in corner_offsets:
+				var node_line := MeshInstance3D.new()
+				node_line.mesh = node_mesh
+				node_line.material_override = track_mat
+				node_line.position = offset
+				static_body.add_child(node_line)
 			
 		_: # "pipes" (Default)
 			# STYLE C: connected cylindrical pipeline rails (Pac-Mania Style)
