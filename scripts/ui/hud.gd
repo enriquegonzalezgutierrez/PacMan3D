@@ -2,14 +2,10 @@
 # Description: HUD and Main Menu manager. Programmatically constructs the full
 #              main menu, styled retro HUD nodes, and coordinates dynamic 
 #              progression screen overlays.
-#              SOLID Refactoring & Mobile Polish:
-#              - BUG FIX: Corrected compile crash by adding the missing Control. 
-#                prefix to GROW_DIRECTION_BOTH on line 125.
-#              - NODE TYPE FIX: Changed inheritance to 'Control' to perfectly 
-#                match the 'main.tscn' node type, resolving assignment crashes.
-#              - MOBILE VIRTUAL CONTROLS: Procedurally detects mobile platforms.
-#              - CROSS-PLATFORM INPUT: Supports InputEventScreenTouch.
-#              - AUTOMATIC DYNAMIC TRANSITION: Bypasses main menus during reload.
+#              Phase 2 Updates:
+#              - AUTOMATED PROGRESSION COMPLIANCE: Completely removed the static 
+#                victory overlay screen. Level transitions are now handled 
+#                cinematically by the LevelManager without requiring user input.
 # Author: Enrique González Gutiérrez
 # Email: enrique.gonzalez.gutierrez@gmail.com
 # ==============================================================================
@@ -53,6 +49,10 @@ func _ready() -> void:
 	# Setup scene load fade-in effect
 	fade_alpha = 1.0
 	
+	# Listen for Game Over explicitly
+	if GameManager:
+		GameManager.game_over.connect(_on_game_over)
+	
 	if GameManager and GameManager.is_game_started:
 		# Automate gameplay startup on progression reload (completely bypasses main menu)
 		score_label.visible = true
@@ -83,7 +83,6 @@ func emit_start_game_signal() -> void:
 
 # Programmatically constructs the HUD layout tree
 func _build_hud_elements() -> void:
-	# Now that this script extends Control, this method works perfectly:
 	set_anchors_and_offsets_preset(Control.PRESET_FULL_RECT)
 	
 	# 1. Score Label Setup (Arcade 1UP Style)
@@ -204,7 +203,6 @@ func _build_mobile_controls() -> void:
 		return t_btn
 
 	# 1. Procedural Left-Side D-Pad
-	# As a Control node, we can use get_viewport_rect() natively
 	var viewport_size = get_viewport_rect().size
 	var base_x = 40.0
 	var base_y = viewport_size.y - 240.0 # Positioned dynamically relative to screen bottom
@@ -378,58 +376,28 @@ func _on_score_changed(new_score: int) -> void:
 func _on_lives_changed(new_lives: int) -> void:
 	lives_label.text = "LIVES\n%d" % new_lives
 
+# Only triggers when all 3 lives are lost
 func _on_game_over() -> void:
 	var msg = "GAME OVER\nTap to Restart" if is_mobile else "GAME OVER\nPress R to Restart"
 	status_label.text = msg
 	status_overlay.visible = true
 	get_tree().paused = true
 
-# Dynamic Victory notification based on progression context
-func _on_victory() -> void:
-	if GameManager:
-		# Check if another level file exists to dynamically present options (OCP Compliance)
-		if GameManager.has_next_level():
-			get_tree().paused = true
-			var msg = "LEVEL CLEARED!\nTap to load Level %02d" if is_mobile else "LEVEL CLEARED!\nPress SPACE to load Level %02d"
-			status_label.text = msg % (GameManager.current_level + 1)
-			status_overlay.visible = true
-		else:
-			# ALL LEVELS CLEARED: Transition instantly and automatically to Credits (No intermediate screen!)
-			get_tree().paused = false # Ensure game is unpaused for the credits scroll
-			var credits := CreditsScreen.new()
-			get_tree().root.add_child(credits)
-			get_tree().current_scene.queue_free()
-			get_tree().current_scene = credits
-
 # Listens for both physical keyboard events AND mobile screen touches
 func _input(event: InputEvent) -> void:
-	# Ignore input if status overlay isn't visible (unless cheating)
+	# Ignore input if status overlay isn't visible
 	var is_restart_triggered = false
-	var is_advance_triggered = false
 	
 	if event is InputEventKey and event.is_pressed():
 		if event.keycode == KEY_R and status_overlay.visible:
 			is_restart_triggered = true
-		elif event.keycode == KEY_SPACE and status_overlay.visible:
-			is_advance_triggered = true
-		elif event.keycode == KEY_N and not status_overlay.visible:
-			_on_victory() # Cheat key to skip levels instantly on PC
 			
 	elif event is InputEventScreenTouch and event.pressed and status_overlay.visible:
-		# On mobile, any tap acts as the progression confirmation button
-		if GameManager and GameManager.lives <= 0:
-			is_restart_triggered = true
-		else:
-			is_advance_triggered = true
+		# On mobile, any tap during Game Over resets
+		is_restart_triggered = true
 			
 	if is_restart_triggered:
 		get_tree().paused = false
 		if GameManager:
 			GameManager.reset_game()
 		get_tree().reload_current_scene()
-		
-	elif is_advance_triggered:
-		get_tree().paused = false
-		if GameManager and GameManager.has_next_level():
-			GameManager.advance_level()
-			get_tree().reload_current_scene()

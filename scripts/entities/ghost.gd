@@ -2,22 +2,19 @@
 # Description: CharacterBody3D controller for Ghosts. Handles primitive capsule
 #              generation, collision-tested pathfinding, and coordinates
 #              with an abstract behavior strategy.
-#              SOLID Refactoring & Visual Polish:
-#              - OCP & SRP VISUAL COMPLIANCE: Completely stripped all character-specific 
-#                visual match blocks. Now queries the injected Behavior Strategy 
-#                dynamically on ready to compile custom sizes, pupil offsets, 
-#                and accessories.
-#              - LAMBDA MEMORY FIX: Connected the eaten particle despawn timer 
-#                directly to particles.queue_free.
-#              - ARCADE LANE QUEUEING: Implemented a longitudinal speed-damping sensor.
-#              - ROTATION BUG FIX: Restored the deleted rotation interpolation.
-#              - DEADLOCK ELIMINATION: Completely removed the "Soft Separation" physics block.
-#              - GHOSTLY HOVERING: Floats the entire ghost body gently up and down.
-#              - PROCEDURAL WAVY SKIRT: Generates 4 ruffling spheres.
-#              - CHASE / SCATTER ARCADE CYCLE: Implements classic state cycling.
-#              - DYNAMIC BLINKING RETRO EYES: Handles random eye-blinking.
-#              - ARCADE-ACCURATE LEAVING: Kinematic foso exit paths.
-#              - ONE-WAY FOSO DOOR: Exit-only door block.
+#              Phase 2 Updates:
+#              - ARCADE DIFFICULTY PROGRESSION: Dynamically queries GameManager 
+#                to scale movement speeds and reduce frightened duration per level.
+#              - EATEN STATE (FLOATING EYES): Ghosts no longer instantly teleport. 
+#                Upon consumption, their body vanishes and their eyes walk 
+#                through the foso door, navigating all the way to their individual 
+#                respawn pads before materializing.
+#              - WARNING FIX: Renamed local parameter 'is_visible' to 
+#                'should_be_visible' to resolve shadowed variable warning from Node3D.
+#              - DETERMINISTIC EYE PATHFINDING: Eaten ghosts bypass the random 
+#                steering check and take the absolute shortest route to the foso.
+#              - VISUAL MATERIAL GUARD: Prevent timers from recoloring the 
+#                invisible body back to blue while retreating.
 # Author: Enrique González Gutiérrez
 # Email: enrique.gonzalez.gutierrez@gmail.com
 # ==============================================================================
@@ -28,12 +25,13 @@ class_name Ghost
 signal player_caught(is_frightened: bool, catch_position: Vector3)
 
 # State Machine definitions
-enum State { LEAVING, CHASE, SCATTER, FRIGHTENED }
+enum State { LEAVING, CHASE, SCATTER, FRIGHTENED, EATEN }
 var current_state : State = State.LEAVING
 
-# Movement constants
-const BASE_SPEED : float = 5.0
-const FRIGHTENED_SPEED : float = 2.5
+# Movement constants (Base values before GameManager multipliers)
+var base_speed : float = 5.0
+var frightened_speed : float = 2.5
+const EATEN_SPEED : float = 18.0 # High speed retreat for floating eyes
 const CARDINAL_DIRECTIONS = [
 	Vector3.FORWARD,
 	Vector3.BACK,
@@ -44,7 +42,7 @@ const CARDINAL_DIRECTIONS = [
 const CELL_SIZE : float = 2.0
 const ALIGNMENT_FORCE : float = 15.0 
 
-var speed : float = BASE_SPEED
+var speed : float = base_speed
 
 # Injected Dependencies (DIP Compliance)
 var ghost_type : String = "" 
@@ -69,7 +67,7 @@ const SCATTER_DURATION : float = 7.0
 
 # Frightened timer variables
 var frightened_timer : float = 0.0
-const FRIGHTENED_DURATION : float = 7.0
+var frightened_duration : float = 7.0 # Scaled dynamically on ready
 
 # Dynamic Eye Tracking Variables
 var eyes_holder : Node3D
@@ -116,6 +114,15 @@ func _ready() -> void:
 	spawn_position = global_position
 	add_to_group("ghosts")
 	
+	# --- PHASE 2: DYNAMIC DIFFICULTY SCALING ---
+	if GameManager:
+		var multiplier = GameManager.get_ghost_speed_multiplier()
+		base_speed *= multiplier
+		frightened_speed *= multiplier
+		speed = base_speed
+		
+		frightened_duration = GameManager.get_frightened_duration()
+	
 	_configure_collision_layers()
 	_build_ghost_visuals()
 	_setup_player_detection()
@@ -143,7 +150,6 @@ func _detect_exit_position_dynamically() -> void:
 	if level_layout.is_empty() or grid_width <= 0 or grid_height <= 0:
 		return
 		
-	# WARNING FIXED: Cast to float before division to resolve Integer Division compiler warnings
 	var center_x : int = int(float(grid_width) / 2.0)
 	
 	# Scan rows 10 to 13 (where foso doors are strictly located in generator templates)
@@ -337,13 +343,13 @@ func _physics_process(delta: float) -> void:
 		var target_x = exit_position.x
 		if abs(global_position.x - target_x) > 0.05:
 			var dir_x = sign(target_x - global_position.x)
-			velocity = Vector3(dir_x * FRIGHTENED_SPEED, 0.0, 0.0)
+			velocity = Vector3(dir_x * frightened_speed, 0.0, 0.0)
 			
 			var target_rotation_y = atan2(-velocity.x, -velocity.z)
 			rotation.y = lerp_angle(rotation.y, target_rotation_y, 0.2)
 		else:
 			global_position.x = target_x
-			velocity = Vector3(0.0, 0.0, -FRIGHTENED_SPEED)
+			velocity = Vector3(0.0, 0.0, -frightened_speed)
 			rotation.y = lerp_angle(rotation.y, 0.0, 0.2) # Face North
 			
 		move_and_slide()
@@ -355,12 +361,12 @@ func _physics_process(delta: float) -> void:
 		if pos_2d.distance_to(exit_2d) < 1.0:
 			is_inside_foso = false
 			current_state = State.CHASE
-			speed = BASE_SPEED
+			speed = base_speed
 			_apply_material(original_material)
 		return
 
 	# --- CHASE / SCATTER ARCADE CYCLE TIMERS ---
-	if not is_inside_foso and not is_frozen and current_state != State.FRIGHTENED:
+	if not is_inside_foso and not is_frozen and current_state != State.FRIGHTENED and current_state != State.EATEN:
 		state_timer += delta
 		if current_state == State.CHASE:
 			if state_timer >= CHASE_DURATION:
@@ -387,6 +393,22 @@ func _physics_process(delta: float) -> void:
 					_apply_material(frightened_material)
 			elif frightened_material:
 				_apply_material(frightened_material)
+				
+	# --- EATEN STATE LOGIC (Floating Eyes Return) ---
+	if current_state == State.EATEN:
+		var pos_2d := Vector2(global_position.x, global_position.z)
+		var spawn_2d := Vector2(spawn_position.x, spawn_position.z)
+		# If we have reached our individual respawn pad coordinates inside the foso, heal and materialize
+		if pos_2d.distance_to(spawn_2d) < 0.5:
+			is_inside_foso = true 
+			current_state = State.LEAVING
+			speed = base_speed
+			_set_body_visibility(true) # Restore body and default materials first
+			_apply_material(original_material)
+			
+			current_direction = CARDINAL_DIRECTIONS.pick_random()
+			next_direction = current_direction
+			return
 
 	# --- GRID-BASED DECISION MAKING ---
 	var offset : float = float(grid_width * CELL_SIZE / 2.0) - (CELL_SIZE / 2.0)
@@ -411,7 +433,7 @@ func _physics_process(delta: float) -> void:
 		# --- ARCADE LONGITUDINAL SEPARATION ---
 		# Dynamically reduces trailing speed when following another ghost closely in the same corridor
 		var adjusted_speed : float = speed
-		if not is_inside_foso:
+		if not is_inside_foso and current_state != State.EATEN:
 			var ghosts = get_tree().get_nodes_in_group("ghosts")
 			for g in ghosts:
 				if g != self and is_instance_valid(g) and not g.is_inside_foso:
@@ -444,9 +466,6 @@ func _physics_process(delta: float) -> void:
 			velocity.x = (target_x - global_position.x) * ALIGNMENT_FORCE
 	else:
 		velocity = Vector3.ZERO
-		
-	# --- MOBILITY DEADLOCK FIX ---
-	# Completely stripped soft separation vectors to ensure perfect corridor alignment and prevent friction jams
 		
 	move_and_slide()
 	_process_ghost_animations(delta)
@@ -499,11 +518,45 @@ func _process_eye_blinking(delta: float) -> void:
 
 # Helper to swap visual materials safely across the entire body (including skirt ruffles)
 func _apply_material(mat: StandardMaterial3D) -> void:
+	# VISUAL GUARD (Phase 2): Completely block any background material recoloring attempts 
+	# (like Power Pellet blinking/expiring) while the ghost is in the EATEN (floating eyes) state.
+	if current_state == State.EATEN:
+		return
+		
 	if visual_mesh and mat:
 		visual_mesh.material_override = mat
 		for sphere in skirt_spheres:
 			if is_instance_valid(sphere):
 				sphere.material_override = mat
+
+# Helper to toggle visibility of the ghost's body while preserving the eyes
+func _set_body_visibility(should_be_visible: bool) -> void:
+	if visual_mesh:
+		if should_be_visible:
+			# Restore normal material
+			visual_mesh.material_override = original_material
+			for sphere in skirt_spheres:
+				if is_instance_valid(sphere):
+					sphere.visible = true
+					sphere.material_override = original_material
+		else:
+			# Hide the main capsule body using the invisible unshaded material
+			visual_mesh.material_override = _get_invisible_material()
+			for sphere in skirt_spheres:
+				if is_instance_valid(sphere):
+					sphere.visible = false
+				
+		# Always ensure eyes remain fully visible
+		if is_instance_valid(eyes_holder):
+			eyes_holder.visible = true
+
+# Generates a fully transparent, unshaded material that catches no lighting reflections
+func _get_invisible_material() -> StandardMaterial3D:
+	var mat = StandardMaterial3D.new()
+	mat.transparency = BaseMaterial3D.TRANSPARENCY_ALPHA
+	mat.albedo_color = Color(0.0, 0.0, 0.0, 0.0) # Transparent
+	mat.shading_mode = StandardMaterial3D.SHADING_MODE_UNSHADED # Catches no highlights
+	return mat
 
 # Performs a mathematical check in the injected level matrix to see if a cell is open (Not a wall)
 func _get_matrix_open_directions() -> Array:
@@ -524,8 +577,9 @@ func _get_matrix_open_directions() -> Array:
 		var target_z : int = grid_z + int(dir.z)
 		
 		if target_x >= 0 and target_x < grid_width and target_z >= 0 and target_z < grid_height:
-			# ONE-WAY DOOR RULE: If outside the foso, treat the gate as a solid wall
-			if not is_inside_foso and target_x == gate_x and target_z == gate_y:
+			# ONE-WAY DOOR RULE: If outside the foso and NOT EATEN, treat the gate as a solid wall
+			# EATEN ghosts are allowed to pass through the door back into the foso
+			if not is_inside_foso and target_x == gate_x and target_z == gate_y and current_state != State.EATEN:
 				continue
 				
 			var cell_type : int = int(level_layout[target_z][target_x])
@@ -549,14 +603,13 @@ func _choose_new_direction() -> void:
 		possible_directions = CARDINAL_DIRECTIONS
 
 	var player = get_tree().get_first_node_in_group("player")
-	if not player:
-		next_direction = possible_directions.pick_random()
-		return
+	var target_pos : Vector3 = global_position
 
-	var target_pos : Vector3 = player.global_position
-
-	if is_inside_foso:
-		target_pos = exit_position
+	# --- GHOST HOUSE ENTER/EXIT TARGETING ---
+	if current_state == State.EATEN:
+		target_pos = spawn_position # Eaten eyes head directly inside to their respawn pad
+	elif is_inside_foso:
+		target_pos = exit_position # Leaving ghosts head out towards the door
 	elif current_state == State.SCATTER:
 		# Direct corner targets matching classic arcade corners (OCP Compliance)
 		var offset_x = (float(grid_width) * CELL_SIZE) / 2.0
@@ -573,20 +626,39 @@ func _choose_new_direction() -> void:
 			"Clyde": target_pos = Vector3(min_x, 0.9, max_z)  # Bottom-Left
 			_: target_pos = Vector3(min_x, 0.9, min_z)
 	elif current_state == State.FRIGHTENED:
-		var best_dir = possible_directions[0]
-		var max_dist : float = -1.0
-		for dir in possible_directions:
-			var next_pos : Vector3 = global_position + (dir * CELL_SIZE)
-			var dist : float = next_pos.distance_to(player.global_position)
-			if dist > max_dist:
-				max_dist = dist
-				break
-		next_direction = best_dir
-		return
+		if player:
+			var best_dir = possible_directions[0]
+			var max_dist : float = -1.0
+			for dir in possible_directions:
+				var next_pos : Vector3 = global_position + (dir * CELL_SIZE)
+				var dist : float = next_pos.distance_to(player.global_position)
+				if dist > max_dist:
+					max_dist = dist
+					best_dir = dir
+			next_direction = best_dir
+			return
 	else:
-		if behavior_strategy:
+		if behavior_strategy and player:
 			target_pos = behavior_strategy.get_target_position(self, player)
 
+	# --- DETERMINISTIC PATHFINDING FOR EATEN/LEAVING GHOSTS ---
+	# Eaten ghosts and leaving ghosts must take the absolute shortest route.
+	# We bypass the 15% random steering check to prevent eyes from getting stuck or wandering.
+	if current_state == State.EATEN or is_inside_foso:
+		var best_dir = possible_directions[0]
+		var min_dist : float = 999999.0
+		
+		for dir in possible_directions:
+			var next_pos : Vector3 = global_position + (dir * CELL_SIZE)
+			var dist : float = next_pos.distance_to(target_pos)
+			if dist < min_dist:
+				min_dist = dist
+				best_dir = dir
+				
+		next_direction = best_dir
+		return
+
+	# Standard AI decision making (with 15% organic randomness)
 	if randf() < 0.85:
 		var best_dir = possible_directions[0]
 		var min_dist : float = 999999.0
@@ -604,9 +676,12 @@ func _choose_new_direction() -> void:
 
 # Public method: Triggers Frightened mode
 func activate_frightened_mode() -> void:
+	if current_state == State.EATEN or is_inside_foso:
+		return
+		
 	current_state = State.FRIGHTENED
-	speed = FRIGHTENED_SPEED
-	frightened_timer = FRIGHTENED_DURATION
+	speed = frightened_speed
+	frightened_timer = frightened_duration
 	
 	next_direction = -current_direction
 	_apply_material(frightened_material)
@@ -614,7 +689,7 @@ func activate_frightened_mode() -> void:
 # Restores the ghost back to standard chase behavior
 func _exit_frightened_state() -> void:
 	current_state = State.CHASE
-	speed = BASE_SPEED
+	speed = base_speed
 	state_timer = 0.0 # Reset cycle timer
 	_apply_material(original_material)
 
@@ -624,8 +699,9 @@ func reset_to_base() -> void:
 	global_position = spawn_position
 	is_inside_foso = true 
 	current_state = State.LEAVING
-	speed = BASE_SPEED
+	speed = base_speed
 	state_timer = 0.0 # Reset cycle timer
+	_set_body_visibility(true)
 	_apply_material(original_material)
 	
 	current_direction = CARDINAL_DIRECTIONS.pick_random()
@@ -694,11 +770,14 @@ func _on_player_detected(body: Node3D) -> void:
 			# Notify listeners with both the state and the exact 3D world coordinate (DIP Compliance)
 			player_caught.emit(true, global_position)
 			
-			global_position = spawn_position
-			is_inside_foso = true 
-			current_state = State.LEAVING
-			speed = BASE_SPEED
-			_apply_material(original_material)
-		else:
+			# Transition to the high-speed floating eyes retreat state
+			current_state = State.EATEN
+			speed = EATEN_SPEED
+			_set_body_visibility(false)
+			
+			# Instantly reverse direction to flee towards base
+			current_direction = -current_direction
+			next_direction = current_direction
+		elif current_state != State.EATEN:
 			# Notify listeners of player catch with coordinates
 			player_caught.emit(false, global_position)

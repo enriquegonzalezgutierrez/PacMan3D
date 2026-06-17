@@ -8,6 +8,17 @@
 #                maximizing gameplay variety under OCP.
 #              - PROCEDURAL LIGHTING: Dynamic OmniLight3D on pillars.
 #              - PROCEDURAL WORLD ENVIRONMENT: Dynamically instantiates WorldEnvironment.
+#              Phase 2 Updates:
+#              - SATIN METALLIC WALLS: Re-engineered wall materials to use brushed 
+#                satin metal properties (higher roughness, controlled metalness) 
+#                to provide elegant sheen without distracting glare.
+#              - CYBER AMBIENT LIGHTING: Configured soft cyber-blue ambient environment 
+#                lighting to fill dark shadow corridors.
+#              - ALIGNED DIRECTIONAL SUNLIGHT: Programmatically rotated the sunlight 
+#                vector to point diagonally down-left-forward, matching the diorama 
+#                camera's South-to-North viewport to produce optimal metal reflections.
+#              - REFCOUNTED SIGNAL FIX: Removed invalid get_tree() deferred calls 
+#                inside RefCounted builder, restoring direct signal bindings.
 # Author: Enrique González Gutiérrez
 # Email: enrique.gonzalez.gutierrez@gmail.com
 # ==============================================================================
@@ -40,11 +51,12 @@ func _init(parent: Node3D) -> void:
 
 # Compiles and setups materials procedurally
 func _initialize_materials() -> void:
-	# 1. Wall Material
+	# 1. Wall Material (Elegant Brushed Satin Metal / Anodized Aluminum)
 	wall_material = StandardMaterial3D.new()
 	wall_material.albedo_color = Color(0.0, 0.0, 1.0) # Default Blue
-	wall_material.roughness = 0.2
-	wall_material.metallic = 0.1
+	wall_material.roughness = 0.28 # Satin gloss, diffuses harsh reflections softly
+	wall_material.metallic = 0.85 # Controlled metal look
+	wall_material.metallic_specular = 0.5 # Natural specular reflection
 	
 	# 2. Player Material
 	player_material = StandardMaterial3D.new()
@@ -131,25 +143,36 @@ func _setup_world_environment() -> void:
 	var world_env := WorldEnvironment.new()
 	var env_res := Environment.new()
 	
-	# Configure high-quality additive Bloom and Glow offsets
+	# --- PHASE 2: CYBER AMBIENT LIGHT FILL ---
+	env_res.ambient_light_source = Environment.AMBIENT_SOURCE_COLOR
+	env_res.ambient_light_color = Color(0.12, 0.12, 0.18) # Soft blue neon glow fill for shadows
+	env_res.ambient_light_energy = 0.85 # Fills dark void spots
+	
+	# Configure high-quality additive Bloom and Glow offsets (Toned down)
 	env_res.background_mode = Environment.BG_CLEAR_COLOR
-	env_res.background_color = Color(0.01, 0.01, 0.01, 1.0) # Deep retro black space
+	env_res.background_color = Color(0.02, 0.02, 0.03, 1.0) # Deep retro cyber navy space
 	env_res.glow_enabled = true
-	env_res.glow_intensity = 0.8
-	env_res.glow_strength = 1.0
-	env_res.glow_bloom = 0.25 # Soft bloom margin
+	env_res.glow_intensity = 0.55 # Softer glowing transitions
+	env_res.glow_strength = 0.85
+	env_res.glow_bloom = 0.12 # Controlled bloom margins
 	env_res.glow_blend_mode = Environment.GLOW_BLEND_MODE_ADDITIVE
 	
 	world_env.environment = env_res
 	parent_node.add_child(world_env)
 	
-	# --- RESTORED GLOBAL SUNLIGHT ---
+	# --- RESTORED GLOBAL SUNLIGHT (Softened & Aligned with perspective) ---
 	var main_node = parent_node.get_parent()
 	if is_instance_valid(main_node):
 		var dir_light = main_node.get_node_or_null("DirectionalLight3D") as DirectionalLight3D
 		if is_instance_valid(dir_light):
-			dir_light.light_energy = 1.0 
+			dir_light.light_energy = 0.75 # Softened sun to prevent metallic hotspot glares
 			dir_light.light_color = Color(1.0, 1.0, 1.0) 
+			
+			# --- ALIGN SUNLIGHT DIRECTION WITH DIORAMA CAMERA PERSPECTIVE ---
+			# Camera points South-to-North (-Z) from a high angle.
+			# Positioning the sun at Top-Right-Back (shining diagonally down-left-forward towards -Z)
+			# creates highly structural tubular reflections and gorgeous, clean specular highlights.
+			dir_light.rotation_degrees = Vector3(-50.0, -35.0, 0.0)
 
 # Instantiates procedurally designed wall meshes depending on the active level theme
 func _create_wall(pos: Vector3, x: int, z: int, level_data: Dictionary) -> void:
@@ -264,7 +287,7 @@ func _create_pellet(pos: Vector3, is_power: bool) -> void:
 	pellet.position = pos
 	pellet.position.y = 0.5
 	
-	# Link signal back to orchestrator (DIP Compliance)
+	# Link signal back to orchestrator directly (DIP/Godot 4 Compliance)
 	if parent_node.has_method("_on_pellet_eaten"):
 		pellet.eaten.connect(parent_node._on_pellet_eaten)
 		
@@ -279,7 +302,7 @@ func _create_ice_pellet(pos: Vector3) -> void:
 	ice_pellet.position = pos
 	ice_pellet.position.y = 0.5
 	
-	# Connect callback directly to LevelManager orchestrator (DIP Compliance)
+	# Connect callback directly to LevelManager orchestrator directly (DIP/Godot 4 Compliance)
 	if parent_node.has_method("_on_ice_pellet_eaten"):
 		ice_pellet.ice_pellet_eaten.connect(parent_node._on_ice_pellet_eaten)
 		

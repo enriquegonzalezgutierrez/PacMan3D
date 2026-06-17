@@ -8,6 +8,9 @@
 #                lead-offset into its own heavy LERP loop (0.05) to eliminate 
 #                jitter, sudden snaps, and camera motion sickness.
 #              - PROCEDURAL DRONE BOBBING: Subtle vertical hover float.
+#              Phase 2 Updates:
+#              - CINEMATIC SCREEN SHAKE: Added an exponential decaying camera 
+#                shake displacement offset to add weight to eating ghosts or dying.
 # Author: Enrique González Gutiérrez
 # Email: enrique.gonzalez.gutierrez@gmail.com
 # ==============================================================================
@@ -31,7 +34,14 @@ var time_passed : float = 0.0
 var current_lead_offset : Vector3 = Vector3.ZERO
 var player_target : Node3D = null
 
+# Cinematic Screen Shake State (Phase 2 Compliance)
+var shake_intensity : float = 0.0
+var shake_duration : float = 0.0
+var max_shake_duration : float = 1.0
+
 func _ready() -> void:
+	add_to_group("camera") # Added to global group for loose coupling lookup
+	
 	# Configure visual perspective optics procedurally on startup
 	projection = Camera3D.PROJECTION_PERSPECTIVE
 	fov = CAMERA_FOV
@@ -45,6 +55,12 @@ func _ready() -> void:
 	time_passed = randf_range(0.0, 5.0)
 	
 	_find_player_target()
+
+# Public API to trigger cinematic screen impacts from external orchestrators (DIP Compliance)
+func trigger_shake(intensity: float, duration: float) -> void:
+	shake_intensity = intensity
+	shake_duration = duration
+	max_shake_duration = max(0.01, duration) # Avoid division by zero
 
 # Dynamic search to find the active player target in the scene group
 func _find_player_target() -> void:
@@ -80,3 +96,22 @@ func _physics_process(delta: float) -> void:
 	else:
 		# Smooth spatial damping follow
 		global_position = global_position.lerp(target_pos, LERP_WEIGHT)
+		
+	# 3. Calculate Cinematic Screen Shake decay (Phase 2 Compliance)
+	if shake_duration > 0.0:
+		shake_duration -= delta
+		
+		# Exponential decay multiplier based on remaining lifetime
+		var decay_ratio : float = clampf(shake_duration / max_shake_duration, 0.0, 1.0)
+		var current_intensity : float = shake_intensity * (decay_ratio * decay_ratio)
+		
+		var shake_offset = Vector3(
+			randf_range(-current_intensity, current_intensity),
+			randf_range(-current_intensity, current_intensity),
+			randf_range(-current_intensity, current_intensity)
+		)
+		
+		# Apply shake directly on top of the damped position to preserve crisp frequency
+		global_position += shake_offset
+	else:
+		shake_intensity = 0.0

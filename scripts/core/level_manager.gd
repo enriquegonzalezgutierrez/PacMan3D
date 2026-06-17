@@ -1,12 +1,14 @@
 # ==============================================================================
 # Description: Parses the level JSON file, feeds the layout data to the global
 #              GameManager, and coordinates gameplay states and signals.
-#              SOLID Refactoring:
-#              - DYNAMIC COLD FREEZE EFFECTS: Added _on_ice_pellet_eaten to freeze 
-#                all active ghosts, tint them frost-cyan with custom glowing 
-#                materials, and restore their states smoothly after 4.0 seconds.
-#              - BONUS FRUIT TIMERS: Plays the bonus cherry.
-#              - DYNAMIC SOUNDTRACK LOADING: Dynamically loads background music.
+#              Phase 2 Updates:
+#              - AUTOMATED PROGRESSION: Bypasses victory UI entirely. Automatically 
+#                freezes the game, waits 2 seconds, and transitions to the next 
+#                JSON level seamlessly.
+#              - DYNAMIC AUDIO SCALING: Dynamically increases the BGM pitch scale 
+#                by 5% per level to match the scaled ghost speeds.
+#              - CINEMATIC CAMERA SHAKE TRIGGERS: Dispatches camera shake signals 
+#                on player deaths (violent shake) and ghost consumption (bite impact).
 # Author: Enrique González Gutiérrez
 # Email: enrique.gonzalez.gutierrez@gmail.com
 # ==============================================================================
@@ -49,12 +51,17 @@ func _connect_game_manager_signals() -> void:
 	if GameManager:
 		GameManager.power_pellet_activated.connect(_on_power_pellet_activated)
 		GameManager.player_killed.connect(_on_player_killed)
+		GameManager.victory.connect(_on_automated_victory_sequence)
 
 # Programmatically configures and plays the BGM dynamically matched to the level
 func _setup_bgm() -> void:
 	var level_idx : int = 1
+	var speed_multiplier : float = 1.0
+	
 	if GameManager:
 		level_idx = GameManager.current_level
+		# Match music speed to ghost difficulty (Phase 2 Compliance)
+		speed_multiplier = GameManager.get_ghost_speed_multiplier()
 		
 	var bgm_path := "res://assets/audio/bgm/level_%d_bgm.mp3" % level_idx
 	
@@ -71,6 +78,7 @@ func _setup_bgm() -> void:
 		bgm_player = AudioStreamPlayer.new()
 		bgm_player.stream = bgm_stream
 		bgm_player.volume_db = -12.0 
+		bgm_player.pitch_scale = speed_multiplier # Scales pitch with difficulty
 		bgm_player.autoplay = true
 		add_child(bgm_player)
 		bgm_player.play()
@@ -197,6 +205,47 @@ func _apply_ghost_frost_effect(enabled: bool) -> void:
 				# Restore normal original behavioral colors (SRP Compliance)
 				ghost._apply_material(ghost.original_material)
 
+
+# --- PHASE 2: AUTOMATED PROGRESSION SEQUENCE ---
+
+# Triggered dynamically by GameManager when total_pellets == 0
+func _on_automated_victory_sequence() -> void:
+	# 1. Freeze all active entities
+	get_tree().call_group("ghosts", "set_frozen", true)
+	if is_instance_valid(player_instance):
+		# Prevent further player inputs during cinematic transition
+		player_instance.set_physics_process(false)
+		
+	# 2. Fade out music elegantly
+	if is_instance_valid(bgm_player):
+		var tween = create_tween()
+		tween.tween_property(bgm_player, "volume_db", -40.0, 1.5)
+		
+	# 3. Wait for 2.0 seconds (Cinematic pause)
+	await get_tree().create_timer(2.0).timeout
+	
+	# 4. Trigger state advance or roll credits
+	if GameManager:
+		if GameManager.has_next_level():
+			GameManager.advance_level()
+			get_tree().reload_current_scene()
+		else:
+			# ALL LEVELS CLEARED: Roll credits
+			var credits := CreditsScreen.new()
+			get_tree().root.add_child(credits)
+			get_tree().current_scene.queue_free()
+			get_tree().current_scene = credits
+
+
+# --- PHASE 2: CAMERA SHAKE HELPER ---
+
+# Helper to retrieve the active camera and apply a screen shake displacement (DIP/Phase 2 Compliance)
+func _trigger_camera_shake(intensity: float, duration: float) -> void:
+	var camera = get_tree().get_first_node_in_group("camera") as DioramaCamera
+	if is_instance_valid(camera):
+		camera.trigger_shake(intensity, duration)
+
+
 # --- SIGNAL ROUTING & GAMEPLAY ORCHESTRATION ---
 
 func _on_pellet_eaten(is_power: bool) -> void:
@@ -211,6 +260,7 @@ func _on_ghost_player_caught(is_frightened: bool, catch_position: Vector3) -> vo
 		if is_frightened:
 			GameManager.add_score(200)
 			_spawn_floating_score(catch_position)
+			_trigger_camera_shake(0.35, 0.25) # Subtle satisfying arcade bite shake
 		else:
 			for ghost in get_tree().get_nodes_in_group("ghosts"):
 				if ghost.has_method("set_frozen"):
@@ -221,6 +271,7 @@ func _on_ghost_player_caught(is_frightened: bool, catch_position: Vector3) -> vo
 					
 			if player_instance:
 				player_instance.die()
+				_trigger_camera_shake(0.9, 0.6) # Heavy violent death explosion shake
 
 func _on_player_death_completed() -> void:
 	if GameManager:

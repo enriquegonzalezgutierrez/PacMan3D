@@ -1,7 +1,9 @@
 # ==============================================================================
 # Description: Global singleton managing game state, score, lives, win/loss
-#              conditions, and event signals. Added persistent start-state
-#              tracking to automate scene-reload transitions.
+#              conditions, and event signals. 
+#              Phase 2 Update: Added dynamic arcade difficulty scaling metrics 
+#              (ghost speed multipliers and frightened duration reductions) 
+#              based on the current_level.
 # Author: Enrique González Gutiérrez
 # Email: enrique.gonzalez.gutierrez@gmail.com
 # ==============================================================================
@@ -81,6 +83,17 @@ func pellet_eaten() -> void:
 # Triggers the Frightened state for all ghosts
 func activate_power_pellet() -> void:
 	power_pellet_activated.emit()
+
+# --- PHASE 2: ARCADE DIFFICULTY PROGRESSION MATH ---
+
+# Increases ghost base speed by 5% per level (Level 1 = 1.0x, Level 5 = 1.20x)
+func get_ghost_speed_multiplier() -> float:
+	return 1.0 + ((current_level - 1) * 0.05)
+
+# Reduces the frightened duration by 1 second per level (Level 1 = 7.0s, Minimum = 2.0s)
+func get_frightened_duration() -> float:
+	var duration : float = 7.0 - float(current_level - 1)
+	return max(2.0, duration) # Caps the minimum duration to 2.0 seconds
 
 # Dynamic check to see if another procedural JSON level exists in the folder
 func has_next_level() -> bool:
