@@ -13,19 +13,23 @@ Email: enrique.gonzalez.gutierrez@gmail.com
 ## Overview
 **PacMan3D** is a modern 3D reimagining of the classic arcade game, built entirely from scratch in **Godot 4**. 
 
-This project focuses on robust core mechanics, physics-based movement, procedural level generation, and strict adherence to **SOLID software design principles**. The visual aesthetic relies on Godot's primitive 3D meshes (Spheres, Capsules, and Cubes) paired with vibrant neon lighting, customized satin-metallic PBR reflections, and three procedural architectural styles.
+This project focuses on robust core mechanics, physics-based movement, procedural level generation, and strict adherence to **SOLID software design principles**. The visual aesthetic relies on Godot's primitive 3D meshes (Spheres, Capsules, and Cubes) paired with vibrant neon lighting, customized satin-metallic PBR reflections, and four procedural architectural styles.
 
 ---
 
-## Features (Phase 1 & 2 Completed)
+## Features (Phase 1, 2, 3 & 4 Completed)
 *   **Procedural Level Generator (Python):** Automatically crafts braided, symmetric, 100% connected 3D mazes in under `0.01` seconds with zero dead-ends or 2x2 plazas.
-*   **Multi-Style Visual Themes:** Levels are rendered dynamically in one of three procedurally generated themes:
+*   **Multi-Style Visual Themes:** Levels are rendered dynamically in one of four procedurally generated themes:
     *   `pipes`: Connected double-deck pipeline rails with brushed satin metallic reflections.
     *   `blocks`: Monolithic neon arcade cubes.
     *   `pillars`: Futuristic columns topped with glowing, emissive floating spheres.
+    *   `circuits`: Holographic printed circuit boards with glowing continuous neón data-bus tracks.
 *   **Decoupled Diorama Camera:** A standalone camera tracking node utilizing steep perspectives, narrow FOVs, smooth spatial LERP damping, and a procedural drone bobbing.
 *   **Arcade-Accurate Ghost AI:** Features coordinate-based pathfinding, behavior strategies (Blinky, Pinky, Inky, Clyde), kinematic foso-exiting logic, and a deterministic "Eaten" state where floating eyes return to their spawn pads to heal.
 *   **Automated Level Progression & Scaling:** Seamless level transitions that dynamically scale ghost speeds, music pitch, and reduce power-pellet timers.
+*   **Smart Laser Gate & Portal Arches:** One-way physical laser barriers (Layer 4) preventing Pac-Man from cheating, paired with self-aligning holographic portal gateways with shimmering energy curtains.
+*   **Energy Motion Trails & Thrusters:** Particle-driven continuous light trails (dynamically color-coded: Yellow, Gold, Cyan), jet-thrust jump spark exhausts, and glowing lightning bolt speed pellets.
+*   **Cyber Spawn Pods:** Symmetrical high-tech dark carbon and glowing neon containment pads lining the foso floor underneath each ghost.
 *   **Polished Game Juice:** Multi-touch virtual mobile controls, cinematic screen shakes on deaths/bites, post-processing bloom, and vectorized minimap radar.
 *   **SOLID Software Architecture:** Decoupled interfaces where core nodes interact through signals and public APIs, keeping managers and entities lightweight and single-responsible.
 

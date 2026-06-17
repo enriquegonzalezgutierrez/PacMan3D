@@ -62,27 +62,55 @@ Email: enrique.gonzalez.gutierrez@gmail.com
 
 ---
 
-## Phase 3: High-Score Persistence & Advanced Mechanics (FUTURE SCOPE)
+## Phase 3: High-Score Persistence & Advanced Mechanics (COMPLETED)
 
-### 1. High-Score Storage & Serialization
-*   Build a lightweight file serializer to save and load player high-scores locally (`user://high_scores.dat`).
-*   Encrypt/Secure the save file using simple cryptographic checks (or Godot's built-in FileAccess encrypted mode) to prevent manual save tampering.
+### 1. High-Score Storage & Serialization [X]
+*   Built a secure, encrypted local high-score persistence system (`user://high_scores.dat`) using AES-256 password protection to prevent manual save tampering.
+*   Synchronized HUD values directly with GameManager on startup to prevent Autoload race conditions.
 
-### 2. Dynamic Ghost House Door Gate
-*   Programmatically prevent ghosts from entering back into the foso while in Chase/Scatter mode, but allow them to pass through dynamically when in Eaten (floating eyes) state.
+### 2. Dynamic Ghost House Door Gate [X]
+*   Programmed a static physics laser barrier on Layer 4 (8) to block Pac-Man from entering.
+*   Enabled ghosts to dynamically toggle their collision mask to pass through the door during LEAVING/EATEN states, and collide with it in active chase modes.
 
-### 3. Fruits Variety & Spawn Cycles
-*   Introduce dynamic fruit variations per level (Cherries, Strawberries, Peaches, Apple, Key) with escalating point awards.
-*   Create a dual-spawn trigger: fruit spawns once at 70 pellets consumed, and again at 170 pellets consumed.
+### 3. Fruits Variety & Spawn Cycles [X]
+*   Developed 5 procedural, level-adapted visual fruits (Cherries, Strawberries, Peaches, Apples, and Keys) with escalating points.
+*   Replaced timer-based spawning with event-driven triggers inside `LevelManager`, spawning bonus fruits exactly at 70 and 170 pellets eaten.
 
 ---
 
-## Phase 4: Optimization, Platform Polish & Shaders (FUTURE SCOPE)
+## Phase 4: Optimizations, Platform Polish & VFX (COMPLETED)
 
-### 1. Performance Profiling
-*   Leverage Godot's built-in Profiler and Monitor tools to optimize mesh rendering calls (Static Draw Call batching).
-*   Bake static lighting or use ReflectionProbes to generate ultra-realistic local reflections on the metallic pipe rails on budget hardware.
+### 1. Cyber Circuits Theme & Spawn Pods [X]
+*   Developed a fourth modular rendering style (`circuits`) featuring dark carbon boards wrapped with glowing, level-tinted holographic micro-conduits and nodes.
+*   Attached color-matched glowing cyber-spawn pads flat on the foso floor under each ghost's starting spawn coordinates.
 
-### 2. Custom Screen Shaders
-*   Develop a canvas-layer post-processing Retro CRT / Curved Screen arcade shader.
-*   Implement screen chromatic aberration glitches when Pac-Man gets hit.
+### 2. Holographic Portal Gateways [X]
+*   Programmed glowing neon-cyan gate arches and shimmering energy curtains at teleport boundaries, dynamically self-aligning their rotation.
+
+### 3. Energy Motion Trails & Thrusters [X]
+*   Programmed a highly responsive GPUParticles3D ribbon-style light trail that dynamically changes color (Yellow, Gold, Cyan) depending on active states.
+*   Instantiated an energetic downward gold-neon spark jet exhaust upon jumping.
+
+---
+
+## Phase 5: Tournament Mode, settings & 3D Audio (FUTURE SCOPE)
+
+### 1. Local Tournament Leaderboard (Top 5)
+*   Expand the high-score serialization into a top 5 local leaderboard array.
+*   Develop an arcade-classic letter-wheel entry interface (A-Z) in the HUD to let players input their 3-letter initials (e.g. `ENR`, `AAA`) on Game Over.
+
+### 2. 3D Positional Audio Attenuation
+*   Replace standard AudioStreamPlayers with AudioStreamPlayer3Ds for waka-waka and ghost sirens, attenuating volume based on distance to the diorama camera.
+
+### 3. Interactive Settings Panel
+*   Create a clean, cyber-style settings menu inside the Main Menu to adjust master, sfx, and music volumes.
+
+---
+
+## Phase 6: Advanced Graphic VFX & Custom Shaders (FUTURE SCOPE)
+
+### 1. Screen Glitch VFX
+*   Implement screen-space chromatic aberration and noise glitches on camera during player death or ghost consumption.
+
+### 2. Baked ReflectionProbes
+*   Optimize mobile render performance by baking static ReflectionProbes on the satin metals, achieving locked high-framerate executions on budget mobile GPUs.
