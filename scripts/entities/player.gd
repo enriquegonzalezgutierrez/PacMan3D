@@ -10,6 +10,9 @@
 #              - SRP Refactoring (Step 2): Completely stripped all Camera3D setup.
 #              - DYNAMIC ALIGNMENT FIX: Calculates grid offset dynamically.
 #              - Giant Arcade Proportions: Giant 1.7m diameter sphere.
+#              Phase 3 Updates:
+#              - GHOST HOUSE GATE COLLISION: Added Layer 4 (8) to the collision mask 
+#                to physically block Pac-Man from entering the ghost foso area.
 # Author: Enrique González Gutiérrez
 # Email: enrique.gonzalez.gutierrez@gmail.com
 # ==============================================================================
@@ -90,8 +93,8 @@ func _ready() -> void:
 func _configure_collision_layers() -> void:
 	# Exist on Layer 2 (Player)
 	collision_layer = 2
-	# Only physically block with Layer 1 (Walls)
-	collision_mask = 1
+	# Physically block with Layer 1 (Walls = 1) and Layer 4 (Ghost House Gate = 8)
+	collision_mask = 1 | 8
 
 func _build_player_visuals() -> void:
 	var collision_shape := CollisionShape3D.new()

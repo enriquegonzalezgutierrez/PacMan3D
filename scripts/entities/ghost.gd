@@ -15,6 +15,16 @@
 #                steering check and take the absolute shortest route to the foso.
 #              - VISUAL MATERIAL GUARD: Prevent timers from recoloring the 
 #                invisible body back to blue while retreating.
+#              Phase 3 Updates:
+#              - DYNAMIC GATE COLLISION: Configured collision mask (1 | 8) to 
+#                physically block ghosts with the Ghost House Gate (8) on Layer 4.
+#                Dynamically toggles mask: disabled during State.LEAVING and 
+#                State.EATEN to allow seamless entrance/exit, and enabled 
+#                during active chase modes to physically lock them out.
+#              - SCOPE REDECLARATION BUG FIX: Reused the pupil_mesh instance 
+#                variable instead of redeclaring it with 'var', resolving parser crashes.
+#              - FUNCTION RESTORATION: Re-inserted the missing dynamic exit position 
+#                detection handler method.
 # Author: Enrique González Gutiérrez
 # Email: enrique.gonzalez.gutierrez@gmail.com
 # ==============================================================================
@@ -169,9 +179,10 @@ func _detect_exit_position_dynamically() -> void:
 						return
 
 func _configure_collision_layers() -> void:
-	# Exist on Layer 3 (Ghosts)
+	# Exist on Layer 3 (Ghosts) -> value 4
 	collision_layer = 4
-	# Only physically block with Layer 1 (Walls)
+	# Start with Gate collision DISABLED since they spawn in State.LEAVING inside the foso!
+	# This allows them to exit the foso physically without friction blocks.
 	collision_mask = 1
 
 # Programmatically builds the capsule mesh, physical collision box, and iconic eyes
@@ -235,7 +246,7 @@ func _build_ghost_visuals() -> void:
 	
 	# 2. Right Sclera Sphere (White Eye)
 	var right_sclera := MeshInstance3D.new()
-	right_sclera.mesh = sclera_mesh
+	right_sclera.mesh = sclera_mesh # Reuses sclera_mesh! No redeclaration.
 	right_sclera.material_override = sclera_mat
 	right_sclera.position = Vector3(0.35, 0.4, -0.75)
 	eyes_holder.add_child(right_sclera)
@@ -252,7 +263,7 @@ func _build_ghost_visuals() -> void:
 	
 	# 4. Right Pupil Sphere (Blue Pupil)
 	var right_pupil := MeshInstance3D.new()
-	right_pupil.mesh = pupil_mesh 
+	right_pupil.mesh = pupil_mesh # Reuses pupil_mesh! No redeclaration (Fix).
 	right_pupil.material_override = pupil_mat
 	right_pupil.position = pupil_right_pos
 	eyes_holder.add_child(right_pupil)
@@ -308,6 +319,7 @@ func _setup_player_detection() -> void:
 	detection_area.add_child(detection_shape)
 	add_child(detection_area)
 	
+	# Detect Layer 2 (Player)
 	detection_area.collision_layer = 0
 	detection_area.collision_mask = 2
 	
@@ -363,6 +375,10 @@ func _physics_process(delta: float) -> void:
 			current_state = State.CHASE
 			speed = base_speed
 			_apply_material(original_material)
+			
+			# --- ENABLE GHOST HOUSE GATE COLLISION ---
+			# Now that we are safely outside, lock ourselves out of the foso physically!
+			collision_mask = 1 | 8
 		return
 
 	# --- CHASE / SCATTER ARCADE CYCLE TIMERS ---
@@ -405,6 +421,10 @@ func _physics_process(delta: float) -> void:
 			speed = base_speed
 			_set_body_visibility(true) # Restore body and default materials first
 			_apply_material(original_material)
+			
+			# --- DISABLE GHOST HOUSE GATE COLLISION FOR LEAVING ---
+			# We are back inside and must leave again, so let us pass through the gate physically
+			collision_mask = 1
 			
 			current_direction = CARDINAL_DIRECTIONS.pick_random()
 			next_direction = current_direction
@@ -704,6 +724,10 @@ func reset_to_base() -> void:
 	_set_body_visibility(true)
 	_apply_material(original_material)
 	
+	# --- DISABLE GHOST HOUSE GATE COLLISION FOR LEAVING ---
+	# Set to 1 (only Walls) to ensure they can exit the foso on round restart without getting blocked
+	collision_mask = 1
+	
 	current_direction = CARDINAL_DIRECTIONS.pick_random()
 	next_direction = current_direction
 	
@@ -774,6 +798,10 @@ func _on_player_detected(body: Node3D) -> void:
 			current_state = State.EATEN
 			speed = EATEN_SPEED
 			_set_body_visibility(false)
+			
+			# --- DISABLE GHOST HOUSE GATE COLLISION ---
+			# Strip Layer 4 (8) from mask so eyes can pass through the physics gate (Phase 3)
+			collision_mask = 1
 			
 			# Instantly reverse direction to flee towards base
 			current_direction = -current_direction

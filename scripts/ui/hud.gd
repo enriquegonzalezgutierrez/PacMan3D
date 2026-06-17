@@ -9,6 +9,13 @@
 #              - FULL HD SCALING: Re-proportioned all typography, offsets, buttons, 
 #                and panel sizes (Minimap increased to 280x280, titles to 110px, 
 #                and HUD indicators to 42px) to look majestic on 1080p viewports.
+#              Phase 3 Updates:
+#              - HIGH-SCORE INDICATOR: Integrated a centralized, real-time updated 
+#                high-score (HI-SCORE) display panel positioned symmetrically 
+#                at the center-top of the screen.
+#              - AUTOLOAD RACE CONDITION FIX: Synchronized HUD values directly 
+#                with GameManager on startup to guarantee values are printed 
+#                immediately when the game starts.
 # Author: Enrique González Gutiérrez
 # Email: enrique.gonzalez.gutierrez@gmail.com
 # ==============================================================================
@@ -20,6 +27,7 @@ signal start_game()
 
 # HUD Components
 var score_label : Label
+var high_score_label : Label # Phase 3 Record Label
 var lives_label : Label
 var status_overlay : ColorRect
 var status_label : Label
@@ -52,14 +60,23 @@ func _ready() -> void:
 	# Setup scene load fade-in effect
 	fade_alpha = 1.0
 	
-	# Listen for progression and fail-state transitions globally (DIP Compliance)
+	# Listen for progression, records and fail-state transitions globally (DIP Compliance)
 	if GameManager:
 		GameManager.game_over.connect(_on_game_over)
 		GameManager.victory.connect(_on_victory_transition_triggered)
+		GameManager.high_score_changed.connect(_on_high_score_changed)
+		
+		# --- AUTOLOAD RACE CONDITION FIX (Phase 3) ---
+		# Synchronize the label texts immediately with the current GameManager state 
+		# on startup to guarantee data is populated even if initial signals were missed.
+		_on_score_changed(GameManager.score)
+		_on_high_score_changed(GameManager.high_score)
+		_on_lives_changed(GameManager.lives)
 	
 	if GameManager and GameManager.is_game_started:
 		# Automate gameplay startup on progression reload (completely bypasses main menu)
 		score_label.visible = true
+		high_score_label.visible = true
 		lives_label.visible = true
 		if not is_mobile:
 			minimap.visible = true
@@ -102,7 +119,21 @@ func _build_hud_elements() -> void:
 	score_label.offset_left = 64
 	score_label.offset_top = 64
 	
-	# 2. Lives Label Setup (Symmetric Stacked Style - Scaled for 1080p)
+	# 2. High-Score Label Setup (Centralized Symmetrical Arcade Style - Phase 3)
+	high_score_label = Label.new()
+	high_score_label.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+	high_score_label.add_theme_font_size_override("font_size", 42)
+	high_score_label.add_theme_constant_override("outline_size", 10)
+	high_score_label.add_theme_color_override("font_outline_color", Color(0.0, 0.0, 1.0)) # Retro Blue Outline
+	high_score_label.add_theme_color_override("font_color", Color(1.0, 0.5, 0.0)) # Vibrant Gold Record
+	high_score_label.visible = false
+	add_child(high_score_label)
+	
+	high_score_label.set_anchors_and_offsets_preset(Control.PRESET_CENTER_TOP)
+	high_score_label.grow_horizontal = Control.GROW_DIRECTION_BOTH
+	high_score_label.offset_top = 64
+	
+	# 3. Lives Label Setup (Symmetric Stacked Style - Scaled for 1080p)
 	lives_label = Label.new()
 	lives_label.horizontal_alignment = HORIZONTAL_ALIGNMENT_RIGHT
 	lives_label.add_theme_font_size_override("font_size", 42)
@@ -118,7 +149,7 @@ func _build_hud_elements() -> void:
 	lives_label.offset_right = -64
 	lives_label.offset_top = 64
 	
-	# 3. Minimap 2D Setup (Enlarged to 280x280 for Full HD readability)
+	# 4. Minimap 2D Setup (Enlarged to 280x280 for Full HD readability)
 	minimap = Minimap2D.new()
 	minimap.map_size = Vector2(280, 280) # Sized up elegantly
 	minimap.visible = false
@@ -131,14 +162,14 @@ func _build_hud_elements() -> void:
 	minimap.offset_right = -24
 	minimap.offset_bottom = -24
 	
-	# 4. Status Full-Screen Overlay
+	# 5. Status Full-Screen Overlay
 	status_overlay = ColorRect.new()
 	status_overlay.color = Color(0.0, 0.0, 0.0, 0.75) 
 	status_overlay.visible = false
 	add_child(status_overlay)
 	status_overlay.set_anchors_and_offsets_preset(Control.PRESET_FULL_RECT)
 	
-	# 5. Status Text inside the overlay
+	# 6. Status Text inside the overlay
 	status_label = Label.new()
 	status_label.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
 	status_label.vertical_alignment = VERTICAL_ALIGNMENT_CENTER
@@ -148,7 +179,7 @@ func _build_hud_elements() -> void:
 	status_label.grow_horizontal = Control.GROW_DIRECTION_BOTH
 	status_label.grow_vertical = Control.GROW_DIRECTION_BOTH
 	
-	# 6. Fade Overlay Setup (Cinematic Transition - Sits on top of everything)
+	# 7. Fade Overlay Setup (Cinematic Transition - Sits on top of everything)
 	fade_overlay = ColorRect.new()
 	fade_overlay.color = Color(0.0, 0.0, 0.0, 1.0) # Start fully black
 	add_child(fade_overlay)
@@ -364,6 +395,7 @@ func _on_start_game_pressed() -> void:
 		menu_bg.queue_free()
 		
 	score_label.visible = true
+	high_score_label.visible = true
 	lives_label.visible = true
 	
 	if not is_mobile:
@@ -376,6 +408,10 @@ func _on_start_game_pressed() -> void:
 # Stacked Score output zero-padded to 6 digits (Arcade standard)
 func _on_score_changed(new_score: int) -> void:
 	score_label.text = "SCORE\n%06d" % new_score
+
+# Dynamic High-Score output (Phase 3 compliance)
+func _on_high_score_changed(new_high_score: int) -> void:
+	high_score_label.text = "HI-SCORE\n%06d" % new_high_score
 
 # Stacked Lives output
 func _on_lives_changed(new_lives: int) -> void:

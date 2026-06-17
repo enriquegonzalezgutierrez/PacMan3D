@@ -19,6 +19,10 @@
 #                camera's South-to-North viewport to produce optimal metal reflections.
 #              - REFCOUNTED SIGNAL FIX: Removed invalid get_tree() deferred calls 
 #                inside RefCounted builder, restoring direct signal bindings.
+#              Phase 3 Updates:
+#              - GHOST HOUSE LASER GATE: Programmatically instantiates a neon-pink 
+#                one-way physical laser barrier on Layer 4 (8) at the foso gate 
+#                coordinates to block Pac-Man while permitting eaten ghosts.
 # Author: Enrique González Gutiérrez
 # Email: enrique.gonzalez.gutierrez@gmail.com
 # ==============================================================================
@@ -107,6 +111,10 @@ func build(level_data: Dictionary) -> void:
 	var map_offset_x : float = (float(width) * CELL_SIZE) / 2.0
 	var map_offset_z : float = (float(height) * CELL_SIZE) / 2.0
 	
+	# Gate tracking coordinates (Symmetric center-top doorway of foso)
+	var gate_y : int = 12
+	var gate_x : int = int(float(width) / 2.0)
+	
 	for z in range(layout.size()):
 		var row : Array = layout[z]
 		for x in range(row.size()):
@@ -114,6 +122,10 @@ func build(level_data: Dictionary) -> void:
 			var pos_x : float = (x * CELL_SIZE) - map_offset_x + (CELL_SIZE / 2.0)
 			var pos_z : float = (z * CELL_SIZE) - map_offset_z + (CELL_SIZE / 2.0)
 			var world_pos := Vector3(pos_x, 0.0, pos_z)
+			
+			# Programmatically spawn the physical Ghost House laser barrier
+			if x == gate_x and z == gate_y:
+				_create_ghost_house_gate(world_pos)
 			
 			match cell_type:
 				1: _create_wall(world_pos, x, z, level_data) 
@@ -276,6 +288,42 @@ func _create_wall(pos: Vector3, x: int, z: int, level_data: Dictionary) -> void:
 	collision_shape.shape = box_shape
 	collision_shape.position.y = 10.0 
 	static_body.add_child(collision_shape)
+	
+	static_body.position = pos
+	parent_node.add_child(static_body)
+
+# Programmatically constructs a physical one-way laser gate for the foso (Phase 3)
+func _create_ghost_house_gate(pos: Vector3) -> void:
+	var static_body := StaticBody3D.new()
+	static_body.name = "GhostHouseGate"
+	
+	# Exists on Layer 4 (value 8) - Ghost House Gate
+	static_body.collision_layer = 8
+	static_body.collision_mask = 0 # Static bodies do not need to scan other masks
+	
+	# Collision box matches grid cell dimensions (CELL_SIZE x CELL_SIZE)
+	var box_shape := BoxShape3D.new()
+	box_shape.size = Vector3(CELL_SIZE, WALL_HEIGHT, CELL_SIZE)
+	
+	var collision_shape := CollisionShape3D.new()
+	collision_shape.shape = box_shape
+	collision_shape.position.y = WALL_HEIGHT / 2.0
+	static_body.add_child(collision_shape)
+	
+	# Procedural translucent cyber pink laser sheet (Visual Feedback)
+	var mesh_instance := MeshInstance3D.new()
+	var box_mesh := BoxMesh.new()
+	box_mesh.size = Vector3(CELL_SIZE, 0.05, CELL_SIZE) # Thin flat plate on floor
+	mesh_instance.mesh = box_mesh
+	
+	var laser_mat := StandardMaterial3D.new()
+	laser_mat.transparency = BaseMaterial3D.TRANSPARENCY_ALPHA
+	laser_mat.albedo_color = Color(1.0, 0.0, 1.0, 0.25) # Transparent magenta
+	laser_mat.emission_enabled = true
+	laser_mat.emission = Color(1.0, 0.0, 0.6) # Glowing neon pink
+	mesh_instance.material_override = laser_mat
+	mesh_instance.position.y = 0.025 # Sitting slightly above floor
+	static_body.add_child(mesh_instance)
 	
 	static_body.position = pos
 	parent_node.add_child(static_body)
