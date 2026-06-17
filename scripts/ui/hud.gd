@@ -3,9 +3,12 @@
 #              main menu, styled retro HUD nodes, and coordinates dynamic 
 #              progression screen overlays.
 #              Phase 2 Updates:
-#              - AUTOMATED PROGRESSION COMPLIANCE: Completely removed the static 
-#                victory overlay screen. Level transitions are now handled 
-#                cinematically by the LevelManager without requiring user input.
+#              - AUTOMATED PROGRESSION COMPLIANCE: Connected GameManager's victory 
+#                signal to display an elegant "LEVEL CLEARED! LOADING..." overlay 
+#                during the 2-second transition, preventing freeze illusions.
+#              - FULL HD SCALING: Re-proportioned all typography, offsets, buttons, 
+#                and panel sizes (Minimap increased to 280x280, titles to 110px, 
+#                and HUD indicators to 42px) to look majestic on 1080p viewports.
 # Author: Enrique González Gutiérrez
 # Email: enrique.gonzalez.gutierrez@gmail.com
 # ==============================================================================
@@ -49,9 +52,10 @@ func _ready() -> void:
 	# Setup scene load fade-in effect
 	fade_alpha = 1.0
 	
-	# Listen for Game Over explicitly
+	# Listen for progression and fail-state transitions globally (DIP Compliance)
 	if GameManager:
 		GameManager.game_over.connect(_on_game_over)
+		GameManager.victory.connect(_on_victory_transition_triggered)
 	
 	if GameManager and GameManager.is_game_started:
 		# Automate gameplay startup on progression reload (completely bypasses main menu)
@@ -85,24 +89,24 @@ func emit_start_game_signal() -> void:
 func _build_hud_elements() -> void:
 	set_anchors_and_offsets_preset(Control.PRESET_FULL_RECT)
 	
-	# 1. Score Label Setup (Arcade 1UP Style)
+	# 1. Score Label Setup (Arcade 1UP Style - Scaled for 1080p)
 	score_label = Label.new()
-	score_label.add_theme_font_size_override("font_size", 28)
-	score_label.add_theme_constant_override("outline_size", 8)
+	score_label.add_theme_font_size_override("font_size", 42)
+	score_label.add_theme_constant_override("outline_size", 10)
 	score_label.add_theme_color_override("font_outline_color", Color(0.0, 0.0, 1.0)) # Retro Blue Outline
 	score_label.add_theme_color_override("font_color", Color(1.0, 1.0, 1.0)) # White score
 	score_label.visible = false
 	add_child(score_label)
 	
 	score_label.set_anchors_and_offsets_preset(Control.PRESET_TOP_LEFT)
-	score_label.offset_left = 32
-	score_label.offset_top = 32
+	score_label.offset_left = 64
+	score_label.offset_top = 64
 	
-	# 2. Lives Label Setup (Symmetric Stacked Style)
+	# 2. Lives Label Setup (Symmetric Stacked Style - Scaled for 1080p)
 	lives_label = Label.new()
 	lives_label.horizontal_alignment = HORIZONTAL_ALIGNMENT_RIGHT
-	lives_label.add_theme_font_size_override("font_size", 28)
-	lives_label.add_theme_constant_override("outline_size", 8)
+	lives_label.add_theme_font_size_override("font_size", 42)
+	lives_label.add_theme_constant_override("outline_size", 10)
 	lives_label.add_theme_color_override("font_outline_color", Color(0.0, 0.0, 1.0)) # Retro Blue Outline
 	lives_label.add_theme_color_override("font_color", Color(1.0, 0.3, 0.3)) # Vibrant Red Lives
 	lives_label.visible = false
@@ -110,19 +114,20 @@ func _build_hud_elements() -> void:
 	
 	lives_label.set_anchors_and_offsets_preset(Control.PRESET_TOP_RIGHT)
 	lives_label.grow_horizontal = Control.GROW_DIRECTION_BEGIN
-	lives_label.offset_left = -224
-	lives_label.offset_right = -32
-	lives_label.offset_top = 32
+	lives_label.offset_left = -450
+	lives_label.offset_right = -64
+	lives_label.offset_top = 64
 	
-	# 3. Minimap 2D Setup
+	# 3. Minimap 2D Setup (Enlarged to 280x280 for Full HD readability)
 	minimap = Minimap2D.new()
+	minimap.map_size = Vector2(280, 280) # Sized up elegantly
 	minimap.visible = false
 	add_child(minimap)
 	minimap.set_anchors_and_offsets_preset(Control.PRESET_BOTTOM_RIGHT)
 	minimap.grow_horizontal = Control.GROW_DIRECTION_BEGIN
 	minimap.grow_vertical = Control.GROW_DIRECTION_BEGIN
-	minimap.offset_left = -204
-	minimap.offset_top = -204
+	minimap.offset_left = -304
+	minimap.offset_top = -304
 	minimap.offset_right = -24
 	minimap.offset_bottom = -24
 	
@@ -137,7 +142,7 @@ func _build_hud_elements() -> void:
 	status_label = Label.new()
 	status_label.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
 	status_label.vertical_alignment = VERTICAL_ALIGNMENT_CENTER
-	status_label.add_theme_font_size_override("font_size", 48)
+	status_label.add_theme_font_size_override("font_size", 54) # Large clear text
 	status_overlay.add_child(status_label)
 	status_label.set_anchors_and_offsets_preset(Control.PRESET_CENTER)
 	status_label.grow_horizontal = Control.GROW_DIRECTION_BOTH
@@ -250,61 +255,61 @@ func _build_main_menu() -> void:
 	menu_bg.add_child(darken_overlay)
 	darken_overlay.set_anchors_and_offsets_preset(Control.PRESET_FULL_RECT)
 	
-	# 2. Glowing Title
+	# 2. Glowing Title (Enlarged to 110px for 1080p presence)
 	menu_title = Label.new()
 	menu_title.text = "PAC-MAN 3D"
 	menu_title.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
-	menu_title.add_theme_font_size_override("font_size", 72)
+	menu_title.add_theme_font_size_override("font_size", 110)
 	menu_title.add_theme_color_override("font_color", Color(1.0, 1.0, 0.0)) 
 	menu_title.add_theme_color_override("font_outline_color", Color(0.0, 0.0, 1.0)) 
-	menu_title.add_theme_constant_override("outline_size", 14)
+	menu_title.add_theme_constant_override("outline_size", 16)
 	menu_bg.add_child(menu_title)
 	
 	menu_title.set_anchors_and_offsets_preset(Control.PRESET_CENTER_TOP)
 	menu_title.grow_horizontal = Control.GROW_DIRECTION_BOTH
-	menu_title.offset_top = 100
+	menu_title.offset_top = 120
 	
 	# Container for vertical button alignment
 	var button_container := VBoxContainer.new()
-	button_container.add_theme_constant_override("separation", 24)
+	button_container.add_theme_constant_override("separation", 32)
 	menu_bg.add_child(button_container)
 	
 	button_container.set_anchors_and_offsets_preset(Control.PRESET_CENTER)
 	button_container.grow_horizontal = Control.GROW_DIRECTION_BOTH
 	button_container.grow_vertical = Control.GROW_DIRECTION_BOTH
-	button_container.offset_top = 80
+	button_container.offset_top = 100
 	
-	# --- STYLING BUTTON THEMES PROCEDURALLY ---
+	# --- STYLING BUTTON THEMES PROCEDURALLY (Sized up for Full HD touch/click target) ---
 	var style_normal := StyleBoxFlat.new()
 	style_normal.bg_color = Color(0.08, 0.08, 0.08, 0.85)
-	style_normal.border_width_left = 2
-	style_normal.border_width_top = 2
-	style_normal.border_width_right = 2
-	style_normal.border_width_bottom = 2
+	style_normal.border_width_left = 3
+	style_normal.border_width_top = 3
+	style_normal.border_width_right = 3
+	style_normal.border_width_bottom = 3
 	style_normal.border_color = Color(0.3, 0.3, 0.3)
-	style_normal.set_corner_radius_all(6)
-	style_normal.content_margin_left = 32
-	style_normal.content_margin_right = 32
-	style_normal.content_margin_top = 12
-	style_normal.content_margin_bottom = 12
+	style_normal.set_corner_radius_all(10)
+	style_normal.content_margin_left = 48
+	style_normal.content_margin_right = 48
+	style_normal.content_margin_top = 18
+	style_normal.content_margin_bottom = 18
 	
 	var style_focus_hover := StyleBoxFlat.new()
 	style_focus_hover.bg_color = Color(0.18, 0.18, 0.0, 0.9) 
-	style_focus_hover.border_width_left = 3
-	style_focus_hover.border_width_top = 3
-	style_focus_hover.border_width_right = 3
-	style_focus_hover.border_width_bottom = 3
+	style_focus_hover.border_width_left = 4
+	style_focus_hover.border_width_top = 4
+	style_focus_hover.border_width_right = 4
+	style_focus_hover.border_width_bottom = 4
 	style_focus_hover.border_color = Color(1.0, 1.0, 0.0) 
-	style_focus_hover.set_corner_radius_all(6)
-	style_focus_hover.content_margin_left = 32
-	style_focus_hover.content_margin_right = 32
-	style_focus_hover.content_margin_top = 12
-	style_focus_hover.content_margin_bottom = 12
+	style_focus_hover.set_corner_radius_all(10)
+	style_focus_hover.content_margin_left = 48
+	style_focus_hover.content_margin_right = 48
+	style_focus_hover.content_margin_top = 18
+	style_focus_hover.content_margin_bottom = 18
 	
-	# 3. Start Game Button
+	# 3. Start Game Button (Sized up to 36px)
 	start_button = Button.new()
 	start_button.text = "START GAME"
-	start_button.add_theme_font_size_override("font_size", 28)
+	start_button.add_theme_font_size_override("font_size", 36)
 	
 	start_button.add_theme_stylebox_override("normal", style_normal)
 	start_button.add_theme_stylebox_override("hover", style_focus_hover)
@@ -322,7 +327,7 @@ func _build_main_menu() -> void:
 	if not OS.has_feature("web") and not OS.has_feature("ios"):
 		exit_button = Button.new()
 		exit_button.text = "EXIT"
-		exit_button.add_theme_font_size_override("font_size", 24)
+		exit_button.add_theme_font_size_override("font_size", 32)
 		
 		exit_button.add_theme_stylebox_override("normal", style_normal)
 		exit_button.add_theme_stylebox_override("hover", style_focus_hover)
@@ -383,6 +388,16 @@ func _on_game_over() -> void:
 	status_overlay.visible = true
 	get_tree().paused = true
 
+# Displays a gorgeous neon status notification during the 2-second automated transition (Phase 2 Compliance)
+func _on_victory_transition_triggered() -> void:
+	var next_level_idx : int = GameManager.current_level + 1
+	if GameManager.has_next_level():
+		status_label.text = "LEVEL CLEARED!\nPREPARING LEVEL %02d..." % next_level_idx
+	else:
+		status_label.text = "VICTORY!\nLOADING FINALE CREDITS..."
+		
+	status_overlay.visible = true
+
 # Listens for both physical keyboard events AND mobile screen touches
 func _input(event: InputEvent) -> void:
 	# Ignore input if status overlay isn't visible
@@ -391,6 +406,10 @@ func _input(event: InputEvent) -> void:
 	if event is InputEventKey and event.is_pressed():
 		if event.keycode == KEY_R and status_overlay.visible:
 			is_restart_triggered = true
+		# RESTORE PC CHEAT KEY: Pressing 'N' emits victory globally (Phase 2 Compliance)
+		elif event.keycode == KEY_N and not status_overlay.visible:
+			if GameManager:
+				GameManager.victory.emit()
 			
 	elif event is InputEventScreenTouch and event.pressed and status_overlay.visible:
 		# On mobile, any tap during Game Over resets
