@@ -91,6 +91,12 @@ Email: enrique.gonzalez.gutierrez@gmail.com
 *   Programmed a highly responsive GPUParticles3D ribbon-style light trail that dynamically changes color (Yellow, Gold, Cyan) depending on active states.
 *   Instantiated an energetic downward gold-neon spark jet exhaust upon jumping.
 
+### 4. Mobile Virtual Joystick & Controls [X]
+*   Replaced the rigid 4-button D-Pad with a custom 360-degree floating analog stick (320px base, 130px knob) and enlarged JUMP button to 220px for ultimate ergonomics.
+
+### 5. Cinematic System Loader [X]
+*   Designed a dedicated black loading screen ("GENERATING SYSTEM...") with deferred frame rendering and an 800ms minimum pacing delay to ensure seamless transitions on high-end PCs.
+
 ---
 
 ## Phase 5: Tournament Mode, settings & 3D Audio (FUTURE SCOPE)

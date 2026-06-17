@@ -27,9 +27,12 @@ This project focuses on robust core mechanics, physics-based movement, procedura
 *   **Decoupled Diorama Camera:** A standalone camera tracking node utilizing steep perspectives, narrow FOVs, smooth spatial LERP damping, and a procedural drone bobbing.
 *   **Arcade-Accurate Ghost AI:** Features coordinate-based pathfinding, behavior strategies (Blinky, Pinky, Inky, Clyde), kinematic foso-exiting logic, and a deterministic "Eaten" state where floating eyes return to their spawn pads to heal.
 *   **Automated Level Progression & Scaling:** Seamless level transitions that dynamically scale ghost speeds, music pitch, and reduce power-pellet timers.
+*   **Secure High-Score Persistence:** Encrypted binary save file (`user://high_scores.dat`) with AES-256 password protection for cross-platform cheat prevention (PC and Android).
 *   **Smart Laser Gate & Portal Arches:** One-way physical laser barriers (Layer 4) preventing Pac-Man from cheating, paired with self-aligning holographic portal gateways with shimmering energy curtains.
 *   **Energy Motion Trails & Thrusters:** Particle-driven continuous light trails (dynamically color-coded: Yellow, Gold, Cyan), jet-thrust jump spark exhausts, and glowing lightning bolt speed pellets.
 *   **Cyber Spawn Pods:** Symmetrical high-tech dark carbon and glowing neon containment pads lining the foso floor underneath each ghost.
+*   **Cinematic System Loader:** Dedicated black loading screen ("GENERATING SYSTEM...") with deferred frame rendering and an 800ms minimum pacing delay to ensure seamless transitions on high-end PCs.
+*   **Prosthetic Virtual Joystick & Layout:** Programmatic 360-degree floating analog stick (320px base, 130px knob) simulating digital keyboard registries natively, and a giant 220px JUMP button.
 *   **Polished Game Juice:** Multi-touch virtual mobile controls, cinematic screen shakes on deaths/bites, post-processing bloom, and vectorized minimap radar.
 *   **SOLID Software Architecture:** Decoupled interfaces where core nodes interact through signals and public APIs, keeping managers and entities lightweight and single-responsible.
 
