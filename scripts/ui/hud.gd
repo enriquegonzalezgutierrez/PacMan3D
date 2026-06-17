@@ -28,6 +28,9 @@
 #              - GHOST CORE BUG FIXES: Added missing signal connections for 
 #                `score_changed` and `lives_changed`, and re-ordered render tree 
 #                using move_child() to force loading screens to display above menu background.
+#              - INSTANT RESPONSIVENESS FIX (UX Polish): Restructured the start-game 
+#                sequence to instantly hide menu buttons and titles upon click, 
+#                replacing them with the loading overlay immediately to ensure 0ms input lag.
 # Author: Enrique González Gutiérrez
 # Email: enrique.gonzalez.gutierrez@gmail.com
 # ==============================================================================
@@ -381,6 +384,22 @@ func _build_main_menu() -> void:
 
 # Button Callback: Clears the menu overlays, starts BGM, and signals LevelManager to build map
 func _on_start_game_pressed() -> void:
+	# 1. HIDE ALL MENU BUTTONS AND TITLES INSTANTLY (UX Polish)
+	# This gives 0ms visual feedback that the game is loading, preventing freeze feelings
+	menu_title.visible = false
+	start_button.visible = false
+	if is_instance_valid(exit_button):
+		exit_button.visible = false
+		
+	# 2. SHOW THE LOADING OVERLAY INSTANTLY (Sits on top of active menu_bg)
+	status_label.text = "GENERATING SYSTEM...\nPLEASE WAIT"
+	status_overlay.visible = true
+	
+	# Force Godot to yield and physically render the loading overlay to the screen 
+	# on PC and Mobile BEFORE starting the heavy 3D construction thread! (SRP/UX Compliance)
+	await get_tree().process_frame
+	
+	# 3. Now that the loading overlay fully covers the viewport, clean up the menu silently behind it!
 	if GameManager:
 		GameManager.is_game_started = true
 		
@@ -389,7 +408,7 @@ func _on_start_game_pressed() -> void:
 		menu_bgm.queue_free()
 		
 	if menu_bg:
-		menu_bg.queue_free()
+		menu_bg.queue_free() # Deletes menu background safely
 		
 	score_label.visible = true
 	high_score_label.visible = true
@@ -399,16 +418,8 @@ func _on_start_game_pressed() -> void:
 		minimap.visible = true
 	if is_instance_valid(mobile_controls_container):
 		mobile_controls_container.visible = true
-		
-	# --- PHASE 4: INITIAL GENERATION LOADING SCREEN ---
-	# Display a beautiful loading overlay before block generation triggers
-	status_label.text = "GENERATING SYSTEM...\nPLEASE WAIT"
-	status_overlay.visible = true
 	
-	# Force Godot to yield and physically render the loading overlay to the screen 
-	# on PC and Mobile BEFORE starting the heavy 3D construction thread! (SRP/UX Compliance)
-	await get_tree().process_frame
-	
+	# 4. Emit building order (which blocks the thread, but the loader is already drawn!)
 	start_game.emit()
 
 # Public API to safely hide the status overlay once level building completes
