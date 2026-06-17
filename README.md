@@ -53,7 +53,7 @@ To run and edit this project locally, ensure you meet the following requirements
 ### Opening the Project
 1. Clone this repository:
    ```bash
-   git clone https://github.com/your-username/PacMan3D.git
+   git clone https://github.com/enriquegonzalezgutierrez/PacMan3D.git
    ```
 2. Open the **Godot Project Manager**.
 3. Click **Import**, navigate to the cloned folder, select `project.godot`, and click **Import & Edit**.
