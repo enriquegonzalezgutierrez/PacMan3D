@@ -22,15 +22,13 @@
 #              - MASSIVE CONTROL SCALING: Increased Joystick diameter to 320px 
 #                (knob 130px) and JUMP button to 220px to ensure premium ergonomic 
 #                comfort and accessibility on high-DPI modern mobile viewports.
-#              - SYSTEM GENERATION LOADING OVERLAY: Added hide_status_overlay() API 
-#                and deferred frame yielding (await process_frame) to force Godot 
-#                to render the "PLEASE WAIT" banner before blocking the thread to build.
+#              - SYSTEM GENERATION LOADING OVERLAY: Added hide_status_overlay() API.
 #              - GHOST CORE BUG FIXES: Added missing signal connections for 
 #                `score_changed` and `lives_changed`, and re-ordered render tree 
 #                using move_child() to force loading screens to display above menu background.
-#              - INSTANT RESPONSIVENESS FIX (UX Polish): Restructured the start-game 
-#                sequence to instantly hide menu buttons and titles upon click, 
-#                replacing them with the loading overlay immediately to ensure 0ms input lag.
+#              - RENDER YIELD FIX: Replaced process_frame with a 0.05s physical timer 
+#                to absolutely guarantee the GPU draws the loading screen to the 
+#                monitor before the CPU thread blocks to build the 3D level.
 # Author: Enrique González Gutiérrez
 # Email: enrique.gonzalez.gutierrez@gmail.com
 # ==============================================================================
@@ -378,14 +376,12 @@ func _build_main_menu() -> void:
 	menu_bgm.play()
 	
 	# Ensure the loading and transition overlays are at the absolute top of the render tree
-	# (Fix: Forces overlays to always render over the freshly created menu_bg)
 	move_child(status_overlay, -1)
 	move_child(fade_overlay, -1)
 
 # Button Callback: Clears the menu overlays, starts BGM, and signals LevelManager to build map
 func _on_start_game_pressed() -> void:
 	# 1. HIDE ALL MENU BUTTONS AND TITLES INSTANTLY (UX Polish)
-	# This gives 0ms visual feedback that the game is loading, preventing freeze feelings
 	menu_title.visible = false
 	start_button.visible = false
 	if is_instance_valid(exit_button):
@@ -395,9 +391,11 @@ func _on_start_game_pressed() -> void:
 	status_label.text = "GENERATING SYSTEM...\nPLEASE WAIT"
 	status_overlay.visible = true
 	
-	# Force Godot to yield and physically render the loading overlay to the screen 
-	# on PC and Mobile BEFORE starting the heavy 3D construction thread! (SRP/UX Compliance)
-	await get_tree().process_frame
+	# --- THE ULTIMATE GPU YIELD FIX ---
+	# A timer of 0.05s is required to fully execute Godot's internal render pipeline.
+	# It guarantees the GPU has painted the black status overlay to your physical 
+	# monitor before the CPU blocks the main thread to generate the 3D physics map.
+	await get_tree().create_timer(0.05).timeout
 	
 	# 3. Now that the loading overlay fully covers the viewport, clean up the menu silently behind it!
 	if GameManager:
