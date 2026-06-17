@@ -12,7 +12,7 @@ Email: enrique.gonzalez.gutierrez@gmail.com
 
 ### 1. Project Setup & Folder Structure [X]
 *   Established a clean, scalable folder layout.
-*   Enforced strict strict English-only naming conventions and standard file header templates.
+*   Enforced strict English-only naming conventions and standard file header templates.
 
 ### 2. Level Design, Procedural Generation, & Verification [X]
 *   Created `generate_levels.py`, a robust Python-based procedural level generator utilizing DFS maze generation and self-healing BFS connectivity passes.
@@ -30,7 +30,7 @@ Email: enrique.gonzalez.gutierrez@gmail.com
 *   Programmed a modular sequential death state triggering local GPUParticles3D explosions.
 
 ### 5. Enemy Entities (Ghosts) [X]
-*   Designed a decoupled state machine (Leaving, Chase, Frightened).
+*   Designed a decoupled state machine (Leaving, Chase, Scatter, Frightened).
 *   Integrated behavior strategies using clean strategy patterns (Blinky, Pinky, Inky, Clyde).
 *   Implemented arcade-accurate foso exit paths and a physical one-way gate, preventing ghosts from wandering back into the Ghost House.
 *   Applied dynamic alignment calculations to prevent entities from clipping/freezing during odd and even map size transitions.
@@ -41,20 +41,48 @@ Email: enrique.gonzalez.gutierrez@gmail.com
 
 ---
 
-## Phase 2: Gameplay Polish & Progression (Future Scope)
+## Phase 2: Gameplay Polish & Progression (COMPLETED)
 
-### 1. Automated Level Progression
-*   Implement automatic level transitions in `GameManager` (e.g., loading `level_02.json` once all pellets are consumed).
-*   Design a progression sequence, increasing ghost speed and reducing frightened timers as level numbers increase.
+### 1. Automated Level Progression [X]
+*   Implemented automatic level transitions in `LevelManager` (loading next `.json` once all pellets are consumed).
+*   Added a cinematic victory transition screen to show level-clear text before loading.
+*   Designed difficulty scaling sequence, increasing ghost speed and reducing frightened timers as level numbers increase.
 
-### 2. Advanced Ghost AI State Cycles
-*   Introduce Chase / Scatter timers (standard arcade timing) where ghosts periodically stop chasing and retreat to their designated corners before resuming.
-*   Add a proper "Eaten" state where ghosts return to the foso as floating eyeballs before respawning.
+### 2. Advanced Ghost AI State Cycles [X]
+*   Introduced Chase / Scatter timers (standard arcade timing) where ghosts periodically scatter to designated corners before chasing.
+*   Added a proper "Eaten" state where ghosts return to the foso as floating eyes on the shortest path before spawning.
 
-### 3. Audio & SFX Balancing
-*   Implement dynamic BGM pitch scaling (speeding up music as remaining pellets drop below 20%).
-*   Add audio attenuation based on distance for 3D positional waka-waka and ghost siren sound effects.
+### 3. Audio & SFX Balancing [X]
+*   Implemented dynamic BGM pitch scaling (speeding up music as remaining pellets drop and difficulty increases).
+*   Toned down post-processing bloom, adjusted Directional Light angles to match camera perspective, and adjusted materials to brushed satin metallic chrome.
 
-### 4. Visual Polish & HUD Enhancements
-*   Add screen-shake effects during Player death and ghost consumption.
-*   Implement transition overlays (fade-to-black) between levels and menu selections.
+### 4. Visual Polish & HUD Enhancements [X]
+*   Added screen-shake effects during Player death and ghost consumption.
+*   Up-scaled all UI layout components, Minimap (280x280), and typography to display cleanly in Full HD (1920x1080) resolution.
+
+---
+
+## Phase 3: High-Score Persistence & Advanced Mechanics (FUTURE SCOPE)
+
+### 1. High-Score Storage & Serialization
+*   Build a lightweight file serializer to save and load player high-scores locally (`user://high_scores.dat`).
+*   Encrypt/Secure the save file using simple cryptographic checks (or Godot's built-in FileAccess encrypted mode) to prevent manual save tampering.
+
+### 2. Dynamic Ghost House Door Gate
+*   Programmatically prevent ghosts from entering back into the foso while in Chase/Scatter mode, but allow them to pass through dynamically when in Eaten (floating eyes) state.
+
+### 3. Fruits Variety & Spawn Cycles
+*   Introduce dynamic fruit variations per level (Cherries, Strawberries, Peaches, Apple, Key) with escalating point awards.
+*   Create a dual-spawn trigger: fruit spawns once at 70 pellets consumed, and again at 170 pellets consumed.
+
+---
+
+## Phase 4: Optimization, Platform Polish & Shaders (FUTURE SCOPE)
+
+### 1. Performance Profiling
+*   Leverage Godot's built-in Profiler and Monitor tools to optimize mesh rendering calls (Static Draw Call batching).
+*   Bake static lighting or use ReflectionProbes to generate ultra-realistic local reflections on the metallic pipe rails on budget hardware.
+
+### 2. Custom Screen Shaders
+*   Develop a canvas-layer post-processing Retro CRT / Curved Screen arcade shader.
+*   Implement screen chromatic aberration glitches when Pac-Man gets hit.
