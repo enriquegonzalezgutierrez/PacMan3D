@@ -30,6 +30,9 @@
 #              - CYBER CIRCUITS THEME: Developed a fourth modular maze style ("circuits") 
 #                featuring matte obsidian board panels wrapped with glowing, 
 #                tint-matched holographic micro-conduits and corner nodes.
+#              - CYBER SPAWN PODS: Instantiates color-matched high-tech glowing 
+#                containment pads flat on the foso floor under each ghost's 
+#                respective starting spawn coordinate.
 # Author: Enrique González Gutiérrez
 # Email: enrique.gonzalez.gutierrez@gmail.com
 # ==============================================================================
@@ -390,6 +393,63 @@ func _create_ghost_house_gate(pos: Vector3) -> void:
 	static_body.position = pos
 	parent_node.add_child(static_body)
 
+# Programmatically constructs a high-tech glowing containment pad for a ghost (Phase 4)
+func _create_ghost_spawn_pad(pos: Vector3, color: Color) -> void:
+	var pad_holder := Node3D.new()
+	
+	# 1. Base Carbon Steel Platform Ring
+	var base_mesh := CylinderMesh.new()
+	base_mesh.top_radius = 0.65
+	base_mesh.bottom_radius = 0.65
+	base_mesh.height = 0.05
+	base_mesh.radial_segments = 16
+	
+	var base_mat := StandardMaterial3D.new()
+	base_mat.albedo_color = Color(0.08, 0.08, 0.1) # Dark tech carbon
+	base_mat.roughness = 0.6
+	base_mat.metallic = 0.6
+	
+	var base_instance := MeshInstance3D.new()
+	base_instance.mesh = base_mesh
+	base_instance.material_override = base_mat
+	base_instance.position.y = 0.025 # Flat with floor surface
+	pad_holder.add_child(base_instance)
+	
+	# 2. Glowing Inner Ring (Emissive, dynamically color-matched to the spawning ghost)
+	var ring_mesh := CylinderMesh.new()
+	ring_mesh.top_radius = 0.55
+	ring_mesh.bottom_radius = 0.55
+	ring_mesh.height = 0.06 # Slightly taller to protrude elegantly
+	ring_mesh.radial_segments = 16
+	
+	var ring_mat := StandardMaterial3D.new()
+	ring_mat.albedo_color = color
+	ring_mat.emission_enabled = true
+	ring_mat.emission = color * 0.85 # Cyber glow ring
+	
+	var ring_instance := MeshInstance3D.new()
+	ring_instance.mesh = ring_mesh
+	ring_instance.material_override = ring_mat
+	ring_instance.position.y = 0.03
+	pad_holder.add_child(ring_instance)
+	
+	# 3. Secure Center Core pad where the capsule stands
+	var core_mesh := CylinderMesh.new()
+	core_mesh.top_radius = 0.25
+	core_mesh.bottom_radius = 0.25
+	core_mesh.height = 0.07
+	core_mesh.radial_segments = 12
+	
+	var core_instance := MeshInstance3D.new()
+	core_instance.mesh = core_mesh
+	core_instance.material_override = base_mat
+	core_instance.position.y = 0.035
+	pad_holder.add_child(core_instance)
+	
+	pad_holder.position = pos
+	pad_holder.position.y = 0.01 # Lays completely flat on foso floor surface
+	parent_node.add_child(pad_holder)
+
 # Instantiates a standard or power pellet and connects its signals
 func _create_pellet(pos: Vector3, is_power: bool) -> void:
 	var pellet := Pellet.new()
@@ -477,6 +537,9 @@ func _spawn_ghost(pos: Vector3, level_data: Dictionary) -> void:
 	var layout : Array = level_data.get("layout", [])
 	var grid_w : int = int(level_data.get("grid_width", 0))
 	var grid_h : int = int(level_data.get("grid_height", 0))
+	
+	# --- SPAWN HIGH-TECH CONTAINMENT PAD (Phase 4) ---
+	_create_ghost_spawn_pad(pos, norm_mat.albedo_color)
 	
 	ghost.initialize(ghost_type, strategy, norm_mat, ghost_frightened_material, layout, grid_w, grid_h, ghost_eaten_audio_stream)
 	ghost.position.y = ghost.get_spawn_height_offset()

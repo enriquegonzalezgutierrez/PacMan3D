@@ -21,6 +21,9 @@
 #              - GLOWING MOTION LIGHT TRAIL: Programmed a highly responsive 
 #                GPUParticles3D ribbon-style light trail that dynamically changes 
 #                color (Yellow, Gold, Cyan) depending on active states.
+#              - JUMP THRUST PARTICLES: Programmatically instantiates a downward 
+#                one-shot gold-neon spark jet exhaust upon jumping.
+#              - TYPO CORRECTION: Fixed 'var_motion_trail_material' spacing syntax.
 # Author: Enrique González Gutiérrez
 # Email: enrique.gonzalez.gutierrez@gmail.com
 # ==============================================================================
@@ -519,6 +522,61 @@ func _update_motion_trail_materials() -> void:
 		motion_trail_material.emission_energy_multiplier = 0.8
 
 
+# --- PHASE 4: JUMP THRUST JET EXHAUST ---
+
+# Programmatically instantiates an energetic gold-neon burst straight downwards
+func _trigger_jump_thrust_particles() -> void:
+	var particles := GPUParticles3D.new()
+	
+	# Small unshaded yellow spark blocks
+	var mesh := BoxMesh.new()
+	mesh.size = Vector3(0.08, 0.08, 0.08)
+	
+	var mat := StandardMaterial3D.new()
+	mat.albedo_color = Color(1.0, 1.0, 0.0) # Golden Yellow
+	mat.shading_mode = StandardMaterial3D.SHADING_MODE_UNSHADED
+	mat.emission_enabled = true
+	mat.emission = Color(1.0, 0.5, 0.0) # Glowing orange core
+	mesh.material = mat
+	particles.draw_pass_1 = mesh
+	
+	var p_mat := ParticleProcessMaterial.new()
+	p_mat.emission_shape = ParticleProcessMaterial.EMISSION_SHAPE_SPHERE
+	p_mat.emission_sphere_radius = 0.2
+	
+	# Blast straight downwards!
+	p_mat.direction = Vector3.DOWN
+	p_mat.spread = 35.0 # Narrow rocket nozzle cone
+	p_mat.initial_velocity_min = 6.0
+	p_mat.initial_velocity_max = 9.0
+	p_mat.gravity = Vector3(0.0, -8.0, 0.0) # Gravity pulls them down further
+	p_mat.damping_min = 1.0
+	p_mat.damping_max = 2.0
+	
+	# Exponentially scales down particles over lifetime
+	var curve := Curve.new()
+	curve.add_point(Vector2(0.0, 1.0))
+	curve.add_point(Vector2(1.0, 0.0))
+	
+	var curve_tex := CurveTexture.new()
+	curve_tex.curve = curve
+	p_mat.scale_curve = curve_tex
+	
+	particles.process_material = p_mat
+	particles.amount = 20
+	particles.one_shot = true
+	particles.explosiveness = 1.0
+	particles.lifetime = 0.35
+	
+	get_parent().add_child(particles)
+	# Positioned exactly at the lower feet boundary of Pac-Man's capsule sphere
+	particles.global_position = global_position - Vector3(0.0, 0.45, 0.0)
+	particles.emitting = true
+	
+	# Self-destroy on completion (LSP/Memory compliance)
+	get_tree().create_timer(0.6).timeout.connect(particles.queue_free)
+
+
 func _physics_process(delta: float) -> void:
 	if is_dead:
 		velocity = Vector3.ZERO
@@ -539,6 +597,9 @@ func _physics_process(delta: float) -> void:
 	if Input.is_action_just_pressed("ui_select") and not is_jumping:
 		velocity.y = JUMP_VELOCITY
 		is_jumping = true
+		
+		# Trigger the upward jet-thrust spark blast (Phase 4)
+		_trigger_jump_thrust_particles()
 
 	# --- INVINCIBILITY CYCLE PROCESSOR ---
 	if is_powered_up:
