@@ -11,8 +11,11 @@ config_version=5
 [application]
 
 config/name="PacMan3D"
+config/description="Un emblema vectorial retro-cyberpunk diseñado exclusivamente para PacMan3D. Sobre un fondo redondeado de color azul espacial profundo con sutiles líneas de circuitos impresos y un grueso marco láser cian neón, destaca un resplandeciente Pac-Man metálico dorado con la boca abierta y su icónico ojo verde pixelado de recreativa. Flotando dinámicamente en el fondo, un estilizado fantasma neón rosa (Pinky) en posición inclinada añade velocidad y acción al logotipo, capturando la clásica esencia de persecución arcade en un lienzo digital de alta tecnología."
 run/main_scene="res://scenes/ui/intro_splash.tscn"
 config/features=PackedStringArray("4.6", "Forward Plus")
+boot_splash/bg_color=Color(0.01, 0.01, 0.02, 1)
+boot_splash/show_image=false
 config/icon="res://icon.svg"
 
 [autoload]

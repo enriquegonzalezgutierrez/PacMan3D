@@ -16,6 +16,10 @@
 #              - AUTOLOAD RACE CONDITION FIX: Synchronized HUD values directly 
 #                with GameManager on startup to guarantee values are printed 
 #                immediately when the game starts.
+#              Phase 4 Updates:
+#              - WILD RIFT STYLE JOYSTICK: Replaced the rigid 4-button D-Pad with a 
+#                procedural, multi-touch 360-degree analog Virtual Joystick (220px) 
+#                and enlarged the JUMP button to 150px for ultimate mobile comfort.
 # Author: Enrique González Gutiérrez
 # Email: enrique.gonzalez.gutierrez@gmail.com
 # ==============================================================================
@@ -40,7 +44,7 @@ var start_button : Button
 var exit_button : Button
 var menu_bgm : AudioStreamPlayer
 
-# Mobile Virtual Controls
+# Mobile Virtual Controls (Phase 4)
 var mobile_controls_container : Control
 var is_mobile : bool = false
 
@@ -67,8 +71,6 @@ func _ready() -> void:
 		GameManager.high_score_changed.connect(_on_high_score_changed)
 		
 		# --- AUTOLOAD RACE CONDITION FIX (Phase 3) ---
-		# Synchronize the label texts immediately with the current GameManager state 
-		# on startup to guarantee data is populated even if initial signals were missed.
 		_on_score_changed(GameManager.score)
 		_on_high_score_changed(GameManager.high_score)
 		_on_lives_changed(GameManager.lives)
@@ -185,7 +187,7 @@ func _build_hud_elements() -> void:
 	add_child(fade_overlay)
 	fade_overlay.set_anchors_and_offsets_preset(Control.PRESET_FULL_RECT)
 
-# Procedurally builds on-screen multi-touch controls if on a mobile platform (DIP/SRP Compliance)
+# Procedurally builds the modern virtual analog stick and enlarged touch buttons (Phase 4)
 func _build_mobile_controls() -> void:
 	if not is_mobile:
 		return
@@ -195,7 +197,16 @@ func _build_mobile_controls() -> void:
 	add_child(mobile_controls_container)
 	mobile_controls_container.set_anchors_and_offsets_preset(Control.PRESET_FULL_RECT)
 	
-	# Helper to procedurally generate a gorgeous, semi-transparent glowing circular touch texture
+	var viewport_size = get_viewport_rect().size
+	
+	# 1. Instantiate the procedural 360-degree analog Virtual Joystick (Wild Rift Style)
+	var joystick := VirtualJoystick.new()
+	mobile_controls_container.add_child(joystick)
+	
+	# Position at bottom-left corner comfortably
+	joystick.position = Vector2(80.0, viewport_size.y - 300.0)
+	
+	# 2. Helper to procedurally generate a gorgeous, semi-transparent glowing circular touch texture for JUMP
 	var create_touch_texture = func(color: Color, size_px: int) -> GradientTexture2D:
 		var tex := GradientTexture2D.new()
 		tex.width = size_px
@@ -206,70 +217,35 @@ func _build_mobile_controls() -> void:
 		
 		var grad := Gradient.new()
 		grad.colors = PackedColorArray([color, Color(color.r, color.g, color.b, 0.0)])
-		# Flat center, smooth transparent outline edge
 		grad.offsets = PackedFloat32Array([0.75, 1.0])
 		tex.gradient = grad
 		return tex
 		
-	# Compile visual textures
-	var normal_texture = create_touch_texture.call(Color(1.0, 1.0, 1.0, 0.35), 90) # Translucent White
-	var pressed_texture = create_touch_texture.call(Color(1.0, 1.0, 0.0, 0.65), 90) # Glowing Yellow
+	# Compile JUMP visual textures (Enlarged to 150px)
+	var jump_size_px : int = 150
+	var normal_texture = create_touch_texture.call(Color(1.0, 1.0, 1.0, 0.35), jump_size_px) # Translucent White
+	var pressed_texture = create_touch_texture.call(Color(1.0, 1.0, 0.0, 0.65), jump_size_px) # Glowing Yellow
 	
-	# Helper lambda to instantiate a real, multi-touch TouchScreenButton (LSP/OCP Compliance)
-	var create_virtual_button = func(action_name: String, label_text: String, pos: Vector2) -> TouchScreenButton:
-		var t_btn := TouchScreenButton.new()
-		t_btn.action = action_name
-		t_btn.texture_normal = normal_texture
-		t_btn.texture_pressed = pressed_texture
-		
-		# Create a label inside the button so the player knows what it does
-		var label := Label.new()
-		label.text = label_text
-		label.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
-		label.vertical_alignment = VERTICAL_ALIGNMENT_CENTER
-		label.add_theme_font_size_override("font_size", 22)
-		label.add_theme_constant_override("outline_size", 6)
-		label.add_theme_color_override("font_outline_color", Color(0,0,0))
-		
-		t_btn.add_child(label)
-		label.set_anchors_and_offsets_preset(Control.PRESET_FULL_RECT)
-		
-		mobile_controls_container.add_child(t_btn)
-		t_btn.position = pos
-		return t_btn
-
-	# 1. Procedural Left-Side D-Pad
-	var viewport_size = get_viewport_rect().size
-	var base_x = 40.0
-	var base_y = viewport_size.y - 240.0 # Positioned dynamically relative to screen bottom
-	
-	create_virtual_button.call("ui_up", "W", Vector2(base_x + 95, base_y))
-	create_virtual_button.call("ui_down", "S", Vector2(base_x + 95, base_y + 120))
-	create_virtual_button.call("ui_left", "A", Vector2(base_x, base_y + 60))
-	create_virtual_button.call("ui_right", "D", Vector2(base_x + 190, base_y + 60))
-	
-	# 2. Procedural Right-Side Jump Button (Slightly larger)
-	var jump_tex_normal = create_touch_texture.call(Color(1.0, 1.0, 1.0, 0.35), 110)
-	var jump_tex_pressed = create_touch_texture.call(Color(1.0, 1.0, 0.0, 0.65), 110)
-	
+	# 3. Instantiate the enlarged JUMP button
 	var jump_btn = TouchScreenButton.new()
 	jump_btn.action = "ui_select"
-	jump_btn.texture_normal = jump_tex_normal
-	jump_btn.texture_pressed = jump_tex_pressed
+	jump_btn.texture_normal = normal_texture
+	jump_btn.texture_pressed = pressed_texture
 	
 	var jump_label := Label.new()
 	jump_label.text = "JUMP"
 	jump_label.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
 	jump_label.vertical_alignment = VERTICAL_ALIGNMENT_CENTER
-	jump_label.add_theme_font_size_override("font_size", 24)
-	jump_label.add_theme_constant_override("outline_size", 6)
+	jump_label.add_theme_font_size_override("font_size", 28) # Large crisp text
+	jump_label.add_theme_constant_override("outline_size", 8)
 	jump_label.add_theme_color_override("font_outline_color", Color(0,0,0))
 	
 	jump_btn.add_child(jump_label)
 	jump_label.set_anchors_and_offsets_preset(Control.PRESET_FULL_RECT)
 	
 	mobile_controls_container.add_child(jump_btn)
-	jump_btn.position = Vector2(viewport_size.x - 180, viewport_size.y - 180)
+	# Positioned symmetrically at the bottom-right corner
+	jump_btn.position = Vector2(viewport_size.x - 230.0, viewport_size.y - 230.0)
 
 # Programmatically builds the full-screen Main Menu overlay
 func _build_main_menu() -> void:
@@ -456,3 +432,93 @@ func _input(event: InputEvent) -> void:
 		if GameManager:
 			GameManager.reset_game()
 		get_tree().reload_current_scene()
+
+
+# ==============================================================================
+# --- PHASE 4: HELPER NESTED CLASS - PROSTHETIC VIRTUAL ANALOG JOYSTICK ---
+# Programmatically draws and maps a 360-degree floating analog stick, simulating 
+# standard key action presses inside the native Godot Input registry.
+# ==============================================================================
+class VirtualJoystick extends Control:
+	var base_radius : float = 110.0 # Sized up for 1080p thumb comfort
+	var knob_radius : float = 45.0
+	var is_dragging : bool = false
+	var touch_id : int = -1
+	
+	var base_center : Vector2
+	var knob_pos : Vector2
+	
+	# Dict to monitor currently simulated pressed actions
+	var simulated_actions : Dictionary = {
+		"ui_left": false,
+		"ui_right": false,
+		"ui_up": false,
+		"ui_down": false
+	}
+	
+	func _ready() -> void:
+		custom_minimum_size = Vector2(220, 220)
+		base_center = Vector2(110, 110)
+		knob_pos = base_center
+		
+	func _draw() -> void:
+		# 1. Draw Translucent Base ring
+		draw_circle(base_center, base_radius, Color(0.08, 0.08, 0.1, 0.45))
+		# Neon cyan thick border
+		draw_arc(base_center, base_radius, 0, TAU, 32, Color(0.0, 0.8, 1.0, 0.6), 4.0)
+		
+		# 2. Draw Translucent Glowing Knob
+		draw_circle(knob_pos, knob_radius, Color(1.0, 1.0, 0.0, 0.65)) # Glowing yellow
+		# Orange neon border for high-contrast visibility
+		draw_arc(knob_pos, knob_radius, 0, TAU, 24, Color(1.0, 0.5, 0.0, 0.8), 2.5)
+		
+	func _gui_input(event: InputEvent) -> void:
+		if event is InputEventScreenTouch:
+			if event.pressed and not is_dragging:
+				is_dragging = true
+				touch_id = event.index
+				_update_joystick_displacement(event.position)
+			elif not event.pressed and event.index == touch_id:
+				_reset_joystick_state()
+				
+		elif event is InputEventScreenDrag and is_dragging and event.index == touch_id:
+			_update_joystick_displacement(event.position)
+			
+	# Calculates 2D offset vector and applies digital simulation mapping
+	func _update_joystick_displacement(touch_pos: Vector2) -> void:
+		var direction_vector : Vector2 = touch_pos - base_center
+		var current_distance : float = direction_vector.length()
+		
+		# Clamp knob within physical outer base boundary
+		if current_distance > base_radius:
+			direction_vector = direction_vector.normalized() * base_radius
+			
+		knob_pos = base_center + direction_vector
+		queue_redraw() # Request frame redraw instantly
+		
+		# Convert continuous analog vector to simulated action presses (0.35 Dead-zone)
+		var normalized_ratio : Vector2 = direction_vector / base_radius
+		
+		_simulate_action("ui_left", normalized_ratio.x < -0.35)
+		_simulate_action("ui_right", normalized_ratio.x > 0.35)
+		_simulate_action("ui_up", normalized_ratio.y < -0.35)
+		_simulate_action("ui_down", normalized_ratio.y > 0.35)
+		
+	# Restores knob to dead-center and releases all simulated keyboard bindings
+	func _reset_joystick_state() -> void:
+		is_dragging = false
+		touch_id = -1
+		knob_pos = base_center
+		queue_redraw()
+		
+		for action in simulated_actions.keys():
+			_simulate_action(action, false)
+			
+	# Safely commits Mock Input states directly into the native Godot Engine Registry
+	func _simulate_action(action_name: String, should_press: bool) -> void:
+		if simulated_actions[action_name] != should_press:
+			simulated_actions[action_name] = should_press
+			if should_press:
+				Input.action_press(action_name)
+			else:
+				Input.action_release(action_name)
