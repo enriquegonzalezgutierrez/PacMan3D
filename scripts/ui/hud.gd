@@ -25,6 +25,9 @@
 #              - SYSTEM GENERATION LOADING OVERLAY: Added hide_status_overlay() API 
 #                and deferred frame yielding (await process_frame) to force Godot 
 #                to render the "PLEASE WAIT" banner before blocking the thread to build.
+#              - GHOST CORE BUG FIXES: Added missing signal connections for 
+#                `score_changed` and `lives_changed`, and re-ordered render tree 
+#                using move_child() to force loading screens to display above menu background.
 # Author: Enrique González Gutiérrez
 # Email: enrique.gonzalez.gutierrez@gmail.com
 # ==============================================================================
@@ -71,9 +74,13 @@ func _ready() -> void:
 	
 	# Listen for progression, records and fail-state transitions globally (DIP Compliance)
 	if GameManager:
+		# Connect central gameplay signals (Fix: Added missing connections)
+		GameManager.score_changed.connect(_on_score_changed)
+		GameManager.lives_changed.connect(_on_lives_changed)
+		GameManager.high_score_changed.connect(_on_high_score_changed)
+		
 		GameManager.game_over.connect(_on_game_over)
 		GameManager.victory.connect(_on_victory_transition_triggered)
-		GameManager.high_score_changed.connect(_on_high_score_changed)
 		
 		# --- AUTOLOAD RACE CONDITION FIX (Phase 3) ---
 		_on_score_changed(GameManager.score)
@@ -89,6 +96,10 @@ func _ready() -> void:
 			minimap.visible = true
 		if is_instance_valid(mobile_controls_container):
 			mobile_controls_container.visible = true
+			
+		# Ensure overlays remain at the top even on fast progression reloads
+		move_child(status_overlay, -1)
+		move_child(fade_overlay, -1)
 			
 		call_deferred("emit_start_game_signal")
 	else:
@@ -291,7 +302,7 @@ func _build_main_menu() -> void:
 	button_container.grow_vertical = Control.GROW_DIRECTION_BOTH
 	button_container.offset_top = 100
 	
-	# --- STYLING BUTTON THEMES PROCEDURALLY (Sized up for Full HD touch/click target) ---
+	# --- STYLING BUTTON THEMES PROCEDURALLY (Sized up massively to 54px for 1080p tactile targets) ---
 	var style_normal := StyleBoxFlat.new()
 	style_normal.bg_color = Color(0.08, 0.08, 0.08, 0.85)
 	style_normal.border_width_left = 3
@@ -299,11 +310,11 @@ func _build_main_menu() -> void:
 	style_normal.border_width_right = 3
 	style_normal.border_width_bottom = 3
 	style_normal.border_color = Color(0.3, 0.3, 0.3)
-	style_normal.set_corner_radius_all(10)
-	style_normal.content_margin_left = 48
-	style_normal.content_margin_right = 48
-	style_normal.content_margin_top = 18
-	style_normal.content_margin_bottom = 18
+	style_normal.set_corner_radius_all(12)
+	style_normal.content_margin_left = 64
+	style_normal.content_margin_right = 64
+	style_normal.content_margin_top = 28
+	style_normal.content_margin_bottom = 28
 	
 	var style_focus_hover := StyleBoxFlat.new()
 	style_focus_hover.bg_color = Color(0.18, 0.18, 0.0, 0.9) 
@@ -312,16 +323,16 @@ func _build_main_menu() -> void:
 	style_focus_hover.border_width_right = 4
 	style_focus_hover.border_width_bottom = 4
 	style_focus_hover.border_color = Color(1.0, 1.0, 0.0) 
-	style_focus_hover.set_corner_radius_all(10)
-	style_focus_hover.content_margin_left = 48
-	style_focus_hover.content_margin_right = 48
-	style_focus_hover.content_margin_top = 18
-	style_focus_hover.content_margin_bottom = 18
+	style_focus_hover.set_corner_radius_all(12)
+	style_focus_hover.content_margin_left = 64
+	style_focus_hover.content_margin_right = 64
+	style_focus_hover.content_margin_top = 28
+	style_focus_hover.content_margin_bottom = 28
 	
-	# 3. Start Game Button (Sized up to 36px)
+	# 3. Start Game Button (Sized up to 54px)
 	start_button = Button.new()
 	start_button.text = "START GAME"
-	start_button.add_theme_font_size_override("font_size", 36)
+	start_button.add_theme_font_size_override("font_size", 54)
 	
 	start_button.add_theme_stylebox_override("normal", style_normal)
 	start_button.add_theme_stylebox_override("hover", style_focus_hover)
@@ -339,7 +350,7 @@ func _build_main_menu() -> void:
 	if not OS.has_feature("web") and not OS.has_feature("ios"):
 		exit_button = Button.new()
 		exit_button.text = "EXIT"
-		exit_button.add_theme_font_size_override("font_size", 32)
+		exit_button.add_theme_font_size_override("font_size", 48) # Sized up to 48px
 		
 		exit_button.add_theme_stylebox_override("normal", style_normal)
 		exit_button.add_theme_stylebox_override("hover", style_focus_hover)
@@ -362,6 +373,11 @@ func _build_main_menu() -> void:
 	menu_bgm.autoplay = true
 	add_child(menu_bgm)
 	menu_bgm.play()
+	
+	# Ensure the loading and transition overlays are at the absolute top of the render tree
+	# (Fix: Forces overlays to always render over the freshly created menu_bg)
+	move_child(status_overlay, -1)
+	move_child(fade_overlay, -1)
 
 # Button Callback: Clears the menu overlays, starts BGM, and signals LevelManager to build map
 func _on_start_game_pressed() -> void:
@@ -400,7 +416,7 @@ func hide_status_overlay() -> void:
 	if is_instance_valid(status_overlay):
 		status_overlay.visible = false
 
-# Stacked Score output zero-padded to 6 digits (Arcade standard)
+# Stacked Score output zero-padded to 6 digits (Arcade standard - Fix: Handled dynamically now)
 func _on_score_changed(new_score: int) -> void:
 	score_label.text = "SCORE\n%06d" % new_score
 
@@ -408,7 +424,7 @@ func _on_score_changed(new_score: int) -> void:
 func _on_high_score_changed(new_high_score: int) -> void:
 	high_score_label.text = "HI-SCORE\n%06d" % new_high_score
 
-# Stacked Lives output
+# Stacked Lives output (Fix: Handled dynamically now)
 func _on_lives_changed(new_lives: int) -> void:
 	lives_label.text = "LIVES\n%d" % new_lives
 

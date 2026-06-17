@@ -21,6 +21,8 @@
 #                electric snap camera shake.
 #              - DISMISS SYSTEM LOADING OVERLAY: Added programmatic HUD overlay 
 #                dismissal once 3D level assembly completes, preventing lag illusions.
+#              - CINEMATIC LOADER DELAY: Added a soft 0.8s delay after 3D building 
+#                to ensure the loading screen is beautifully visible on fast PCs.
 # Author: Enrique González Gutiérrez
 # Email: enrique.gonzalez.gutierrez@gmail.com
 # ==============================================================================
@@ -100,9 +102,12 @@ func _on_start_game() -> void:
 		var builder := LevelBuilder.new(self)
 		builder.build(level_data)
 		
-		# --- DISMISS SYSTEM GENERATION OVERLAY (Phase 4 UX Compliance) ---
-		# Safely locate the HUD and dismiss the "PLEASE WAIT" loading screen 
-		# now that the heavy 3D physical world assembly is complete.
+		# --- CINEMATIC LOADER DELAY (Phase 4 UX Compliance) ---
+		# Enforce a brief 0.8-second delay so that players on high-end PCs 
+		# can actually read the "GENERATING SYSTEM" neon loading text.
+		await get_tree().create_timer(0.8).timeout
+		
+		# Hide the initial system generation loading screen
 		var hud = get_parent().get_node_or_null("HUD") as HUD
 		if is_instance_valid(hud):
 			hud.hide_status_overlay()
