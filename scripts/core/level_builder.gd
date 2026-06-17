@@ -23,6 +23,9 @@
 #              - GHOST HOUSE LASER GATE: Programmatically instantiates a neon-pink 
 #                one-way physical laser barrier on Layer 4 (8) at the foso gate 
 #                coordinates to block Pac-Man while permitting eaten ghosts.
+#              - SPEED PELLET PROBABILISTIC SPAWNING (OCP Compliance): Added 
+#                SpeedPellet (lightning bolt) spawning on corner cells (type 3) 
+#                under a balanced 60/20/20 probability split.
 # Author: Enrique González Gutiérrez
 # Email: enrique.gonzalez.gutierrez@gmail.com
 # ==============================================================================
@@ -131,9 +134,12 @@ func build(level_data: Dictionary) -> void:
 				1: _create_wall(world_pos, x, z, level_data) 
 				2: _create_pellet(world_pos, false)
 				3:
-					# 25% chance of spawning a strategic Ice Pellet instead of a standard Power Pellet (OCP Compliance)
-					if randf() < 0.25:
+					# balanced 60% power pellet, 20% ice pellet, 20% speed pellet split
+					var rand_val : float = randf()
+					if rand_val < 0.20:
 						_create_ice_pellet(world_pos)
+					elif rand_val < 0.40:
+						_create_speed_pellet(world_pos)
 					else:
 						_create_pellet(world_pos, true)
 				4: _spawn_player(world_pos)
@@ -355,6 +361,21 @@ func _create_ice_pellet(pos: Vector3) -> void:
 		ice_pellet.ice_pellet_eaten.connect(parent_node._on_ice_pellet_eaten)
 		
 	parent_node.add_child(ice_pellet)
+	
+	if GameManager:
+		GameManager.register_pellet()
+
+# Instantiates the custom Lightning Bolt Speed Pellet and connects its signals (Phase 4)
+func _create_speed_pellet(pos: Vector3) -> void:
+	var speed_pellet := SpeedPellet.new()
+	speed_pellet.position = pos
+	speed_pellet.position.y = 0.5
+	
+	# Connect callback directly to LevelManager orchestrator (DIP Compliance)
+	if parent_node.has_method("_on_speed_pellet_eaten"):
+		speed_pellet.speed_pellet_eaten.connect(parent_node._on_speed_pellet_eaten)
+		
+	parent_node.add_child(speed_pellet)
 	
 	if GameManager:
 		GameManager.register_pellet()

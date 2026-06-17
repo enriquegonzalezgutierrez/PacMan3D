@@ -15,6 +15,10 @@
 #                triggered exactly at 70 and 170 pellets eaten.
 #              - LEVEL-ADAPTED FRUIT INJECTION (DIP/OCP Compliance): Injects the 
 #                current level index into the fruit builder during spawning.
+#              Phase 4 Updates:
+#              - SPEED OVERLOAD ORCHESTRATION: Integrated the speed_pellet_eaten 
+#                callback to award points, progress levels, and trigger an 
+#                electric snap camera shake.
 # Author: Enrique González Gutiérrez
 # Email: enrique.gonzalez.gutierrez@gmail.com
 # ==============================================================================
@@ -207,6 +211,18 @@ func _apply_ghost_frost_effect(enabled: bool) -> void:
 				ghost._apply_material(ghost.original_material)
 
 
+# --- PHASE 4: SPEED OVERLOAD RESPONSE ---
+
+# Reward callback: grants points for the speed-booster ray and progresses pellet counters (Phase 4)
+func _on_speed_pellet_eaten() -> void:
+	if GameManager:
+		# Award +100 points for electric lightning acquisition
+		GameManager.add_score(100)
+		GameManager.pellet_eaten()
+		
+	_trigger_camera_shake(0.4, 0.3) # Electric fast camera shockwave snap!
+
+
 # --- PHASE 2: AUTOMATED PROGRESSION SEQUENCE ---
 
 # Triggered dynamically by GameManager when total_pellets == 0
@@ -269,7 +285,7 @@ func _on_ghost_player_caught(is_frightened: bool, catch_position: Vector3) -> vo
 			_spawn_floating_score(catch_position)
 			_trigger_camera_shake(0.35, 0.25) # Subtle satisfying arcade bite shake
 		else:
-			for ghost in get_tree().get_nodes_in_group("ghosts"):
+			for ghost in get_tree().get_nodes_in_group("ghosts") :
 				if ghost.has_method("set_frozen"):
 					ghost.set_frozen(true)
 					

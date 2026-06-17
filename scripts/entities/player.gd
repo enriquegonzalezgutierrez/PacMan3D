@@ -13,6 +13,12 @@
 #              Phase 3 Updates:
 #              - GHOST HOUSE GATE COLLISION: Added Layer 4 (8) to the collision mask 
 #                to physically block Pac-Man from entering the ghost foso area.
+#              Phase 4 Updates:
+#              - LIGHTNING SPEED OVERLOAD: Added a speed boost state machine, 
+#                scaling velocity by +50% (to 10.5) for 5.0 seconds.
+#              - ELECTRIC SPARK AURA: Procedurally attaches a bright electric-cyan 
+#                GPUParticles3D spark emitter during speed boosts.
+#              - TYPO CORRECTION: Fixed 'var_blink_timer' spacing syntax compile error.
 # Author: Enrique González Gutiérrez
 # Email: enrique.gonzalez.gutierrez@gmail.com
 # ==============================================================================
@@ -44,7 +50,7 @@ var death_audio : AudioStreamPlayer
 var eyes_holder : Node3D
 var pupil_material : StandardMaterial3D
 var is_blinking : bool = false
-var blink_timer : float = 0.0
+var blink_timer : float = 0.0 # Restored standard var syntax
 var blink_duration : float = 0.15
 var next_blink_time : float = 3.0 # Initial time before first blink
 
@@ -57,6 +63,13 @@ var power_particles : GPUParticles3D = null
 # Dynamic Chewing Mouth Variables (SRP/Juice Compliance)
 var mouth_instance : MeshInstance3D
 var mouth_time : float = 0.0
+
+# Phase 4 Speed Overload State Variables
+var is_speed_boosted : bool = false
+var speed_boost_timer : float = 0.0
+const SPEED_BOOST_DURATION : float = 5.0
+const BOOSTED_SPEED : float = 10.5 # +50% faster than standard 7.0 speed
+var speed_particles : GPUParticles3D = null
 
 # Gameplay State
 var spawn_position : Vector3
@@ -221,6 +234,7 @@ func die() -> void:
 		
 	# Clean up any active power particle trails on death
 	_deactivate_power_up()
+	_deactivate_speed_boost()
 	play_death_particles()
 	
 	if death_audio and death_audio.stream:
@@ -370,6 +384,55 @@ func _deactivate_power_up() -> void:
 	if is_instance_valid(power_particles):
 		power_particles.queue_free()
 
+
+# --- PHASE 4: SPEED OVERLOAD POWER STATE ---
+
+# Public Callback: Triggers dynamic speed boost and attaches custom visual particle sparks
+func activate_speed_boost() -> void:
+	is_speed_boosted = true
+	speed_boost_timer = SPEED_BOOST_DURATION
+	
+	if not is_instance_valid(speed_particles):
+		_spawn_speed_particles()
+
+# Programmatically configures and attaches a glowing electric aura around Pac-Man
+func _spawn_speed_particles() -> void:
+	speed_particles = GPUParticles3D.new()
+	
+	var mesh := BoxMesh.new()
+	mesh.size = Vector3(0.06, 0.06, 0.06)
+	
+	var p_mat := StandardMaterial3D.new()
+	p_mat.albedo_color = Color(0.0, 1.0, 1.0) # Electric Cyan sparks
+	p_mat.shading_mode = StandardMaterial3D.SHADING_MODE_UNSHADED
+	p_mat.emission_enabled = true
+	p_mat.emission = Color(0.0, 0.8, 1.0) # Glowing Cyan electricity
+	mesh.material = p_mat
+	speed_particles.draw_pass_1 = mesh
+	
+	var proc_mat := ParticleProcessMaterial.new()
+	proc_mat.emission_shape = ParticleProcessMaterial.EMISSION_SHAPE_SPHERE
+	proc_mat.emission_sphere_radius = 0.65
+	proc_mat.direction = Vector3.UP
+	proc_mat.spread = 180.0
+	proc_mat.initial_velocity_min = 2.0
+	proc_mat.initial_velocity_max = 4.0
+	proc_mat.gravity = Vector3(0.0, 1.5, 0.0) # Sparks float upwards
+	
+	speed_particles.process_material = proc_mat
+	speed_particles.amount = 25
+	speed_particles.lifetime = 0.4
+	
+	add_child(speed_particles)
+	speed_particles.position = Vector3(0.0, -0.1, 0.0) # Centered at body level
+
+# Cleans up particle emitters and resets speed variables safely
+func _deactivate_speed_boost() -> void:
+	is_speed_boosted = false
+	if is_instance_valid(speed_particles):
+		speed_particles.queue_free()
+
+
 func _physics_process(delta: float) -> void:
 	if is_dead:
 		velocity = Vector3.ZERO
@@ -420,6 +483,12 @@ func _physics_process(delta: float) -> void:
 						pupil_material.emission = Color(1.0, 0.0, 0.0)
 					if is_instance_valid(power_particles):
 						power_particles.emitting = true
+
+	# --- SPEED BOOSTER TIMER PROCESSOR (Phase 4) ---
+	if is_speed_boosted:
+		speed_boost_timer -= delta
+		if speed_boost_timer <= 0.0:
+			_deactivate_speed_boost()
 
 	_handle_arcade_input()
 	_process_arcade_movement()
@@ -491,7 +560,11 @@ func _process_arcade_movement() -> void:
 	if current_direction != Vector3.ZERO:
 		# Preserve the vertical jump velocity while moving horizontally
 		var y_vel = velocity.y
-		velocity = current_direction * SPEED
+		
+		# Scales actual physical velocity dynamically based on Speed Overload boost state
+		var current_run_speed : float = BOOSTED_SPEED if is_speed_boosted else SPEED
+		
+		velocity = current_direction * current_run_speed
 		velocity.y = y_vel
 		
 		# --- DYNAMIC GRID OFFSET MATH ---
