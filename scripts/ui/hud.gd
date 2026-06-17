@@ -29,6 +29,9 @@
 #              - RENDER YIELD FIX: Replaced process_frame with a 0.05s physical timer 
 #                to absolutely guarantee the GPU draws the loading screen to the 
 #                monitor before the CPU thread blocks to build the 3D level.
+#              - RESPONSIVE MINIMAP ANCHOR: Switched from static pixel offsets to 
+#                relative viewport anchors (0.85 X, 0.25 Y) so the minimap always 
+#                renders safely on screen regardless of mobile aspect ratios.
 # Author: Enrique González Gutiérrez
 # Email: enrique.gonzalez.gutierrez@gmail.com
 # ==============================================================================
@@ -93,8 +96,10 @@ func _ready() -> void:
 		score_label.visible = true
 		high_score_label.visible = true
 		lives_label.visible = true
-		if not is_mobile:
-			minimap.visible = true
+		
+		# Minimap is always visible now on mobile too!
+		minimap.visible = true
+			
 		if is_instance_valid(mobile_controls_container):
 			mobile_controls_container.visible = true
 			
@@ -173,13 +178,22 @@ func _build_hud_elements() -> void:
 	minimap.map_size = Vector2(280, 280) # Sized up elegantly
 	minimap.visible = false
 	add_child(minimap)
-	minimap.set_anchors_and_offsets_preset(Control.PRESET_BOTTOM_RIGHT)
-	minimap.grow_horizontal = Control.GROW_DIRECTION_BEGIN
-	minimap.grow_vertical = Control.GROW_DIRECTION_BEGIN
-	minimap.offset_left = -304
-	minimap.offset_top = -304
-	minimap.offset_right = -24
-	minimap.offset_bottom = -24
+	
+	# --- RESPONSIVE MINIMAP ANCHOR FIX ---
+	# Anchor the minimap dynamically to 85% of screen width and 25% of screen height
+	# This ensures it always renders safely on ultra-wide Android screens.
+	minimap.set_anchors_preset(Control.PRESET_CENTER)
+	minimap.anchor_left = 0.85
+	minimap.anchor_right = 0.85
+	minimap.anchor_top = 0.25
+	minimap.anchor_bottom = 0.25
+	minimap.grow_horizontal = Control.GROW_DIRECTION_BOTH
+	minimap.grow_vertical = Control.GROW_DIRECTION_BOTH
+	# Zero out pixel offsets so it relies 100% on the relative percentage anchors
+	minimap.offset_left = -140
+	minimap.offset_right = 140
+	minimap.offset_top = -140
+	minimap.offset_bottom = 140
 	
 	# 5. Status Full-Screen Overlay
 	status_overlay = ColorRect.new()
@@ -393,8 +407,6 @@ func _on_start_game_pressed() -> void:
 	
 	# --- THE ULTIMATE GPU YIELD FIX ---
 	# A timer of 0.05s is required to fully execute Godot's internal render pipeline.
-	# It guarantees the GPU has painted the black status overlay to your physical 
-	# monitor before the CPU blocks the main thread to generate the 3D physics map.
 	await get_tree().create_timer(0.05).timeout
 	
 	# 3. Now that the loading overlay fully covers the viewport, clean up the menu silently behind it!
@@ -412,8 +424,10 @@ func _on_start_game_pressed() -> void:
 	high_score_label.visible = true
 	lives_label.visible = true
 	
-	if not is_mobile:
-		minimap.visible = true
+	# --- MOBILE MINIMAP VISIBILITY OVERRIDE ---
+	# Now the minimap is fully visible and rendered on mobile platforms as well!
+	minimap.visible = true
+	
 	if is_instance_valid(mobile_controls_container):
 		mobile_controls_container.visible = true
 	
