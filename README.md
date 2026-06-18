@@ -11,9 +11,9 @@ Email: enrique.gonzalez.gutierrez@gmail.com
 ![MartínMan 3D Main Menu](assets/ui/images/main_menu_bg.png)
 
 ## Overview
-**MartínMan 3D** is a modern 3D retro-cyberpunk arcade game, built entirely from scratch in **Godot 4**. 
+**MartínMan 3D** is a modern, highly optimized 3D retro-cyberpunk arcade game set in a Menorcan-themed ciber-taberna, built entirely from scratch in **Godot 4**. 
 
-This project focuses on robust core mechanics, physics-based movement, procedural level generation, and strict adherence to **SOLID software design principles**. The visual aesthetic relies on custom PBR-textured rigged 3D models paired with vibrant neon lighting, customized satin-metallic reflections, and four procedural architectural styles.
+This project focuses on robust core mechanics, physics-based movement, procedural level generation, and strict adherence to **SOLID software design principles**. The visual aesthetic relies on custom PBR-textured rigged 3D models paired with vibrant neon lighting, customized reflections, and four procedural architectural styles.
 
 ---
 
@@ -24,15 +24,21 @@ This project focuses on robust core mechanics, physics-based movement, procedura
 	*   `blocks`: Monolithic neon arcade cubes.
 	*   `pillars`: Futuristic columns topped with glowing, emissive floating spheres.
 	*   `circuits`: Holographic printed circuit boards with glowing continuous neon data-bus tracks.
-*   **Decoupled Diorama Camera:** A standalone camera tracking node utilizing steep perspectives, narrow FOVs, smooth spatial LERP damping, and a procedural drone bobbing.
+*   **Decoupled Diorama Camera:** A standalone camera tracking node utilizing diometric spectator perspectives (`-50º` tilt angle, narrow `42º` FOV for flat isometric toy-board stability), smooth spatial LERP damping, and a procedural drone bobbing.
 *   **Arcade-Accurate Ghost AI:** Features coordinate-based pathfinding, behavior strategies (Blinky, Pinky, Inky, Clyde), kinematic foso-exiting logic, and a deterministic "Eaten" state where floating eyes return to their spawn pads to heal.
 *   **Automated Level Progression & Scaling:** Seamless level transitions that dynamically scale ghost speeds, music pitch, and reduce power-pellet timers.
 *   **Secure Local Persistence:** Encrypted binary save files with AES-256 password protection for cross-platform cheat prevention (PC and Android sandboxes).
 *   **Local Tournament Leaderboard (Top 5):** Structured, encrypted scoreboard tracking the 5 highest local scores. Includes automated data migration to import and update legacy single-score saves from older versions seamlessly on startup.
 *   **Classic Letter-Wheel Initials UI:** Interactive 3-slot A-Z character cycling wheel in the HUD upon qualifying Game Over states. Designed with dual control mappings, supporting both tactile mobile arrow buttons and PC keyboard navigation.
-*   **3D Positional Audio Attenuation:** Immersive spatial 3D audio. MartínMan's sound effects (munch and death) automatically pan stereo and attenuate log-distantly based on camera coords, including high-frequency air-absorption low-pass filtering.
+*   **Menorcan Gin Xoriguer Collectibles:** 100% custom 3D models replacing traditional pellets:
+	*   `Standard Pellets`: Realistic 3D green clay Xoriguer bottles with their classic neck handle and Mahón windmill labels.
+	*   `Power Pellets`: Massive (1.6x) textured Xoriguer bottles surrounded by a column of glowing golden magic sparks.
+	*   `Ice Pellets`: 3D styled Ice Cubes (`ice.fbx`) wrapped in a frozen cyan mist CPU particle emitter.
+	*   `Speed Pellets`: 3D Menorcan Lemons (`lemon.fbx`) wrapped in a high-energy electric cyan lightning CPU particle emitter.
+*   **Perimeter Backlit Billboards:** 4 gigantic vertical spectator-angled signboards (2.6x4.0 meters) standing on steel posts outside the play boundaries. Displays a self-illuminating transparent PNG of the Xoriguer logo with custom neon-cyan framing.
+*   **3D Positional Audio Attenuation:** Immersive spatial 3D audio. MartínMan's sound effects (munch and death) and ghost eating sounds automatically pan stereo and attenuate log-distantly based on camera coords, including high-frequency air-absorption low-pass filtering.
 *   **Interactive Audio Settings Panel:** Self-contained UI overlay programmatically configuring `"Music"` and `"SFX"` AudioServer buses out-of-the-box, saving decibel volume states to encrypted files.
-*   **Smart Laser Gate & Portal Arches:** One-way physical laser barriers (Layer 4) preventing MartínMan from entering the ghost house, paired with self-aligning holographic portal gateways with shimmering energy curtains.
+*   **Smart Laser Gate & Portal Arches:** One-way physical laser barriers (Layer 4) preventing MartínMan from entering the foso, paired with self-aligning holographic portal gateways with shimmering energy curtains.
 *   **Energy Motion Trails & Thrusters:** Particle-driven continuous light trails (dynamically color-coded: Yellow, Gold, Cyan), jet-thrust jump spark exhausts, and glowing lightning bolt speed pellets.
 *   **Cyber Spawn Pods:** Symmetrical high-tech dark carbon and glowing neon containment pads lining the foso floor underneath each ghost.
 *   **Cinematic System Loader:** Dedicated black loading screen ("GENERATING SYSTEM...") with deferred frame rendering and an 800ms minimum pacing delay to ensure seamless transitions on high-end PCs.

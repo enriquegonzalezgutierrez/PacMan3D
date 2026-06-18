@@ -111,6 +111,10 @@ Email: enrique.gonzalez.gutierrez@gmail.com
 ### 3. Interactive Settings Panel [X]
 *   Created a clean, cyber-style settings menu inside the Main Menu to adjust master, sfx, and music volumes, utilizing dynamic audio bus generation and encrypted persistence.
 
+### 4. Menorcan Gin Xoriguer Collectibles [X]
+*   Swapped 100% of flat procedural pellet items with high-resolution, unshaded, double-sided 3D models (Green clay Xoriguer bottles, giant golden bottles with golden sparks, ice.fbx cubes with cold mist, and lemon.fbx with electric sparks).
+*   Programmed 4 gigantic backlit neon perimetric billboards (2.6x4.0 meters) standing on steel posts outside boundaries, displaying a transparent PNG of the Xoriguer logo.
+
 ---
 
 ## Phase 6: Advanced Graphic VFX & Custom Shaders (FUTURE SCOPE)
