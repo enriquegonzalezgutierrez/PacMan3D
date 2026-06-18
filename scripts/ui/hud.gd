@@ -1,14 +1,14 @@
 # ==============================================================================
-# Description: HUD Orchestrator. 
-#              Responsible exclusively for updating numeric gameplay indicators 
-#              (Score, High-Score, Lives), the Minimap, and managing the active 
-#              UI layers. 
+# Description: HUD and Tournament UI Orchestrator. 
+#              Responsible for updating gameplay indicators, the 2D Minimap, 
+#              and managing the classic arcade letter-wheel initials input 
+#              and Top 5 Leaderboard display on Game Over.
 #              SOLID Refactoring:
-#              - SRP Compliance: Extracted Main Menu, Joystick, and Overlays into 
-#                dedicated single-responsibility classes. The HUD no longer acts 
-#                as a God Class.
-#              - DIP Compliance: Communicates with GameManager and sub-components 
-#                strictly via signals and public APIs.
+#              - SRP Compliance: Coordinates independent sub-views (Minimap, 
+#                StatusOverlay, LetterEntryWheel, MainMenu) without containing 
+#                any physics, sorting, or data packing logic itself.
+#              - DIP Compliance: Submits data and receives state signals through 
+#                abstract public APIs and event bindings.
 # Author: Enrique González Gutiérrez
 # Email: enrique.gonzalez.gutierrez@gmail.com
 # ==============================================================================
@@ -33,7 +33,7 @@ var mobile_controls : VirtualJoystick
 var is_mobile : bool = false
 
 func _ready() -> void:
-	# Enforce HUD processing during pause states
+	# Enforce HUD processing during pause states (Game Over blocks physics but not UI)
 	process_mode = Node.PROCESS_MODE_ALWAYS
 	is_mobile = OS.has_feature("mobile") or OS.has_feature("web")
 	
@@ -123,7 +123,6 @@ func _build_base_hud_elements() -> void:
 	minimap.offset_right = right_margin
 	
 	if is_mobile:
-		# Shift minimap upwards to clear the giant mobile jump button
 		var bottom_margin = -280 
 		minimap.offset_top = -map_dim + bottom_margin
 		minimap.offset_bottom = bottom_margin
@@ -132,23 +131,17 @@ func _build_base_hud_elements() -> void:
 		minimap.offset_top = -map_dim + bottom_margin
 		minimap.offset_bottom = bottom_margin
 
-# Composes the external StatusOverlay component (SRP Compliance)
 func _instantiate_status_overlay() -> void:
 	status_overlay = StatusOverlay.new()
 	add_child(status_overlay)
-	# Push overlay to the bottom of the tree so it renders on top of everything
 	move_child(status_overlay, -1)
 
-# Composes the external MainMenu component (SRP Compliance)
 func _instantiate_main_menu() -> void:
 	main_menu = MainMenu.new()
 	add_child(main_menu)
 	main_menu.start_game_requested.connect(_on_menu_start_game_requested)
-	
-	# Ensure the status overlay stays on top of the newly added menu
 	move_child(status_overlay, -1)
 
-# Composes the external VirtualJoystick and Mobile controls (SRP Compliance)
 func _instantiate_mobile_controls() -> void:
 	if not is_mobile: return
 	
@@ -158,7 +151,6 @@ func _instantiate_mobile_controls() -> void:
 	var viewport_size = get_viewport_rect().size
 	mobile_controls.position = Vector2(100.0, viewport_size.y - 420.0)
 	
-	# Instantiate enlarged 220px Jump Button
 	var jump_btn = TouchScreenButton.new()
 	jump_btn.action = "ui_select"
 	
@@ -191,20 +183,14 @@ func _instantiate_mobile_controls() -> void:
 	add_child(jump_btn)
 	jump_btn.position = Vector2(viewport_size.x - 320.0, viewport_size.y - 320.0)
 
-# Triggers when main menu Start is clicked
 func _on_menu_start_game_requested() -> void:
 	if GameManager:
 		GameManager.is_game_started = true
 		
-	# Instantly show generation status
 	status_overlay.show_status("GENERATING SYSTEM...\nPLEASE WAIT", true)
-	
-	# Physical wait to guarantee GPU clears the menu and draws the overlay
 	await get_tree().create_timer(0.05).timeout
-	
 	_start_active_gameplay_ui()
 
-# Activates all standard gameplay UI elements
 func _start_active_gameplay_ui() -> void:
 	score_label.visible = true
 	high_score_label.visible = true
@@ -212,17 +198,12 @@ func _start_active_gameplay_ui() -> void:
 	minimap.visible = true
 	
 	_instantiate_mobile_controls()
-	
-	# Smooth cinematic fade transition on level load
 	status_overlay.fade_in_from_black()
-	
-	# Instruct LevelManager to assemble the 3D map
 	call_deferred("emit_start_game_signal")
 
 func emit_start_game_signal() -> void:
 	start_game.emit()
 
-# Public API used by LevelManager to hide loader once 3D world is built
 func hide_status_overlay() -> void:
 	if status_overlay:
 		status_overlay.hide_status()
@@ -238,10 +219,51 @@ func _on_high_score_changed(new_high_score: int) -> void:
 func _on_lives_changed(new_lives: int) -> void:
 	lives_label.text = "LIVES\n%d" % new_lives
 
+
+# --- TOURNAMENT GAME OVER WORKFLOW (SOLID Integration) ---
+
 func _on_game_over() -> void:
-	var msg = "GAME OVER\nTap to Restart" if is_mobile else "GAME OVER\nPress R to Restart"
-	status_overlay.show_status(msg, false)
-	get_tree().paused = true
+	# Check if the score qualifies for the local Top 5
+	if GameManager and GameManager.qualifies_for_leaderboard():
+		_instantiate_letter_entry_wheel()
+	else:
+		_show_tournament_leaderboard_overlay()
+
+# Programmatically configures and attaches the LetterEntryWheel modal
+func _instantiate_letter_entry_wheel() -> void:
+	var wheel = LetterEntryWheel.new()
+	add_child(wheel)
+	wheel.initials_submitted.connect(_on_initials_submitted)
+	
+	# Push behind status overlay so it is clean but ahead of HUD labels
+	move_child(wheel, get_child_count() - 2)
+
+# Callback: Submits high score, updates records, and triggers leaderboard overlay
+func _on_initials_submitted(initials: String) -> void:
+	if GameManager:
+		GameManager.submit_leaderboard_entry(initials)
+	
+	_show_tournament_leaderboard_overlay()
+
+# Formats and displays the Top 5 High Score Board on the StatusOverlay
+func _show_tournament_leaderboard_overlay() -> void:
+	var board_text = "TOURNAMENT LEADERBOARD\n"
+	board_text += "======================\n\n"
+	
+	if GameManager and not GameManager.leaderboard_cache.is_empty():
+		var idx = 1
+		for entry in GameManager.leaderboard_cache:
+			# Monospaced-style tabulator spacing using pad_zeros for immaculate look
+			board_text += "%d.  %-4s   %06d\n" % [idx, entry["name"], entry["score"]]
+			idx += 1
+	else:
+		board_text += "No records loaded.\n"
+		
+	board_text += "\n\n"
+	board_text += "Tap to Restart" if is_mobile else "Press R to Restart"
+	
+	status_overlay.show_status(board_text, false)
+	get_tree().paused = true # Safely freeze the execution loop now
 
 func _on_victory_transition() -> void:
 	var next_level_idx : int = GameManager.current_level + 1

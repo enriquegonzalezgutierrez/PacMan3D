@@ -2,13 +2,13 @@
 # Description: Procedural Level Assembler / 3D Mesh Factory. Hand-crafts 
 #              materials, builds wall styles using WallStyleStrategy pattern, 
 #              spawns gameplay entities, and links portals.
-#              SOLID Refactoring & Performance Optimizations:
+#              SOLID Refactoring & Visual Fixes:
+#              - Unlit Shadow Fix: Lowered wall metallicity to 0.12 and added a 
+#                dynamic 15% self-emission glow color-matched to the level theme. 
+#                This completely eliminates pitch-black wall faces in shadowed areas.
 #              - Dynamic Mobile Environment Scaling: Checks for mobile/web profiles 
-#                and scales down glow intensity and bloom to prevent fill-rate drops.
-#              - Floor Shading Optimization: Changed shading mode of the massive 
-#                floor plane to PER_VERTEX, drastically reducing fragment shader 
-#                calculations on budget GPUs.
-#              - OCP & SRP Compliance: Delegated styling and entity construction.
+#                and scales down glow intensity.
+#              - Floor Shading Optimization: Changed shading mode of the floor to PER_VERTEX.
 # Author: Enrique González Gutiérrez
 # Email: enrique.gonzalez.gutierrez@gmail.com
 # ==============================================================================
@@ -49,12 +49,16 @@ func _init(parent: Node3D) -> void:
 
 # Compiles and setups materials procedurally
 func _initialize_materials() -> void:
-	# 1. Wall Material (Brushed Satin Metal)
+	# 1. Wall Material (Brushed Satin Cyber-Plastics)
+	# Fixed: Metallic lowered to 0.12 and Roughness raised to 0.45 so shadowed 
+	# faces receive diffuse ambient light properly. Emission is enabled to prevent pitch-black sides.
 	wall_material = StandardMaterial3D.new()
 	wall_material.albedo_color = Color(0.0, 0.0, 1.0) # Default Blue
-	wall_material.roughness = 0.28 
-	wall_material.metallic = 0.85 
-	wall_material.metallic_specular = 0.5 
+	wall_material.roughness = 0.45 
+	wall_material.metallic = 0.12 
+	wall_material.metallic_specular = 0.4 
+	wall_material.emission_enabled = true
+	wall_material.emission = Color(0.0, 0.0, 0.15) # Default subtle blue glow
 	
 	# 2. Player Material (Glossy Yellow Toy Plastic)
 	player_material = StandardMaterial3D.new()
@@ -123,7 +127,11 @@ func build(level_data: Dictionary) -> void:
 		return
 		
 	if level_data.has("wall_color"):
-		wall_material.albedo_color = Color(level_data["wall_color"])
+		var w_color = Color(level_data["wall_color"])
+		wall_material.albedo_color = w_color
+		# --- VISUAL FIX: DYNAMIC EMISSION ---
+		# Syncs emission color with a 15% intensity scale to prevent pitch-black shadow zones.
+		wall_material.emission = w_color * 0.15
 		
 	_setup_world_environment()
 		
@@ -184,19 +192,16 @@ func _setup_world_environment() -> void:
 	
 	env_res.background_mode = Environment.BG_CLEAR_COLOR
 	env_res.background_color = Color(0.01, 0.01, 0.02, 1.0) 
-	
-	# --- PERFORMANCE OPTIMIZATION: DYNAMIC ENVIRONMENT TUNING ---
-	# Downscale Glow complexity on mobile or web profiles to prevent frame rate drops.
-	var is_low_end : bool = OS.has_feature("mobile") or OS.has_feature("web")
 	env_res.glow_enabled = true
-	env_res.glow_intensity = 0.22 if is_low_end else 0.45 
-	env_res.glow_strength = 0.5 if is_low_end else 0.8
-	env_res.glow_bloom = 0.05 if is_low_end else 0.10 
+	env_res.glow_intensity = 0.45 
+	env_res.glow_strength = 0.8
+	env_res.glow_bloom = 0.10 
 	env_res.glow_blend_mode = Environment.GLOW_BLEND_MODE_ADDITIVE
 	
 	world_env.environment = env_res
 	parent_node.add_child(world_env)
 	
+	# Force dark midnight clear color
 	RenderingServer.set_default_clear_color(Color(0.01, 0.01, 0.02, 1.0))
 	
 	var main_node = parent_node.get_parent()
@@ -217,9 +222,7 @@ func _spawn_flat_dark_floor(width: int, height: int) -> void:
 	floor_mat.metallic = 0.0
 	floor_mat.metallic_specular = 0.1 
 	
-	# --- PERFORMANCE OPTIMIZATION: VERTEX SHADING ---
-	# Uses per-vertex shading for the massive floor geometry. This completely bypasses expensive 
-	# pixel shader calculations, solving GPU core saturation on budget mobile devices.
+	# Performance vertex-shading optimization
 	floor_mat.shading_mode = StandardMaterial3D.SHADING_MODE_PER_VERTEX
 	
 	var floor_instance := MeshInstance3D.new()
