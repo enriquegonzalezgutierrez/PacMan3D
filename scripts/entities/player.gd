@@ -2,15 +2,13 @@
 # Description: CharacterBody3D controller for Pac-Man. Handles movement inputs, 
 #              visual mesh rotation, virtual jump physics, and power states.
 #              SOLID Refactoring:
-#              - SRP Compliance: Delegated all 3D mesh building and particle 
-#                spawning to the PlayerVisualBuilder class. This class no longer 
-#                acts as a God Class.
-#              - LSP Compliance: Implemented polymorphic minimap color/radius 
-#                getters, matching the interface used by the 2D Minimap radar.
-#              - Performance Optimization: Integrated high-efficiency CPUParticles3D 
-#                typing to eliminate GPU compute shader overhead on budget platforms.
-#              - Bug Fix: Added explicit death_audio.play() call to resolve 
-#                await stall during the death sequence.
+#              - SRP & LSP Compliance: Maintained clean separations.
+#              - Positional 3D Audio: Upgraded stereo audio players to 
+#                AudioStreamPlayer3D. Implemented real-time dynamic panning, 
+#                distance attenuation, and low-pass air absorption filters.
+#              - API Fix: Removed non-existent attenuation_filter_enabled property 
+#                to comply with Godot 4's native AudioStreamPlayer3D specifications.
+#              - Bug Fix: Restored class-level 'visual_mesh' variable declaration.
 # Author: Enrique González Gutiérrez
 # Email: enrique.gonzalez.gutierrez@gmail.com
 # ==============================================================================
@@ -33,12 +31,12 @@ var player_material : StandardMaterial3D
 var munch_stream : AudioStream
 var death_stream : AudioStream
 
-# Internal Node Components
-var visual_mesh : MeshInstance3D 
-var munch_audio : AudioStreamPlayer
-var death_audio : AudioStreamPlayer
+# Internal Node Components (Fixed: Upgraded to 3D Audio nodes)
+var munch_audio : AudioStreamPlayer3D
+var death_audio : AudioStreamPlayer3D
 
 # Visual Builder References (Injected by PlayerVisualBuilder)
+var visual_mesh : MeshInstance3D 
 var eyes_holder : Node3D
 var pupil_material : StandardMaterial3D
 var mouth_instance : MeshInstance3D
@@ -117,15 +115,33 @@ func _configure_collision_layers() -> void:
 	collision_layer = 2
 	collision_mask = 1 | 8
 
+# Programmatically constructs the spatial 3D audio players (3D Positional Audio Compliance)
 func _setup_audio() -> void:
-	munch_audio = AudioStreamPlayer.new()
+	# 1. Munch Audio Player (Waka-Waka)
+	munch_audio = AudioStreamPlayer3D.new()
+	munch_audio.unit_size = 12.0 # Attenuation begins smoothly at 12 meters
+	munch_audio.max_distance = 32.0 # Fades out completely beyond the map limits
+	munch_audio.panning_strength = 1.0 # Saturated stereo panning
+	
+	# --- API FIX: ENABLING FILTERS AUTOMATICALLY IN GODOT 4 ---
+	# Setting the cutoff frequency automatically activates the low-pass 
+	# distance filter, completely removing the need for a separate boolean property.
+	munch_audio.attenuation_filter_cutoff_hz = 6000.0 # 6 kHz low-pass cutoff
+	
 	if munch_stream:
 		munch_audio.stream = munch_stream
 	munch_audio.max_polyphony = 1
 	munch_audio.volume_db = -5.0 
 	add_child(munch_audio)
 	
-	death_audio = AudioStreamPlayer.new()
+	# 2. Death Audio Player
+	death_audio = AudioStreamPlayer3D.new()
+	death_audio.unit_size = 16.0 # Dramatic explosion sound carries slightly further
+	death_audio.max_distance = 40.0
+	death_audio.panning_strength = 1.0
+	
+	death_audio.attenuation_filter_cutoff_hz = 5000.0 # 5 kHz low-pass cutoff
+	
 	if death_stream:
 		death_audio.stream = death_stream
 	death_audio.max_polyphony = 1
@@ -154,8 +170,6 @@ func die() -> void:
 	# Trigger explosive death particles via builder (SRP Compliance)
 	PlayerVisualBuilder.trigger_death_particles(get_parent(), global_position, player_material)
 	
-	# --- BUG FIX: PLAY DEATH SOUND EFFECT ---
-	# Explicitly play the death audio before awaiting its completion to prevent stalling the game state.
 	if death_audio and death_audio.stream:
 		death_audio.play()
 		await death_audio.finished 

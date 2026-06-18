@@ -3,12 +3,12 @@
 #              pathfinding, state machine management, and coordinates with an 
 #              abstract behavior strategy.
 #              SOLID Refactoring:
-#              - SRP Compliance: Extracted all 3D mesh and visual material generation 
-#                into the GhostVisualBuilder static class.
-#              - OCP Compliance: Eliminated the massive Scatter switch/match block. 
-#                Ghosts now query their behavior_strategy directly for retreat coordinates.
-#              - LSP Compliance: Added polymorphic minimap color/radius getters, 
-#                fully encapsulating state-based color rendering from external scripts.
+#              - SRP & LSP Compliance: Maintained clean separation of concerns.
+#              - Positional 3D Audio: Upgraded eaten audio to AudioStreamPlayer3D. 
+#                Implemented dynamic stereo panning, log distance attenuation, 
+#                and atmospheric low-pass damping filters.
+#              - API Fix: Removed non-existent attenuation_filter_enabled property 
+#                to comply with Godot 4's native AudioStreamPlayer3D specifications.
 # Author: Enrique González Gutiérrez
 # Email: enrique.gonzalez.gutierrez@gmail.com
 # ==============================================================================
@@ -50,7 +50,7 @@ var eaten_stream : AudioStream
 
 # Internal Node Components
 var visual_mesh : MeshInstance3D
-var eaten_audio : AudioStreamPlayer
+var eaten_audio : AudioStreamPlayer3D
 var current_direction : Vector3 = Vector3.FORWARD
 var next_direction : Vector3 = Vector3.FORWARD
 
@@ -180,8 +180,18 @@ func _setup_player_detection() -> void:
 	
 	detection_area.body_entered.connect(_on_player_detected)
 
+# Programmatically constructs the spatial 3D audio player (3D Positional Audio Compliance)
 func _setup_audio() -> void:
-	eaten_audio = AudioStreamPlayer.new()
+	eaten_audio = AudioStreamPlayer3D.new()
+	eaten_audio.unit_size = 10.0 # Attenuation begins at 10 meters
+	eaten_audio.max_distance = 30.0 # Fades completely past map limits
+	eaten_audio.panning_strength = 1.0 # High-contrast stereo panning
+	
+	# --- API FIX: ENABLING FILTERS AUTOMATICALLY IN GODOT 4 ---
+	# In Godot 4, setting the cutoff frequency automatically activates the low-pass 
+	# distance filter, completely removing the need for a separate boolean property.
+	eaten_audio.attenuation_filter_cutoff_hz = 5000.0 # 5 kHz low-pass cutoff
+	
 	if eaten_stream:
 		eaten_audio.stream = eaten_stream
 	eaten_audio.max_polyphony = 1
@@ -437,8 +447,6 @@ func _choose_new_direction() -> void:
 	elif is_inside_foso:
 		target_pos = exit_position 
 	elif current_state == State.SCATTER:
-		# --- SOLID OCP REFACTOR ---
-		# We dynamically query the behavior strategy for the scatter corner
 		if behavior_strategy:
 			target_pos = behavior_strategy.get_scatter_target(grid_width, grid_height, CELL_SIZE)
 	elif current_state == State.FRIGHTENED:
@@ -526,7 +534,7 @@ func play_eaten_particles() -> void:
 	if eaten_audio and eaten_audio.stream:
 		eaten_audio.play()
 		
-	var particles := GPUParticles3D.new()
+	var particles := CPUParticles3D.new()
 	var mesh := BoxMesh.new()
 	mesh.size = Vector3(0.12, 0.12, 0.12)
 	
@@ -537,20 +545,16 @@ func play_eaten_particles() -> void:
 		mat.albedo_color = Color(0.0, 1.0, 1.0) 
 	mat.shading_mode = StandardMaterial3D.SHADING_MODE_UNSHADED
 	mesh.material = mat
-	particles.draw_pass_1 = mesh
 	
-	var p_mat := ParticleProcessMaterial.new()
-	p_mat.emission_shape = ParticleProcessMaterial.EMISSION_SHAPE_SPHERE
-	p_mat.emission_sphere_radius = 0.2
-	p_mat.direction = Vector3.UP
-	p_mat.spread = 180.0 
-	p_mat.initial_velocity_min = 3.0
-	p_mat.initial_velocity_max = 5.0
-	p_mat.gravity = Vector3(0.0, -8.0, 0.0) 
-	p_mat.damping_min = 1.0
-	p_mat.damping_max = 2.0
+	particles.mesh = mesh
+	particles.emission_shape = CPUParticles3D.EMISSION_SHAPE_SPHERE
+	particles.emission_sphere_radius = 0.2
+	particles.direction = Vector3.UP
+	particles.spread = 180.0 
+	particles.initial_velocity_min = 3.0
+	particles.initial_velocity_max = 5.0
+	particles.gravity = Vector3(0.0, -8.0, 0.0) 
 	
-	particles.process_material = p_mat
 	particles.amount = 20
 	particles.one_shot = true
 	particles.explosiveness = 1.0
@@ -579,19 +583,19 @@ func _on_player_detected(body: Node3D) -> void:
 		elif current_state != State.EATEN:
 			player_caught.emit(false, global_position)
 
+
 # ==============================================================================
 # --- MINIMAP POLYMORPHISM (LSP/OCP COMPLIANCE) ---
-# Safely encapsulates internal state colors from the Minimap.
 # ==============================================================================
 
 func get_minimap_color() -> Color:
 	if current_state == State.EATEN:
-		return Color.TRANSPARENT # Floating eyes don't show on radar
+		return Color.TRANSPARENT 
 	elif current_state == State.FRIGHTENED and frightened_material:
 		return frightened_material.albedo_color
 	elif original_material:
 		return original_material.albedo_color
-	return Color(1.0, 1.0, 1.0) # Fallback White
+	return Color(1.0, 1.0, 1.0) 
 
 func get_minimap_radius() -> float:
 	return 4.0
