@@ -1,14 +1,12 @@
 # ==============================================================================
-# Description: CharacterBody3D controller for Pac-Man. Handles movement inputs, 
-#              visual mesh rotation, virtual jump physics, and power states.
+# Description: CharacterBody3D controller for MartínMan (formerly Pac-Man). 
+#              Handles movement inputs, visual mesh rotation, virtual jump 
+#              physics, and runs skeletal animations based on movement velocities.
 #              SOLID Refactoring:
-#              - SRP & LSP Compliance: Maintained clean separations.
-#              - Positional 3D Audio: Upgraded stereo audio players to 
-#                AudioStreamPlayer3D. Implemented real-time dynamic panning, 
-#                distance attenuation, and low-pass air absorption filters.
-#              - API Fix: Removed non-existent attenuation_filter_enabled property 
-#                to comply with Godot 4's native AudioStreamPlayer3D specifications.
-#              - Bug Fix: Restored class-level 'visual_mesh' variable declaration.
+#              - SRP & LSP Compliance: Swapped the visual rendering engine 
+#                completely without changing any core movement or grid-clamping physics.
+#              - Skeletal Animation Engine: Replaced mathematical sphere chewing 
+#                with high-fidelity skeletal animations (idle, running, jump, falling, death).
 # Author: Enrique González Gutiérrez
 # Email: enrique.gonzalez.gutierrez@gmail.com
 # ==============================================================================
@@ -31,31 +29,19 @@ var player_material : StandardMaterial3D
 var munch_stream : AudioStream
 var death_stream : AudioStream
 
-# Internal Node Components (Fixed: Upgraded to 3D Audio nodes)
+# Internal Node Components
 var munch_audio : AudioStreamPlayer3D
 var death_audio : AudioStreamPlayer3D
 
-# Visual Builder References (Injected by PlayerVisualBuilder)
-var visual_mesh : MeshInstance3D 
-var eyes_holder : Node3D
-var pupil_material : StandardMaterial3D
-var mouth_instance : MeshInstance3D
-var headphone_ring_material : StandardMaterial3D
-
-# Dynamic Eye Tracking Variables
-var is_blinking : bool = false
-var blink_timer : float = 0.0
-var blink_duration : float = 0.15
-var next_blink_time : float = 3.0
+# Skeletal Animation References (Injected by PlayerVisualBuilder)
+var visual_mesh : Node3D 
+var anim_player : AnimationPlayer
 
 # Invincibility Power State Variables
 var is_powered_up : bool = false
 var power_timer : float = 0.0
 const POWER_DURATION : float = 7.0 
 var power_particles : CPUParticles3D = null
-
-# Dynamic Chewing Mouth Variables
-var mouth_time : float = 0.0
 
 # Speed Overload State Variables
 var is_speed_boosted : bool = false
@@ -91,10 +77,7 @@ func _ready() -> void:
 	# Assemble visuals using our SRP Builder (SRP Compliance)
 	var visual_components = PlayerVisualBuilder.build_visuals(self, player_material)
 	visual_mesh = visual_components["visual_mesh"]
-	eyes_holder = visual_components["eyes_holder"]
-	pupil_material = visual_components["pupil_material"]
-	mouth_instance = visual_components["mouth_instance"]
-	headphone_ring_material = visual_components["headphone_ring_material"]
+	anim_player = visual_components["anim_player"]
 	
 	_setup_audio()
 	
@@ -103,8 +86,6 @@ func _ready() -> void:
 	if motion_trail and motion_trail.mesh:
 		motion_trail_material = motion_trail.mesh.material
 	add_child(motion_trail)
-	
-	next_blink_time = randf_range(2.0, 5.0)
 	
 	if GameManager:
 		GameManager.power_pellet_activated.connect(activate_power_up)
@@ -119,14 +100,10 @@ func _configure_collision_layers() -> void:
 func _setup_audio() -> void:
 	# 1. Munch Audio Player (Waka-Waka)
 	munch_audio = AudioStreamPlayer3D.new()
-	munch_audio.unit_size = 12.0 # Attenuation begins smoothly at 12 meters
-	munch_audio.max_distance = 32.0 # Fades out completely beyond the map limits
-	munch_audio.panning_strength = 1.0 # Saturated stereo panning
-	
-	# --- API FIX: ENABLING FILTERS AUTOMATICALLY IN GODOT 4 ---
-	# Setting the cutoff frequency automatically activates the low-pass 
-	# distance filter, completely removing the need for a separate boolean property.
-	munch_audio.attenuation_filter_cutoff_hz = 6000.0 # 6 kHz low-pass cutoff
+	munch_audio.unit_size = 12.0 
+	munch_audio.max_distance = 32.0 
+	munch_audio.panning_strength = 1.0 
+	munch_audio.attenuation_filter_cutoff_hz = 6000.0 
 	
 	if munch_stream:
 		munch_audio.stream = munch_stream
@@ -136,11 +113,10 @@ func _setup_audio() -> void:
 	
 	# 2. Death Audio Player
 	death_audio = AudioStreamPlayer3D.new()
-	death_audio.unit_size = 16.0 # Dramatic explosion sound carries slightly further
+	death_audio.unit_size = 16.0 
 	death_audio.max_distance = 40.0
 	death_audio.panning_strength = 1.0
-	
-	death_audio.attenuation_filter_cutoff_hz = 5000.0 # 5 kHz low-pass cutoff
+	death_audio.attenuation_filter_cutoff_hz = 5000.0 
 	
 	if death_stream:
 		death_audio.stream = death_stream
@@ -158,9 +134,6 @@ func die() -> void:
 		return
 	is_dead = true
 	
-	if visual_mesh:
-		visual_mesh.visible = false
-		
 	_deactivate_power_up()
 	_deactivate_speed_boost()
 	
@@ -169,6 +142,9 @@ func die() -> void:
 		
 	# Trigger explosive death particles via builder (SRP Compliance)
 	PlayerVisualBuilder.trigger_death_particles(get_parent(), global_position, player_material)
+	
+	# Play character death animation
+	_play_animation("death")
 	
 	if death_audio and death_audio.stream:
 		death_audio.play()
@@ -211,11 +187,6 @@ func activate_power_up() -> void:
 	player_material.emission_enabled = true
 	player_material.emission = Color(1.0, 0.25, 0.0) 
 	
-	if pupil_material:
-		pupil_material.albedo_color = Color(1.0, 0.0, 0.0) 
-		pupil_material.emission_enabled = true
-		pupil_material.emission = Color(1.0, 0.0, 0.0) 
-		
 	if not is_instance_valid(power_particles):
 		power_particles = PlayerVisualBuilder.build_power_particles()
 		add_child(power_particles)
@@ -225,10 +196,6 @@ func _deactivate_power_up() -> void:
 	player_material.albedo_color = Color(1.0, 1.0, 0.0) 
 	player_material.emission_enabled = false
 	
-	if pupil_material:
-		pupil_material.albedo_color = Color(0.0, 0.8, 0.1) 
-		pupil_material.emission_enabled = false
-		
 	if is_instance_valid(power_particles):
 		power_particles.queue_free()
 
@@ -298,19 +265,12 @@ func _physics_process(delta: float) -> void:
 				if blink:
 					player_material.albedo_color = Color(1.0, 1.0, 0.0)
 					player_material.emission_enabled = false
-					if pupil_material:
-						pupil_material.albedo_color = Color(0.0, 0.8, 0.1)
-						pupil_material.emission_enabled = false
 					if is_instance_valid(power_particles):
 						power_particles.emitting = false
 				else:
 					player_material.albedo_color = Color(1.0, 0.45, 0.0)
 					player_material.emission_enabled = true
 					player_material.emission = Color(1.0, 0.25, 0.0)
-					if pupil_material:
-						pupil_material.albedo_color = Color(1.0, 0.0, 0.0)
-						pupil_material.emission_enabled = true
-						pupil_material.emission = Color(1.0, 0.0, 0.0)
 					if is_instance_valid(power_particles):
 						power_particles.emitting = true
 
@@ -320,51 +280,34 @@ func _physics_process(delta: float) -> void:
 		if speed_boost_timer <= 0.0:
 			_deactivate_speed_boost()
 
-	# Headphone pulse animation
-	if is_instance_valid(headphone_ring_material) and velocity.length() > 0.1:
-		var pulse : float = 1.0 + sin(Time.get_ticks_msec() * 0.015) * 0.35
-		headphone_ring_material.emission_energy_multiplier = pulse
-	elif is_instance_valid(headphone_ring_material):
-		headphone_ring_material.emission_energy_multiplier = 0.8 
-
 	_handle_arcade_input()
 	_process_arcade_movement()
-	_process_eye_blinking(delta)
-	_process_mouth_animation(delta)
+	
+	# --- PLAY PHYSICS-DRIVEN SKELETAL ANIMATIONS (SRP Compliance) ---
+	_animate_character()
 
-func _process_mouth_animation(delta: float) -> void:
-	if not is_instance_valid(mouth_instance) or is_dead:
+# Evaluates physics state velocities to trigger skeletal Mixamo tracks
+func _animate_character() -> void:
+	if is_dead:
+		_play_animation("death")
 		return
 		
-	if velocity.length() > 0.1:
-		mouth_time += delta
-		var bite_factor : float = (sin(mouth_time * 24.0) + 1.0) / 2.0
-		mouth_instance.scale.y = lerpf(0.05, 0.72, bite_factor)
-		mouth_instance.scale.x = lerpf(0.5, 0.62, bite_factor)
+	var is_airborne : bool = (global_position.y > virtual_floor_y + 0.05)
+	if is_airborne:
+		if velocity.y > 0.1:
+			_play_animation("jump")
+		else:
+			_play_animation("falling")
+	elif velocity.length() > 0.1:
+		_play_animation("running")
 	else:
-		mouth_instance.scale.y = 0.12
-		mouth_instance.scale.x = 0.52
+		_play_animation("idle")
 
-func _process_eye_blinking(delta: float) -> void:
-	if not is_instance_valid(eyes_holder):
-		return
-		
-	if is_powered_up:
-		eyes_holder.scale.y = 1.0 
-		return
-		
-	blink_timer += delta
-	if not is_blinking:
-		if blink_timer >= next_blink_time:
-			is_blinking = true
-			blink_timer = 0.0
-			eyes_holder.scale.y = 0.05
-	else:
-		if blink_timer >= blink_duration:
-			is_blinking = false
-			blink_timer = 0.0
-			next_blink_time = randf_range(2.5, 6.0)
-			eyes_holder.scale.y = 1.0
+# Helper to play animations safely preventing track loops restarts
+func _play_animation(anim_name: String) -> void:
+	if is_instance_valid(anim_player) and anim_player.has_animation(anim_name):
+		if anim_player.current_animation != anim_name:
+			anim_player.play(anim_name)
 
 func _handle_arcade_input() -> void:
 	var input_dir := Input.get_vector("ui_left", "ui_right", "ui_up", "ui_down")
@@ -406,7 +349,8 @@ func _process_arcade_movement() -> void:
 			var target_x = g_x * CELL_SIZE - offset_x + (CELL_SIZE / 2.0)
 			velocity.x = (target_x - global_position.x) * ALIGNMENT_FORCE
 			
-		var target_rotation_y = atan2(-current_direction.x, -current_direction.z)
+		# Symmetrical orientation correction (+PI): Ensures MartínMan faces forward when running
+		var target_rotation_y = atan2(-current_direction.x, -current_direction.z) + PI
 		visual_mesh.rotation.y = lerp_angle(visual_mesh.rotation.y, target_rotation_y, 0.25)
 	else:
 		var y_vel = velocity.y
@@ -421,7 +365,6 @@ func _process_arcade_movement() -> void:
 
 # ==============================================================================
 # --- MINIMAP POLYMORPHISM (LSP/OCP COMPLIANCE) ---
-# Safely exposes drawing instructions to the 2D Minimap radar.
 # ==============================================================================
 
 func get_minimap_color() -> Color:
