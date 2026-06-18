@@ -1,14 +1,16 @@
 # ==============================================================================
 # Description: Procedural Level Assembler / 3D Mesh Factory. Hand-crafts 
 #              materials, builds wall styles using WallStyleStrategy pattern, 
-#              spawns gameplay entities, and links portals.
+#              spawns gameplay entities, links portals, and builds illuminated 
+#              double-sided Menorcan Gin Xoriguer billboards on the map outskirts.
 #              SOLID Refactoring & Visual Fixes:
-#              - Unlit Shadow Fix: Lowered wall metallicity to 0.12 and added a 
-#                dynamic 15% self-emission glow color-matched to the level theme. 
-#                This completely eliminates pitch-black wall faces in shadowed areas.
-#              - Dynamic Mobile Environment Scaling: Checks for mobile/web profiles 
-#                and scales down glow intensity.
-#              - Floor Shading Optimization: Changed shading mode of the floor to PER_VERTEX.
+#              - Spectator Angling Fix: Configured the side billboards (East & West) 
+#                to rotate diagonally at -45º and 45º towards the diorama camera (South). 
+#                This makes the Gin Xoriguer PNG fully visible and readable from 
+#                the screen viewport.
+#              - Sprite3D Poster Engine: Replaced BoxMesh with a native Sprite3D.
+#              - Image Format Guard: Automatically detects and prioritizes PNGs.
+#              - Floor Shading Optimization: Changed shading mode of the floor.
 # Author: Enrique González Gutiérrez
 # Email: enrique.gonzalez.gutierrez@gmail.com
 # ==============================================================================
@@ -50,15 +52,13 @@ func _init(parent: Node3D) -> void:
 # Compiles and setups materials procedurally
 func _initialize_materials() -> void:
 	# 1. Wall Material (Brushed Satin Cyber-Plastics)
-	# Fixed: Metallic lowered to 0.12 and Roughness raised to 0.45 so shadowed 
-	# faces receive diffuse ambient light properly. Emission is enabled to prevent pitch-black sides.
 	wall_material = StandardMaterial3D.new()
 	wall_material.albedo_color = Color(0.0, 0.0, 1.0) # Default Blue
 	wall_material.roughness = 0.45 
 	wall_material.metallic = 0.12 
 	wall_material.metallic_specular = 0.4 
 	wall_material.emission_enabled = true
-	wall_material.emission = Color(0.0, 0.0, 0.15) # Default subtle blue glow
+	wall_material.emission = Color(0.0, 0.0, 0.15) 
 	
 	# 2. Player Material (Glossy Yellow Toy Plastic)
 	player_material = StandardMaterial3D.new()
@@ -129,8 +129,6 @@ func build(level_data: Dictionary) -> void:
 	if level_data.has("wall_color"):
 		var w_color = Color(level_data["wall_color"])
 		wall_material.albedo_color = w_color
-		# --- VISUAL FIX: DYNAMIC EMISSION ---
-		# Syncs emission color with a 15% intensity scale to prevent pitch-black shadow zones.
 		wall_material.emission = w_color * 0.15
 		
 	_setup_world_environment()
@@ -182,6 +180,10 @@ func build(level_data: Dictionary) -> void:
 		if partner_portal:
 			my_portal.initialize(partner_portal)
 
+	# --- SPACIAL BILLBOARDS GENERATOR ---
+	# Spawns 4 beautiful neon-backlit Gin Xoriguer advertisements outside the boundaries (SRP)
+	_spawn_perimeter_billboards(map_offset_x, map_offset_z)
+
 func _setup_world_environment() -> void:
 	var world_env := WorldEnvironment.new()
 	var env_res := Environment.new()
@@ -192,16 +194,17 @@ func _setup_world_environment() -> void:
 	
 	env_res.background_mode = Environment.BG_CLEAR_COLOR
 	env_res.background_color = Color(0.01, 0.01, 0.02, 1.0) 
+	
+	var is_low_end : bool = OS.has_feature("mobile") or OS.has_feature("web")
 	env_res.glow_enabled = true
-	env_res.glow_intensity = 0.45 
-	env_res.glow_strength = 0.8
-	env_res.glow_bloom = 0.10 
+	env_res.glow_intensity = 0.22 if is_low_end else 0.45 
+	env_res.glow_strength = 0.5 if is_low_end else 0.8
+	env_res.glow_bloom = 0.05 if is_low_end else 0.10 
 	env_res.glow_blend_mode = Environment.GLOW_BLEND_MODE_ADDITIVE
 	
 	world_env.environment = env_res
 	parent_node.add_child(world_env)
 	
-	# Force dark midnight clear color
 	RenderingServer.set_default_clear_color(Color(0.01, 0.01, 0.02, 1.0))
 	
 	var main_node = parent_node.get_parent()
@@ -221,8 +224,6 @@ func _spawn_flat_dark_floor(width: int, height: int) -> void:
 	floor_mat.roughness = 0.95 
 	floor_mat.metallic = 0.0
 	floor_mat.metallic_specular = 0.1 
-	
-	# Performance vertex-shading optimization
 	floor_mat.shading_mode = StandardMaterial3D.SHADING_MODE_PER_VERTEX
 	
 	var floor_instance := MeshInstance3D.new()
@@ -232,12 +233,13 @@ func _spawn_flat_dark_floor(width: int, height: int) -> void:
 	
 	parent_node.add_child(floor_instance)
 
+# --- RESTORED WALL GENERATOR (FIXED PARSER ERROR) ---
 # Instantiates procedurally designed wall meshes depending on the active level theme
 func _create_wall(pos: Vector3, x: int, z: int, level_data: Dictionary) -> void:
 	var static_body := StaticBody3D.new()
 	var rendering_style : String = level_data.get("rendering_style", "pipes")
 	
-	# We query and build the style using the WallStyleStrategy pattern!
+	# Query and build the style using the WallStyleStrategy pattern (OCP)
 	var strategy : WallStyleStrategy = wall_strategies.get(rendering_style, wall_strategies["pipes"])
 	strategy.build_mesh(static_body, x, z, CELL_SIZE, WALL_HEIGHT, wall_material, level_data)
 		
@@ -252,6 +254,136 @@ func _create_wall(pos: Vector3, x: int, z: int, level_data: Dictionary) -> void:
 	
 	static_body.position = pos
 	parent_node.add_child(static_body)
+
+# Programmatically compiles 4 giant billboards on the cardial directions of the perimeter
+func _spawn_perimeter_billboards(ox: float, oz: float) -> void:
+	# Reduced margin from 5.5 to 2.6 meters outside play corridors.
+	# Places the giant advertisements right next to the boundary walls for massive impact.
+	var margin : float = 2.6
+	
+	# 1. North Billboard (Top, facing Southwards directly at the camera)
+	_create_billboard_sign(Vector3(0.0, 0.0, -oz - margin), 0.0)
+	
+	# 2. South Billboard (Bottom, facing Northwards towards the play area)
+	_create_billboard_sign(Vector3(0.0, 0.0, oz + margin), 180.0)
+	
+	# 3. East Billboard (Right, rotated -45º to face South-West/Camera)
+	_create_billboard_sign(Vector3(ox + margin, 0.0, 0.0), -45.0)
+	
+	# 4. West Billboard (Left, rotated 45º to face South-East/Camera)
+	_create_billboard_sign(Vector3(-ox - margin, 0.0, 0.0), 45.0)
+
+# Procedural Billboard assembler (Soporte + Backing de Carbono + Neón + Cartel Xoriguer Doble Cara)
+func _create_billboard_sign(pos: Vector3, rot_y: float) -> void:
+	var billboard_root := Node3D.new()
+	
+	# 1. Structural Metal Post
+	var post_mesh := CylinderMesh.new()
+	post_mesh.top_radius = 0.08
+	post_mesh.bottom_radius = 0.08
+	post_mesh.height = 3.0
+	post_mesh.radial_segments = 8
+	
+	var post_mat := StandardMaterial3D.new()
+	post_mat.albedo_color = Color(0.1, 0.1, 0.12) 
+	post_mat.roughness = 0.4
+	post_mat.metallic = 0.8
+	
+	var post_inst := MeshInstance3D.new()
+	post_inst.mesh = post_mesh
+	post_inst.material_override = post_mat
+	post_inst.position.y = 1.50 
+	billboard_root.add_child(post_inst)
+	
+	# 2. Signboard Carbon Backing (Fixed: Portrait Aspect Ratio of 2.6x4.0 meters)
+	var back_mesh := BoxMesh.new()
+	back_mesh.size = Vector3(2.6, 4.0, 0.12)
+	
+	var back_mat := StandardMaterial3D.new()
+	back_mat.albedo_color = Color(0.05, 0.05, 0.07)
+	back_mat.roughness = 0.7
+	
+	var back_inst := MeshInstance3D.new()
+	back_inst.mesh = back_mesh
+	back_inst.material_override = back_mat
+	back_inst.position.y = 3.00 
+	billboard_root.add_child(back_inst)
+	
+	# 3. Lateral Glowing Neon Frame bars (Fixed: Height adapted to 4.0 meters)
+	var neon_mesh := BoxMesh.new()
+	neon_mesh.size = Vector3(0.08, 4.04, 0.14)
+	
+	var neon_mat := StandardMaterial3D.new()
+	neon_mat.albedo_color = Color(0.0, 0.8, 1.0)
+	neon_mat.emission_enabled = true
+	neon_mat.emission = Color(0.0, 0.6, 1.0) 
+	
+	var left_neon := MeshInstance3D.new()
+	left_neon.mesh = neon_mesh
+	left_neon.material_override = neon_mat
+	left_neon.position = Vector3(-1.32, 3.00, 0.0) 
+	billboard_root.add_child(left_neon)
+	
+	var right_neon := MeshInstance3D.new()
+	right_neon.mesh = neon_mesh
+	right_neon.material_override = neon_mat
+	right_neon.position = Vector3(1.32, 3.00, 0.0) 
+	billboard_root.add_child(right_neon)
+	
+	# --- MULTI-EXTENSION DEFENSIVE LOADER (DIP Compliance) ---
+	var ad_tex : Texture2D = null
+	var extensions = [".png", ".jpg", ".jpeg", ".PNG", ".JPG", ".JPEG"] # Prioritized PNG first!
+	for ext in extensions:
+		var test_path = "res://assets/ui/images/xoriguer_ad" + ext
+		if ResourceLoader.exists(test_path):
+			ad_tex = load(test_path) as Texture2D
+			break
+			
+	if ad_tex:
+		# --- DYNAMIC SPRITE3D POSTER ENGINE (Stretching & Zooming Fix) ---
+		# Fixed: Replaced BoxMesh with a native Sprite3D node to completely bypass 
+		# UV wrapping and projection stretching. It renders your cropped PNG bottle 
+		# transparently, preserving its native aspect ratio 1:1.
+		var poster_sprite := Sprite3D.new()
+		poster_sprite.texture = ad_tex
+		poster_sprite.shaded = false # Equivalent to UNSHADED (100% original crisp colors)
+		poster_sprite.double_sided = true # Visible from both front and back
+		poster_sprite.alpha_cut = Sprite3D.ALPHA_CUT_DISCARD # Perfect transparent cutout
+		
+		# Mathematically calculate the pixel_size to fit the 3.8-meter height perfectly (40% increase)
+		var target_height : float = 3.8
+		var img_height : float = float(ad_tex.get_height())
+		if img_height > 0.0:
+			poster_sprite.pixel_size = target_height / img_height
+			
+		poster_sprite.position = Vector3(0.0, 3.00, 0.07) # Centered on front of chasis
+		billboard_root.add_child(poster_sprite)
+	else:
+		# Fallback flat cyan mesh if the image is missing/not imported yet
+		var poster_mesh := BoxMesh.new()
+		poster_mesh.size = Vector3(2.4, 3.8, 0.02)
+		var poster_mat := StandardMaterial3D.new()
+		poster_mat.shading_mode = StandardMaterial3D.SHADING_MODE_UNSHADED
+		poster_mat.albedo_color = Color(0.0, 0.8, 1.0)
+		
+		var front_poster := MeshInstance3D.new()
+		front_poster.mesh = poster_mesh
+		front_poster.material_override = poster_mat
+		front_poster.position = Vector3(0.0, 3.00, 0.07) 
+		billboard_root.add_child(front_poster)
+		
+		var back_poster := MeshInstance3D.new()
+		back_poster.mesh = poster_mesh
+		back_poster.material_override = poster_mat
+		back_poster.position = Vector3(0.0, 3.00, -0.07)
+		back_poster.rotation_degrees.y = 180.0
+		billboard_root.add_child(back_poster)
+	
+	# Apply coordinates and rotations
+	billboard_root.position = pos
+	billboard_root.rotation_degrees.y = rot_y
+	
+	parent_node.add_child(billboard_root)
 
 func _create_ghost_house_gate(pos: Vector3) -> void:
 	var static_body := StaticBody3D.new()

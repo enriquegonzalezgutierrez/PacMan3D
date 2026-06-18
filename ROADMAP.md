@@ -1,4 +1,4 @@
-# ROADMAP - PacMan3D
+# ROADMAP - MartínMan 3D
 
 <!--
 ==============================================================================
@@ -24,10 +24,10 @@ Email: enrique.gonzalez.gutierrez@gmail.com
 *   Built dynamic wall color tinting reading directly from level JSON data.
 *   Implemented identical physics box colliders across all three visual styles to guarantee 100% consistent movement physics.
 
-### 4. Player Entity (Pac-Man) [X]
+### 4. Player Entity (MartínMan) [X]
 *   Implemented physics-based kinematics using `move_and_slide()` alongside responsive directional buffering.
 *   Decoupled the diorama camera controller entirely into `diorama_camera.gd`, utilizing steep perspective angles, telephoto narrow FOVs, and LERP tracking.
-*   Programmed a modular sequential death state triggering local GPUParticles3D explosions.
+*   Programmed a modular sequential death state triggering local CPUParticles3D explosions.
 
 ### 5. Enemy Entities (Ghosts) [X]
 *   Designed a decoupled state machine (Leaving, Chase, Scatter, Frightened).
@@ -69,7 +69,7 @@ Email: enrique.gonzalez.gutierrez@gmail.com
 *   Synchronized HUD values directly with GameManager on startup to prevent Autoload race conditions.
 
 ### 2. Dynamic Ghost House Door Gate [X]
-*   Programmed a static physics laser barrier on Layer 4 (8) to block Pac-Man from entering.
+*   Programmed a static physics laser barrier on Layer 4 (8) to block MartínMan from entering.
 *   Enabled ghosts to dynamically toggle their collision mask to pass through the door during LEAVING/EATEN states, and collide with it in active chase modes.
 
 ### 3. Fruits Variety & Spawn Cycles [X]
@@ -88,7 +88,7 @@ Email: enrique.gonzalez.gutierrez@gmail.com
 *   Programmed glowing neon-cyan gate arches and shimmering energy curtains at teleport boundaries, dynamically self-aligning their rotation.
 
 ### 3. Energy Motion Trails & Thrusters [X]
-*   Programmed a highly responsive GPUParticles3D ribbon-style light trail that dynamically changes color (Yellow, Gold, Cyan) depending on active states.
+*   Programmed a highly responsive CPUParticles3D ribbon-style light trail that dynamically changes color (Yellow, Gold, Cyan) depending on active states.
 *   Instantiated an energetic downward gold-neon spark jet exhaust upon jumping.
 
 ### 4. Mobile Virtual Joystick & Controls [X]

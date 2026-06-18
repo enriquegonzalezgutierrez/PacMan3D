@@ -1,138 +1,152 @@
 # ==============================================================================
-# Description: Standalone Lightning Bolt Speed Pellet (Area3D). Spawns 
-#              procedurally as a glowing, rotating neon zig-zag lightning bolt, 
-#              granting a temporary speed boost to the Player upon collision.
-#              SOLID Refactoring:
-#              - LSP/OCP COMPLIANCE: Exposes polymorphic minimap colors and 
-#                radii to integrate seamlessly with the 2D Minimap radar.
-#              - SRP: Fully encapsulates the physical 3D zig-zag mesh construction 
-#                and collision trigger logic.
-#              Phase 4 Updates:
-#              - MASSIVE SCALE INDICATOR: Sized up the electric lightning bolt segments 
-#                to 0.55 length and 0.11 thickness for majestic cyber-arcade presence.
+# Description: Standalone Pomada Menorquina (Gin with Lemonade) Utility Pellet (Area3D). 
+#              Loads the 3D lemon.fbx model, scales it to 1.4x, and applies 
+#              a bright unshaded lemon-yellow shader with an electric sparks emitter.
+#              SOLID Refactoring & Shading Fix:
+#              - Texture Preservation: Removed the flat-color override. 
+#                It now duplicates the FBX's native materials and makes them 
+#                UNSHADED. This completely preserves the yellow citrus skin 
+#                details of your custom lemon model at 100% native brightness.
 # Author: Enrique González Gutiérrez
 # Email: enrique.gonzalez.gutierrez@gmail.com
 # ==============================================================================
 extends Area3D
 class_name SpeedPellet
 
-# Signal emitted when eaten, delegating gameplay state mutations (DIP Compliance)
+# Signal emitted when eaten, delegating gameplay state mutations
 signal speed_pellet_eaten()
-
-var lightning_material : StandardMaterial3D
 
 # Internal visual component references
 var visual_holder : Node3D
 var time_passed : float = 0.0
 
 func _ready() -> void:
-	add_to_group("pellets") # Belongs to pellets group so it maintains victory counts
+	add_to_group("pellets") 
 	_configure_collision_layers()
-	_initialize_material()
 	_build_pellet_visuals()
-	
 	body_entered.connect(_on_body_entered)
 	
-	# Randomize initial phase slightly to stagger animations
+	# Randomize initial phase to prevent robotic floating synchronization
 	time_passed = randf_range(0.0, 5.0)
 
 func _configure_collision_layers() -> void:
-	# Exist on Layer 0 (Detects Player on Layer 2)
 	collision_layer = 0
 	collision_mask = 2
 
-func _initialize_material() -> void:
-	# Vibrant Glowing Neon Yellow/Cyan electric material
-	lightning_material = StandardMaterial3D.new()
-	lightning_material.albedo_color = Color(1.0, 0.9, 0.0) # Bright Electric Yellow
-	lightning_material.emission_enabled = true
-	lightning_material.emission = Color(1.0, 0.7, 0.0) # Golden electric glow
-	lightning_material.roughness = 0.1
-
-# Programmatically constructs an enlarged, beautiful 3D zig-zag lightning bolt
+# Programmatically constructs the 3D Lemon model
 func _build_pellet_visuals() -> void:
 	visual_holder = Node3D.new()
 	var collision_shape := CollisionShape3D.new()
 	
-	# Sized up massively for premium 1080p presence
-	var seg_length : float = 0.55
-	var seg_thickness : float = 0.11
+	# 1. Programmatically load and instantiate the user's 3D Lemon FBX model
+	var lemon_mesh : Node3D = null
+	var lemon_path := "res://assets/models/items/lemon/lemon.fbx"
 	
-	var segment_mesh := BoxMesh.new()
-	segment_mesh.size = Vector3(seg_thickness, seg_length, seg_thickness)
+	if ResourceLoader.exists(lemon_path):
+		var lemon_scene = load(lemon_path) as PackedScene
+		if lemon_scene:
+			lemon_mesh = lemon_scene.instantiate()
+			
+	# Defensive Fallback: If FBX is missing, compile a stylized CylinderMesh
+	if not is_instance_valid(lemon_mesh):
+		lemon_mesh = MeshInstance3D.new()
+		var fallback_mesh := CylinderMesh.new()
+		fallback_mesh.top_radius = 0.22
+		fallback_mesh.bottom_radius = 0.16
+		fallback_mesh.height = 0.38
+		fallback_mesh.radial_segments = 12
+		lemon_mesh.mesh = fallback_mesh
+		
+	# 2. Configure materials and scales (SRP Compliance)
+	# Fixed: No more flat-color override! We duplicate and make imported materials UNSHADED.
+	_brighten_imported_materials_recursive(lemon_mesh)
 	
-	# 1. Top Segment (Angled right)
-	var top_seg := MeshInstance3D.new()
-	top_seg.mesh = segment_mesh
-	top_seg.material_override = lightning_material
-	top_seg.position = Vector3(0.20, 0.65, 0.0) # Scaled up positions
-	top_seg.rotation_degrees.z = -35.0
-	visual_holder.add_child(top_seg)
+	# Scale up to a massive 1.4x for high-end diorama visibility
+	lemon_mesh.scale = Vector3(1.4, 1.4, 1.4)
 	
-	# 2. Middle Segment (Angled left, connecting top and bottom)
-	var mid_seg := MeshInstance3D.new()
-	mid_seg.mesh = segment_mesh
-	mid_seg.material_override = lightning_material
-	mid_seg.position = Vector3(0.0, 0.30, 0.0)
-	mid_seg.rotation_degrees.z = 35.0
-	visual_holder.add_child(mid_seg)
+	# Rotate slightly on Z axis for organic tilt
+	lemon_mesh.rotation_degrees.z = 25.0
+	visual_holder.add_child(lemon_mesh)
 	
-	# 3. Bottom Segment (Angled right, finishing the zig-zag)
-	var bot_seg := MeshInstance3D.new()
-	bot_seg.mesh = segment_mesh
-	bot_seg.material_override = lightning_material
-	bot_seg.position = Vector3(-0.20, -0.05, 0.0)
-	bot_seg.rotation_degrees.z = -35.0
-	visual_holder.add_child(bot_seg)
+	# 3. Attach the CPUParticles3D of electric lightning sparks
+	var spark_emitter := _build_electric_spark_emitter()
+	visual_holder.add_child(spark_emitter)
+	spark_emitter.emitting = true
 	
-	# --- PHYSICAL COLLIDER ---
-	# Capsule shape fitted to match the vertical span of the lightning bolt (Sized up)
-	var capsule_shape := CapsuleShape3D.new()
-	capsule_shape.radius = 0.52
-	capsule_shape.height = 1.40
-	collision_shape.shape = capsule_shape
-	collision_shape.position.y = 0.30
+	# Physical trigger boundary
+	var sphere_shape := SphereShape3D.new()
+	sphere_shape.radius = 0.70
+	collision_shape.shape = sphere_shape
 	
 	add_child(visual_holder)
 	add_child(collision_shape)
+
+# Helper to recursively duplicate and brighten imported textures inside the FBX (SRP/OCP)
+static func _brighten_imported_materials_recursive(node: Node) -> void:
+	if node is MeshInstance3D:
+		var active_mat = node.get_active_material(0)
+		if active_mat is StandardMaterial3D:
+			var dup_mat = active_mat.duplicate() as StandardMaterial3D
+			dup_mat.shading_mode = StandardMaterial3D.SHADING_MODE_UNSHADED
+			node.material_override = dup_mat
+			
+	for child in node.get_children():
+		_brighten_imported_materials_recursive(child)
+
+# Compiles a gorgeous electric sparks emitter (Juice Compliance)
+func _build_electric_spark_emitter() -> CPUParticles3D:
+	var emitter := CPUParticles3D.new()
+	var mesh := BoxMesh.new()
+	mesh.size = Vector3(0.04, 0.04, 0.04)
+	
+	var mat := StandardMaterial3D.new()
+	mat.shading_mode = StandardMaterial3D.SHADING_MODE_UNSHADED
+	mat.albedo_color = Color(0.0, 1.0, 1.0) # Electric cyan sparks
+	mesh.material = mat
+	
+	emitter.mesh = mesh
+	emitter.emission_shape = CPUParticles3D.EMISSION_SHAPE_SPHERE
+	emitter.emission_sphere_radius = 0.28
+	emitter.direction = Vector3.UP
+	emitter.spread = 180.0
+	emitter.initial_velocity_min = 1.5
+	emitter.initial_velocity_max = 3.0
+	emitter.gravity = Vector3(0.0, 1.0, 0.0) 
+	
+	var curve := Curve.new()
+	curve.add_point(Vector2(0.0, 1.0))
+	curve.add_point(Vector2(1.0, 0.0))
+	emitter.scale_amount_curve = curve
+	
+	emitter.amount = 8 
+	emitter.lifetime = 0.4
+	emitter.position = Vector3(0.0, 0.1, 0.0)
+	
+	return emitter
 
 func _process(delta: float) -> void:
 	if not is_instance_valid(visual_holder):
 		return
 		
 	time_passed += delta
-	
-	# 1. Rotate the lightning bolt continuously on the Y-axis
 	visual_holder.rotate_y(1.8 * delta)
-	
-	# 2. Float gently up and down on a quick, energetic sine wave
-	visual_holder.position.y = sin(time_passed * 3.5) * 0.08
-	
-	# 3. Procedural Electrical Flicker (Modulate emission energy dynamically)
-	var flicker : float = randf_range(0.65, 1.25)
-	lightning_material.emission_energy_multiplier = flicker
+	visual_holder.position.y = sin(time_passed * 3.5) * 0.06
 
 func _on_body_entered(body: Node3D) -> void:
 	if body is Player:
-		# Let the player trigger its own eat sound (SRP Compliance)
 		if body.has_method("play_eat_sound"):
 			body.play_eat_sound()
 			
-		# Trigger speed boost on Player state machine
 		if body.has_method("activate_speed_boost"):
 			body.activate_speed_boost()
 			
-		# Emit notification to let orchestrator handle pellet progression count
 		speed_pellet_eaten.emit()
-		
-		# Self-destroy
 		queue_free()
 
 # --- MINIMAP POLYMORPHISM (LSP/OCP COMPLIANCE) ---
-# Direct implementation of Minimap hooks so the radar draws the speed ray
 
 func get_minimap_color() -> Color:
-	return Color(0.0, 1.0, 1.0) # Electric Cyan blip on the radar!
+	return Color(1.0, 0.85, 0.0) 
 
 func get_minimap_radius() -> float:
 	return 3.5

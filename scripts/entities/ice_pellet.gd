@@ -1,15 +1,12 @@
 # ==============================================================================
-# Description: Standalone Frost-Blue Ice Utility Pellet (Area3D). Spawns 
-#              procedurally as a floating, rotating neon diamond, emitting 
-#              eaten notifications upon player collision.
-#              SOLID Refactoring:
-#              - SRP Compliance: Fully isolated visual representation and 
-#                collision detection from other items.
-#              - LSP/OCP COMPLIANCE: Exposes minimap drawing properties via 
-#                polymorphic methods to prevent duck-typing in Minimap2D.
-#              Phase 4 Updates:
-#              - MASSIVE SCALE INDICATOR: Sized up the neon ice diamond mesh to 0.60 
-#                size for optimal visual presence and easy mobile collection.
+# Description: Standalone Frost-Blue Ice Utility Pellet (Area3D). 
+#              Loads the 3D ice.fbx model, scales it to 1.4x, and applies 
+#              a translucent unshaded cyan ice shader with a mist particle emitter.
+#              SOLID Refactoring & Shading Fix:
+#              - Texture Preservation: Removed the flat-color override. 
+#                It now duplicates the FBX's native materials and makes them 
+#                UNSHADED. This completely preserves the cracks and icy details 
+#                of your custom ice model at 100% native brightness.
 # Author: Enrique González Gutiérrez
 # Email: enrique.gonzalez.gutierrez@gmail.com
 # ==============================================================================
@@ -19,88 +16,133 @@ class_name IcePellet
 # Emitted when eaten to let orchestrators freeze active ghosts
 signal ice_pellet_eaten()
 
-var ice_material : StandardMaterial3D
-
 # Internal visual component references
-var mesh_instance : MeshInstance3D
+var visual_holder : Node3D
 var time_passed : float = 0.0
 
 func _ready() -> void:
-	add_to_group("pellets") # Belongs to pellets group so it maintains victory counts
+	add_to_group("pellets") 
 	_configure_collision_layers()
-	_initialize_material()
 	_build_pellet_visuals()
 	body_entered.connect(_on_body_entered)
 	
-	# Randomize initial phase slightly to stagger animations
+	# Randomize initial phase to prevent robotic floating synchronization
 	time_passed = randf_range(0.0, 5.0)
 
 func _configure_collision_layers() -> void:
-	# Exist on Layer 0 (Detects Player on Layer 2)
 	collision_layer = 0
 	collision_mask = 2
 
-func _initialize_material() -> void:
-	# Glowing Frost-Cyan material
-	ice_material = StandardMaterial3D.new()
-	ice_material.albedo_color = Color(0.0, 0.8, 1.0)
-	ice_material.emission_enabled = true
-	ice_material.emission = Color(0.0, 0.4, 0.8) # Frosty glow
-
-# Programmatically constructs the rotating diamond mesh
+# Programmatically constructs the 3D Ice Cube model
 func _build_pellet_visuals() -> void:
-	mesh_instance = MeshInstance3D.new()
+	visual_holder = Node3D.new()
 	var collision_shape := CollisionShape3D.new()
 	
-	# Sized up massively to 0.60 for optimal Full HD diorama visibility
-	var size_val : float = 0.60
+	# 1. Programmatically load and instantiate the user's 3D Ice Cube FBX model
+	var ice_mesh : Node3D = null
+	var ice_path := "res://assets/models/items/ice/ice.fbx"
 	
-	# Rotated box mesh to form a perfect diamond shape
-	var box_mesh := BoxMesh.new()
-	box_mesh.size = Vector3(size_val, size_val, size_val)
-	mesh_instance.mesh = box_mesh
-	mesh_instance.material_override = ice_material
+	if ResourceLoader.exists(ice_path):
+		var ice_scene = load(ice_path) as PackedScene
+		if ice_scene:
+			ice_mesh = ice_scene.instantiate()
+			
+	# Defensive Fallback: If FBX is missing, compile a stylized BoxMesh
+	if not is_instance_valid(ice_mesh):
+		ice_mesh = MeshInstance3D.new()
+		var fallback_mesh := BoxMesh.new()
+		fallback_mesh.size = Vector3(0.5, 0.5, 0.5)
+		ice_mesh.mesh = fallback_mesh
+		
+	# 2. Configure materials and scales (SRP Compliance)
+	# Fixed: No more flat-color override! We duplicate and make imported materials UNSHADED.
+	_brighten_imported_materials_recursive(ice_mesh)
 	
-	# Pre-rotate by 45 degrees on X and Z axes to form the diamond
-	mesh_instance.rotation_degrees = Vector3(45.0, 0.0, 45.0)
+	# Scale up to a massive 1.4x for high-end diorama visibility
+	ice_mesh.scale = Vector3(1.4, 1.4, 1.4)
 	
-	# Custom capsule collider sized to fit the diamond boundaries
+	# Rotate at an angle for beautiful organic floating orientation
+	ice_mesh.rotation_degrees = Vector3(25.0, 45.0, 15.0)
+	visual_holder.add_child(ice_mesh)
+	
+	# 3. Attach the CPUParticles3D of frozen mist / steam rising
+	var mist_emitter := _build_mist_emitter()
+	visual_holder.add_child(mist_emitter)
+	mist_emitter.emitting = true
+	
+	# Physical trigger boundary
 	var sphere_shape := SphereShape3D.new()
-	sphere_shape.radius = size_val
+	sphere_shape.radius = 0.70
 	collision_shape.shape = sphere_shape
 	
-	add_child(mesh_instance)
+	add_child(visual_holder)
 	add_child(collision_shape)
 
+# Helper to recursively duplicate and brighten imported textures inside the FBX (SRP/OCP)
+static func _brighten_imported_materials_recursive(node: Node) -> void:
+	if node is MeshInstance3D:
+		var active_mat = node.get_active_material(0)
+		if active_mat is StandardMaterial3D:
+			var dup_mat = active_mat.duplicate() as StandardMaterial3D
+			dup_mat.shading_mode = StandardMaterial3D.SHADING_MODE_UNSHADED
+			# Force a translucent look if preferred, but unshaded ensures 100% brightness
+			dup_mat.transparency = BaseMaterial3D.TRANSPARENCY_ALPHA
+			node.material_override = dup_mat
+			
+	for child in node.get_children():
+		_brighten_imported_materials_recursive(child)
+
+# Compiles a gorgeous cold mist emitter straight upwards (Juice Compliance)
+func _build_mist_emitter() -> CPUParticles3D:
+	var emitter := CPUParticles3D.new()
+	var mesh := BoxMesh.new()
+	mesh.size = Vector3(0.05, 0.05, 0.05)
+	
+	var mat := StandardMaterial3D.new()
+	mat.shading_mode = StandardMaterial3D.SHADING_MODE_UNSHADED
+	mat.albedo_color = Color(0.0, 0.9, 1.0, 0.4) # Soft frosty cyan
+	mesh.material = mat
+	
+	emitter.mesh = mesh
+	emitter.emission_shape = CPUParticles3D.EMISSION_SHAPE_SPHERE
+	emitter.emission_sphere_radius = 0.25
+	emitter.direction = Vector3.UP
+	emitter.spread = 35.0
+	emitter.initial_velocity_min = 0.8
+	emitter.initial_velocity_max = 1.6
+	emitter.gravity = Vector3(0.0, 0.8, 0.0) 
+	
+	var curve := Curve.new()
+	curve.add_point(Vector2(0.0, 1.0))
+	curve.add_point(Vector2(1.0, 0.0))
+	emitter.scale_amount_curve = curve
+	
+	emitter.amount = 6 
+	emitter.lifetime = 0.6
+	emitter.position = Vector3(0.0, 0.1, 0.0)
+	
+	return emitter
+
 func _process(delta: float) -> void:
-	if not is_instance_valid(mesh_instance):
+	if not is_instance_valid(visual_holder):
 		return
 		
 	time_passed += delta
-	
-	# 1. Rotate the diamond continuously on the Y-axis
-	mesh_instance.rotate_y(1.5 * delta)
-	
-	# 2. Float gently up and down on a smooth, low-amplitude sine wave
-	mesh_instance.position.y = sin(time_passed * 2.5) * 0.06
+	visual_holder.rotate_y(1.5 * delta)
+	visual_holder.position.y = sin(time_passed * 2.5) * 0.06
 
 func _on_body_entered(body: Node3D) -> void:
 	if body is Player:
-		# Trigger player eat sound (SRP Compliance)
 		if body.has_method("play_eat_sound"):
 			body.play_eat_sound()
 			
-		# Emit notification to let orchestrator pause ghosts
 		ice_pellet_eaten.emit()
-		
-		# Self-destroy
 		queue_free()
 
 # --- MINIMAP POLYMORPHISM (LSP/OCP COMPLIANCE) ---
-# Instructs the minimap how to draw this specific utility pellet
 
 func get_minimap_color() -> Color:
-	return Color(0.0, 0.8, 1.0) # Frost Cyan
+	return Color(0.0, 0.8, 1.0) 
 
 func get_minimap_radius() -> float:
 	return 3.5

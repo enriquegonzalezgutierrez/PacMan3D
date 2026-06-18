@@ -1,38 +1,38 @@
-# PacMan3D
+# MartínMan 3D
 
 <!--
 ==============================================================================
-Description: Main documentation file for the PacMan3D project.
+Description: Main documentation file for the MartínMan 3D project.
 Author: Enrique González Gutiérrez
 Email: enrique.gonzalez.gutierrez@gmail.com
 ==============================================================================
 -->
 
-![PacMan3D Main Menu](assets/ui/images/main_menu_bg.png)
+![MartínMan 3D Main Menu](assets/ui/images/main_menu_bg.png)
 
 ## Overview
-**PacMan3D** is a modern 3D reimagining of the classic arcade game, built entirely from scratch in **Godot 4**. 
+**MartínMan 3D** is a modern 3D retro-cyberpunk arcade game, built entirely from scratch in **Godot 4**. 
 
-This project focuses on robust core mechanics, physics-based movement, procedural level generation, and strict adherence to **SOLID software design principles**. The visual aesthetic relies on Godot's primitive 3D meshes (Spheres, Capsules, and Cubes) paired with vibrant neon lighting, customized satin-metallic PBR reflections, and four procedural architectural styles.
+This project focuses on robust core mechanics, physics-based movement, procedural level generation, and strict adherence to **SOLID software design principles**. The visual aesthetic relies on custom PBR-textured rigged 3D models paired with vibrant neon lighting, customized satin-metallic reflections, and four procedural architectural styles.
 
 ---
 
 ## Features (Phases 1, 2, 3, 4 & 5 Completed)
 *   **Procedural Level Generator (Python):** Automatically crafts braided, symmetric, 100% connected 3D mazes in under `0.01` seconds with zero dead-ends or 2x2 plazas.
 *   **Multi-Style Visual Themes:** Levels are rendered dynamically in one of four procedurally generated themes:
-    *   `pipes`: Connected double-deck pipeline rails with brushed satin metallic reflections.
-    *   `blocks`: Monolithic neon arcade cubes.
-    *   `pillars`: Futuristic columns topped with glowing, emissive floating spheres.
-    *   `circuits`: Holographic printed circuit boards with glowing continuous neon data-bus tracks.
+	*   `pipes`: Connected double-deck pipeline rails with brushed satin metallic reflections.
+	*   `blocks`: Monolithic neon arcade cubes.
+	*   `pillars`: Futuristic columns topped with glowing, emissive floating spheres.
+	*   `circuits`: Holographic printed circuit boards with glowing continuous neon data-bus tracks.
 *   **Decoupled Diorama Camera:** A standalone camera tracking node utilizing steep perspectives, narrow FOVs, smooth spatial LERP damping, and a procedural drone bobbing.
 *   **Arcade-Accurate Ghost AI:** Features coordinate-based pathfinding, behavior strategies (Blinky, Pinky, Inky, Clyde), kinematic foso-exiting logic, and a deterministic "Eaten" state where floating eyes return to their spawn pads to heal.
 *   **Automated Level Progression & Scaling:** Seamless level transitions that dynamically scale ghost speeds, music pitch, and reduce power-pellet timers.
 *   **Secure Local Persistence:** Encrypted binary save files with AES-256 password protection for cross-platform cheat prevention (PC and Android sandboxes).
 *   **Local Tournament Leaderboard (Top 5):** Structured, encrypted scoreboard tracking the 5 highest local scores. Includes automated data migration to import and update legacy single-score saves from older versions seamlessly on startup.
 *   **Classic Letter-Wheel Initials UI:** Interactive 3-slot A-Z character cycling wheel in the HUD upon qualifying Game Over states. Designed with dual control mappings, supporting both tactile mobile arrow buttons and PC keyboard navigation.
-*   **3D Positional Audio Attenuation:** Immersive spatial 3D audio. Pac-Man's waka-waka and ghost sirens automatically pan stereo and attenuate log-distantly based on camera coords, including high-frequency air-absorption low-pass filtering.
+*   **3D Positional Audio Attenuation:** Immersive spatial 3D audio. MartínMan's sound effects (munch and death) automatically pan stereo and attenuate log-distantly based on camera coords, including high-frequency air-absorption low-pass filtering.
 *   **Interactive Audio Settings Panel:** Self-contained UI overlay programmatically configuring `"Music"` and `"SFX"` AudioServer buses out-of-the-box, saving decibel volume states to encrypted files.
-*   **Smart Laser Gate & Portal Arches:** One-way physical laser barriers (Layer 4) preventing Pac-Man from cheating, paired with self-aligning holographic portal gateways with shimmering energy curtains.
+*   **Smart Laser Gate & Portal Arches:** One-way physical laser barriers (Layer 4) preventing MartínMan from entering the ghost house, paired with self-aligning holographic portal gateways with shimmering energy curtains.
 *   **Energy Motion Trails & Thrusters:** Particle-driven continuous light trails (dynamically color-coded: Yellow, Gold, Cyan), jet-thrust jump spark exhausts, and glowing lightning bolt speed pellets.
 *   **Cyber Spawn Pods:** Symmetrical high-tech dark carbon and glowing neon containment pads lining the foso floor underneath each ghost.
 *   **Cinematic System Loader:** Dedicated black loading screen ("GENERATING SYSTEM...") with deferred frame rendering and an 800ms minimum pacing delay to ensure seamless transitions on high-end PCs.
@@ -47,7 +47,7 @@ This project focuses on robust core mechanics, physics-based movement, procedura
 *   `/assets/` - UI images, icons, sound effects, and background music.
 *   `/data/` - JSON level configuration files.
 *   `/scripts/core/` - Global GameManager, LevelManager orchestrator, MapValidator, and LevelBuilder assembler.
-*   `/scripts/entities/` - Player, Ghosts, behaviors, DioramaCamera, Portals, and Pellets.
+*   `/scripts/entities/` - Player (MartínMan), Ghosts, behaviors, DioramaCamera, Portals, and Pellets.
 *   `/scripts/ui/` - HUD, Settings, procedural Main Menu, credits roll, and 2D Vectorial Minimap.
 
 ---
@@ -64,7 +64,7 @@ To run and edit this project locally, ensure you meet the following requirements
 ### Opening the Project
 1. Clone this repository:
    ```bash
-   git clone https://github.com/enriquegonzalezgutierrez/PacMan3D.git
+   git clone https://github.com/enriquegonzalezgutierrez/MartinMan3D.git
    ```
 2. Open the **Godot Project Manager**.
 3. Click **Import**, navigate to the cloned folder, select `project.godot`, and click **Import & Edit**.
