@@ -7,6 +7,10 @@
 #                acts as a God Class.
 #              - LSP Compliance: Implemented polymorphic minimap color/radius 
 #                getters, matching the interface used by the 2D Minimap radar.
+#              - Performance Optimization: Integrated high-efficiency CPUParticles3D 
+#                typing to eliminate GPU compute shader overhead on budget platforms.
+#              - Bug Fix: Added explicit death_audio.play() call to resolve 
+#                await stall during the death sequence.
 # Author: Enrique González Gutiérrez
 # Email: enrique.gonzalez.gutierrez@gmail.com
 # ==============================================================================
@@ -50,7 +54,7 @@ var next_blink_time : float = 3.0
 var is_powered_up : bool = false
 var power_timer : float = 0.0
 const POWER_DURATION : float = 7.0 
-var power_particles : GPUParticles3D = null
+var power_particles : CPUParticles3D = null
 
 # Dynamic Chewing Mouth Variables
 var mouth_time : float = 0.0
@@ -60,10 +64,10 @@ var is_speed_boosted : bool = false
 var speed_boost_timer : float = 0.0
 const SPEED_BOOST_DURATION : float = 5.0
 const BOOSTED_SPEED : float = 10.5 
-var speed_particles : GPUParticles3D = null
+var speed_particles : CPUParticles3D = null
 
 # Continuous Energy Motion Trail Variables
-var motion_trail : GPUParticles3D = null
+var motion_trail : CPUParticles3D = null
 var motion_trail_material : StandardMaterial3D = null
 
 # Gameplay State
@@ -96,10 +100,10 @@ func _ready() -> void:
 	
 	_setup_audio()
 	
-	# Instantiate and parent our motion trail
-	var trail_components = PlayerVisualBuilder.build_motion_trail()
-	motion_trail = trail_components["node"]
-	motion_trail_material = trail_components["material"]
+	# Instantiate and parent our CPU motion trail
+	motion_trail = PlayerVisualBuilder.build_motion_trail()
+	if motion_trail and motion_trail.mesh:
+		motion_trail_material = motion_trail.mesh.material
 	add_child(motion_trail)
 	
 	next_blink_time = randf_range(2.0, 5.0)
@@ -150,8 +154,11 @@ func die() -> void:
 	# Trigger explosive death particles via builder (SRP Compliance)
 	PlayerVisualBuilder.trigger_death_particles(get_parent(), global_position, player_material)
 	
+	# --- BUG FIX: PLAY DEATH SOUND EFFECT ---
+	# Explicitly play the death audio before awaiting its completion to prevent stalling the game state.
 	if death_audio and death_audio.stream:
-		await death_audio.finished
+		death_audio.play()
+		await death_audio.finished 
 	else:
 		await get_tree().create_timer(1.0).timeout
 		

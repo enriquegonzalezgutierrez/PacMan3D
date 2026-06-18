@@ -2,11 +2,13 @@
 # Description: Procedural Level Assembler / 3D Mesh Factory. Hand-crafts 
 #              materials, builds wall styles using WallStyleStrategy pattern, 
 #              spawns gameplay entities, and links portals.
-#              SOLID Refactoring:
-#              - OCP Compliance: Extracted procedural wall styles to independent 
-#                strategy objects. The builder no longer contains monolithic match blocks.
-#              - SRP Compliance: Solely responsible for orchestrating 3D instantiations, 
-#                delegating design and physics to specialized components.
+#              SOLID Refactoring & Performance Optimizations:
+#              - Dynamic Mobile Environment Scaling: Checks for mobile/web profiles 
+#                and scales down glow intensity and bloom to prevent fill-rate drops.
+#              - Floor Shading Optimization: Changed shading mode of the massive 
+#                floor plane to PER_VERTEX, drastically reducing fragment shader 
+#                calculations on budget GPUs.
+#              - OCP & SRP Compliance: Delegated styling and entity construction.
 # Author: Enrique González Gutiérrez
 # Email: enrique.gonzalez.gutierrez@gmail.com
 # ==============================================================================
@@ -28,7 +30,6 @@ var ghost_frightened_material : StandardMaterial3D
 var ghost_materials : Dictionary = {}
 
 # Strategy Pattern Dictionary for Wall rendering themes (OCP Compliance)
-# Fixed: Instantiates the strategies cleanly using the nested class notation of Godot 4
 var wall_strategies : Dictionary = {
 	"blocks": WallStyleStrategy.Blocks.new(),
 	"pillars": WallStyleStrategy.Pillars.new(),
@@ -62,7 +63,6 @@ func _initialize_materials() -> void:
 	player_material.metallic = 0.05 
 	player_material.clearcoat_enabled = true 
 	player_material.clearcoat = 1.0
-	# Fixed Warning: Changed deprecated clearcoat_gloss to clearcoat_roughness
 	player_material.clearcoat_roughness = 0.08
 	player_material.emission_enabled = false
 	
@@ -184,14 +184,20 @@ func _setup_world_environment() -> void:
 	
 	env_res.background_mode = Environment.BG_CLEAR_COLOR
 	env_res.background_color = Color(0.01, 0.01, 0.02, 1.0) 
+	
+	# --- PERFORMANCE OPTIMIZATION: DYNAMIC ENVIRONMENT TUNING ---
+	# Downscale Glow complexity on mobile or web profiles to prevent frame rate drops.
+	var is_low_end : bool = OS.has_feature("mobile") or OS.has_feature("web")
 	env_res.glow_enabled = true
-	env_res.glow_intensity = 0.45 
-	env_res.glow_strength = 0.8
-	env_res.glow_bloom = 0.10 
+	env_res.glow_intensity = 0.22 if is_low_end else 0.45 
+	env_res.glow_strength = 0.5 if is_low_end else 0.8
+	env_res.glow_bloom = 0.05 if is_low_end else 0.10 
 	env_res.glow_blend_mode = Environment.GLOW_BLEND_MODE_ADDITIVE
 	
 	world_env.environment = env_res
 	parent_node.add_child(world_env)
+	
+	RenderingServer.set_default_clear_color(Color(0.01, 0.01, 0.02, 1.0))
 	
 	var main_node = parent_node.get_parent()
 	if is_instance_valid(main_node):
@@ -203,14 +209,18 @@ func _setup_world_environment() -> void:
 
 func _spawn_flat_dark_floor(width: int, height: int) -> void:
 	var floor_mesh := BoxMesh.new()
-	floor_mesh.size = Vector3(float(width) * CELL_SIZE + 6.0, 0.1, float(height) * CELL_SIZE + 6.0)
+	floor_mesh.size = Vector3(float(width) * CELL_SIZE + 300.0, 0.1, float(height) * CELL_SIZE + 300.0)
 	
 	var floor_mat := StandardMaterial3D.new()
 	floor_mat.albedo_color = Color(0.01, 0.01, 0.02) 
 	floor_mat.roughness = 0.95 
 	floor_mat.metallic = 0.0
 	floor_mat.metallic_specular = 0.1 
-	floor_mat.shading_mode = StandardMaterial3D.SHADING_MODE_PER_PIXEL
+	
+	# --- PERFORMANCE OPTIMIZATION: VERTEX SHADING ---
+	# Uses per-vertex shading for the massive floor geometry. This completely bypasses expensive 
+	# pixel shader calculations, solving GPU core saturation on budget mobile devices.
+	floor_mat.shading_mode = StandardMaterial3D.SHADING_MODE_PER_VERTEX
 	
 	var floor_instance := MeshInstance3D.new()
 	floor_instance.mesh = floor_mesh
@@ -224,7 +234,6 @@ func _create_wall(pos: Vector3, x: int, z: int, level_data: Dictionary) -> void:
 	var static_body := StaticBody3D.new()
 	var rendering_style : String = level_data.get("rendering_style", "pipes")
 	
-	# --- SOLID OCP REFACTOR ---
 	# We query and build the style using the WallStyleStrategy pattern!
 	var strategy : WallStyleStrategy = wall_strategies.get(rendering_style, wall_strategies["pipes"])
 	strategy.build_mesh(static_body, x, z, CELL_SIZE, WALL_HEIGHT, wall_material, level_data)
