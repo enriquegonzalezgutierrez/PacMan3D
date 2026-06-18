@@ -2,15 +2,13 @@
 # Description: CharacterBody3D controller for Ghosts. Handles collision-tested 
 #              pathfinding, state machine management, and coordinates with an 
 #              abstract behavior strategy.
-#              SOLID Refactoring:
-#              - SRP & LSP Compliance: Maintained clean separation of concerns.
-#              - Ciber-Molino Animation: Dynamically spins the FBX model's native 
-#                3D blades in real-time if detected by the visual builder.
+#              SOLID Refactoring & Visual Fixes:
+#              - Radar Color Fix (LSP): Decoupled get_minimap_color() from the 
+#                3D material textures, returning explicit high-contrast tactical 
+#                arcade colors (Red, Pink, Cyan, Orange) based on ghost_type.
+#              - Robot Spin Animation: Spins the single-mesh on Y-axis.
+#              - Facing Orientation Fix (+PI): Steering alignment.
 #              - Positional 3D Audio: Upgraded eaten audio to AudioStreamPlayer3D.
-#              - Material Overwrite Bug Fix: Captures the compiled textured material 
-#                returned by the GhostVisualBuilder on startup, updating 
-#                original_material. This completely prevents active game states 
-#                from overwriting the brick and neon textures with flat colors.
 # Author: Enrique González Gutiérrez
 # Email: enrique.gonzalez.gutierrez@gmail.com
 # ==============================================================================
@@ -66,7 +64,7 @@ var frightened_timer : float = 0.0
 var frightened_duration : float = 7.0 
 
 # Visual Builder References (Injected by GhostVisualBuilder)
-var blades_node : Node3D # Reference to the spinning windmill blades
+var blades_node : Node3D # Reference to the spinning windmill blades (if separated)
 var capsule_height : float = 1.8 
 
 # Dynamic Hovering state
@@ -120,9 +118,7 @@ func _ready() -> void:
 	blades_node = visual_components["blades_node"]
 	capsule_height = visual_components["capsule_height"]
 	
-	# --- VISUAL FIX: SYNC ORIGINAL MATERIAL ---
-	# Assign original_material to the compiled, beautifully textured material returned by the builder.
-	# This guarantees that the loop restoring standard materials actually loads the textures!
+	# Sync material to compiled textured PBR material to prevent flat color overwrites
 	if visual_components.has("compiled_material"):
 		original_material = visual_components["compiled_material"]
 	
@@ -212,7 +208,8 @@ func _physics_process(delta: float) -> void:
 		if abs(global_position.x - target_x) > 0.05:
 			var dir_x = sign(target_x - global_position.x)
 			velocity = Vector3(dir_x * frightened_speed, 0.0, 0.0)
-			var target_rotation_y = atan2(-velocity.x, -velocity.z)
+			
+			var target_rotation_y = atan2(-velocity.x, -velocity.z) + PI
 			rotation.y = lerp_angle(rotation.y, target_rotation_y, 0.2)
 		else:
 			global_position.x = target_x
@@ -335,13 +332,18 @@ func _process_ghost_animations(delta: float) -> void:
 	if is_instance_valid(raw_visual_node):
 		raw_visual_node.position.y = sin(hover_time * 3.0) * 0.06
 		
-	# 2. Programmatic Spinning Blades (Diorama/Skeletal Rotation)
-	if is_instance_valid(blades_node):
-		blades_node.rotate_z(12.0 * delta)
+		# --- PROGRAMMATIC SKELETAL ROTATION (RIGID MESH WORKAROUND) ---
+		# Since the FBX is a single rigid combined mesh on disk, we make the ENTIRE 
+		# windmill tower spin continuously on its vertical Y axis at 6.0 rad/s!
+		# We rotate the first child MeshInstance3D locally so parent navigation steering remains intact.
+		if raw_visual_node.get_child_count() > 0:
+			var entire_mesh = raw_visual_node.get_child(0)
+			if is_instance_valid(entire_mesh) and entire_mesh is MeshInstance3D:
+				entire_mesh.rotate_y(6.0 * delta)
 			
-	# 3. Smooth steering orientation towards active moving direction
+	# 3. Smooth steering orientation towards active moving direction (+PI to face forward!)
 	if not is_inside_foso and current_direction != Vector3.ZERO:
-		var target_rotation_y = atan2(-current_direction.x, -current_direction.z)
+		var target_rotation_y = atan2(-current_direction.x, -current_direction.z) + PI
 		rotation.y = lerp_angle(rotation.y, target_rotation_y, 0.2)
 
 # Overrides material recursively across all internal FBX MeshInstance3D nodes
@@ -349,7 +351,6 @@ func _apply_material(mat: StandardMaterial3D) -> void:
 	if current_state == State.EATEN:
 		return
 		
-	# --- SOLID RECURSIVE FIX ---
 	# Recursively applies materials across all sub-meshes of the FBX structure safely.
 	if is_instance_valid(raw_visual_node) and mat:
 		_apply_material_recursive(raw_visual_node, mat)
@@ -362,7 +363,6 @@ func _apply_material_recursive(node: Node, material: Material) -> void:
 		_apply_material_recursive(child, material)
 
 func _set_body_visibility(should_be_visible: bool) -> void:
-	# Fixed: Swapped direct assignment with safe recursive material overrides
 	if is_instance_valid(raw_visual_node):
 		if should_be_visible:
 			_apply_material_recursive(raw_visual_node, original_material)
@@ -431,6 +431,8 @@ func _choose_new_direction() -> void:
 			target_pos = behavior_strategy.get_scatter_target(grid_width, grid_height, CELL_SIZE)
 	elif current_state == State.FRIGHTENED:
 		if player:
+			var_blink_timer = 0.0 # Standard reset
+			var_blink_timer = 0.0
 			var best_dir = possible_directions[0]
 			var max_dist : float = -1.0
 			for dir in possible_directions:
@@ -460,6 +462,7 @@ func _choose_new_direction() -> void:
 		return
 
 	if randf() < 0.85:
+		var_blink_timer = 0.0
 		var best_dir = possible_directions[0]
 		var min_dist : float = 999999.0
 		
@@ -563,6 +566,9 @@ func _on_player_detected(body: Node3D) -> void:
 		elif current_state != State.EATEN:
 			player_caught.emit(false, global_position)
 
+# Helper for standard formatting
+var var_blink_timer : float = 0.0
+
 # ==============================================================================
 # --- MINIMAP POLYMORPHISM (LSP/OCP COMPLIANCE) ---
 # ==============================================================================
@@ -570,11 +576,20 @@ func _on_player_detected(body: Node3D) -> void:
 func get_minimap_color() -> Color:
 	if current_state == State.EATEN:
 		return Color.TRANSPARENT 
-	elif current_state == State.FRIGHTENED and frightened_material:
-		return frightened_material.albedo_color
-	elif original_material:
-		return original_material.albedo_color
-	return Color(1.0, 1.0, 1.0) 
+	elif current_state == State.FRIGHTENED:
+		# Saturated blue when vulnerable/scared (Matches frightened state visual cue)
+		return Color(0.0, 0.2, 1.0)
+		
+	# --- TACTICAL RADAR COLOR WORKAROUND (LSP/Encapsulation Fix) ---
+	# Dynamically returns explicit, high-contrast cardinal colors based on ghost_type.
+	# This prevents the textured white clay models from rendering as identical white dots!
+	match ghost_type:
+		"Blinky": return Color(1.0, 0.0, 0.15) # Intense Red
+		"Pinky": return Color(1.0, 0.2, 0.6)  # Hot Pink
+		"Inky": return Color(0.0, 0.9, 1.0)   # Electric Cyan
+		"Clyde": return Color(1.0, 0.5, 0.0)  # Solar Orange
+		_: return Color(1.0, 1.0, 1.0) # Fallback White
+	
 
 func get_minimap_radius() -> float:
 	return 4.0

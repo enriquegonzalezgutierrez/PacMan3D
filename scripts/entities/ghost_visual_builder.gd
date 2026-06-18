@@ -1,12 +1,10 @@
 # ==============================================================================
 # Description: Procedural 3D Mesh and CPUParticle Builder for Ghosts (Ciber-Molinos).
 #              SOLID Refactoring & Visual Fixes:
-#              - Autonomous Texture Scanner (DIP): Scans the 'textures' subdirectory 
-#                on the fly, automatically resolving and compiling Meshy AI's 
-#                long random filenames into a StandardMaterial3D (unshaded).
-#              - Material Sync: Returns the compiled PBR textured material in the 
-#                output dictionary so ghost.gd can set it as its original_material, 
-#                preventing flat solid color overrides.
+#              - Giant Scale Up Fix: Increased visual scale to 1.75x to match 
+#                MartínMan's proportions and give them an imponent presence.
+#              - Material Sync: Returns the compiled PBR textured material.
+#              - Console Cleanup: Removed all diagnostic tree printing logs.
 # Author: Enrique González Gutiérrez
 # Email: enrique.gonzalez.gutierrez@gmail.com
 # ==============================================================================
@@ -55,14 +53,12 @@ static func build_visuals(ghost: CharacterBody3D, strategy: GhostBehavior, origi
 	# Recursively map our compiled PBR material onto all internal mesh surfaces
 	_apply_material_recursive(visual_mesh, pbr_material)
 	
-	# Scale up to a massive 1.5x to match the new giant 1080p proportions
-	visual_mesh.scale = Vector3(1.5, 1.5, 1.5)
+	# Scale up to a massive 1.75x to match the new giant 1080p proportions
+	visual_mesh.scale = Vector3(1.75, 1.75, 1.75)
 	
 	# Find where the Skeleton3D actually lives inside the instantiated scene
 	var blades_node = _find_blades_node_recursive(visual_mesh)
-	if blades_node:
-		print("[MARTÍN_MAN] Ghost [", ghost_type, "] blades node resolved at: ", blades_node.name)
-		
+	
 	# 4. Attach the color-matched base thruster exhaust CPUParticles3D
 	var particle_color = original_material.albedo_color if original_material else Color(1.0, 0.0, 0.0)
 	var thruster_emitter = _build_thruster_particles(particle_color)
@@ -83,7 +79,7 @@ static func build_visuals(ghost: CharacterBody3D, strategy: GhostBehavior, origi
 		"visual_mesh": visual_mesh,
 		"blades_node": blades_node,
 		"capsule_height": height,
-		"compiled_material": pbr_material # --- RETURN THE TEXTURED PBR MATERIAL ---
+		"compiled_material": pbr_material
 	}
 
 # Helper to recursively apply flat materials to nested MeshInstance3D nodes inside the FBX
@@ -114,7 +110,7 @@ static func _load_and_apply_texture(target_mat: StandardMaterial3D, folder_path:
 				elif type == "metallic" and "metallic" in name_lower:
 					is_match = true
 				elif type == "normal" and "normal" in name_lower:
-					is_match = true
+					is_match_detected = true
 				elif type == "roughness" and "roughness" in name_lower:
 					is_match = true
 					

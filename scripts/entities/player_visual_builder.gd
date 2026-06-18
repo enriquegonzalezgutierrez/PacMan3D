@@ -1,5 +1,8 @@
 # ==============================================================================
 # Description: Code-Only 3D Character and Animation Assembler for MartínMan.
+#              Loads the FBX character mesh, compiles the Meshy AI PBR textures 
+#              into a StandardMaterial3D, extracts Mixamo FBX animations 
+#              dynamically, and sets up the CPUParticles emitters.
 #              SOLID Refactoring & Visual Fixes:
 #              - Rigged Mesh Swapping: Upgraded the loader to instantiate the 
 #                base mesh directly from animations/idle.fbx (which contains 
@@ -8,7 +11,7 @@
 #              - Visual Scaling Fix: Programmatically scaled up the 3D character 
 #                mesh by 1.75x to give MartínMan a majestic, robust presence 
 #                inside the 2-meter corridors.
-#              - Diagnostic Tree Printer: Maintained for architectural logging.
+#              - Console Cleanup: Removed all diagnostic tree printing logs.
 # Author: Enrique González Gutiérrez
 # Email: enrique.gonzalez.gutierrez@gmail.com
 # ==============================================================================
@@ -22,7 +25,6 @@ static func build_visuals(player: CharacterBody3D, _unused_material: StandardMat
 	var anim_player := AnimationPlayer.new()
 	
 	# 1. Programmatically load and instantiate MartínMan's rigged model (using idle.fbx)
-	# Since idle.fbx was downloaded 'With Skin' from Mixamo, it serves as the perfect base 3D skeleton!
 	var character_path := "res://assets/models/player/animations/idle.fbx"
 	if ResourceLoader.exists(character_path):
 		var character_scene = load(character_path) as PackedScene
@@ -36,13 +38,6 @@ static func build_visuals(player: CharacterBody3D, _unused_material: StandardMat
 		fallback_mesh.radius = 0.6
 		fallback_mesh.height = 1.7
 		visual_mesh.mesh = fallback_mesh
-		
-	# --- DIAGNOSTIC: PRINT 3D CHARACTER TREE ---
-	print("\n==================================================")
-	print("  [MARTÍN_MAN] DIAGNOSTIC 3D RENDER TREE:")
-	print("==================================================")
-	_print_tree_recursive(visual_mesh, 0)
-	print("==================================================\n")
 		
 	# 2. Programmatically compile the PBR material from Meshy AI texture maps
 	var pbr_material := StandardMaterial3D.new()
@@ -85,8 +80,6 @@ static func build_visuals(player: CharacterBody3D, _unused_material: StandardMat
 	if skeleton:
 		skeleton_relative_path = str(visual_mesh.get_path_to(skeleton))
 		print("[MARTÍN_MAN] Resolved Skeleton3D node path: ", skeleton_relative_path)
-	else:
-		print("[MARTÍN_MAN] ERROR: Could not locate any Skeleton3D node inside the FBX model!")
 	
 	# 4. Extract, REMAP and register the 5 Mixamo FBX animations code-only
 	var anim_base_dir := "res://assets/models/player/animations/"
@@ -107,7 +100,6 @@ static func build_visuals(player: CharacterBody3D, _unused_material: StandardMat
 	# Rotate the character mesh 180 degrees so he faces forward along the Z running axis
 	visual_mesh.rotation_degrees.y = 180.0
 	
-	# --- VISUAL SCALING FIX ---
 	# Programmatically scales the 3D mesh by 1.75x to match the physical arena size
 	visual_mesh.scale = Vector3(1.75, 1.75, 1.75)
 	
@@ -127,7 +119,7 @@ static func build_visuals(player: CharacterBody3D, _unused_material: StandardMat
 		"anim_player": anim_player
 	}
 
-# Helper to recursively apply PBR materials to nested MeshInstance3D nodes
+# Helper to recursively apply PBR materials to nested MeshInstance3D nodes inside the FBX
 static func _apply_material_recursive(node: Node, material: Material) -> void:
 	if node is MeshInstance3D:
 		node.material_override = material
@@ -143,17 +135,6 @@ static func _find_skeleton(node: Node) -> Skeleton3D:
 		if sk:
 			return sk
 	return null
-
-# Diagnostic Helper: Recursively prints the instanced 3D node structure
-static func _print_tree_recursive(node: Node, depth: int) -> void:
-	if not is_instance_valid(node):
-		return
-	var indent := ""
-	for i in range(depth):
-		indent += "  "
-	print(indent, "- ", node.name, " (", node.get_class(), ")")
-	for child in node.get_children():
-		_print_tree_recursive(child, depth + 1)
 
 # Code-only FBX Animation Extractor (SRP Compliance)
 # Instantiates the FBX, steals its skeletal Animation Resource, and registers it cleanly
