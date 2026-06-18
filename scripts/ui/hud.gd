@@ -1,142 +1,75 @@
 # ==============================================================================
-# Description: HUD and Main Menu manager. Programmatically constructs the full
-#              main menu, styled retro HUD nodes, and coordinates dynamic 
-#              progression screen overlays.
-#              Phase 2 Updates:
-#              - AUTOMATED PROGRESSION COMPLIANCE: Connected GameManager's victory 
-#                signal to display an elegant "LEVEL CLEARED! LOADING..." overlay 
-#                during the 2-second transition, preventing freeze illusions.
-#              - FULL HD SCALING: Re-proportioned all typography, offsets, buttons, 
-#                and panel sizes (Minimap increased to 280x280, titles to 110px, 
-#                and HUD indicators to 42px) to look majestic on 1080p viewports.
-#              Phase 3 Updates:
-#              - HIGH-SCORE INDICATOR: Integrated a centralized, real-time updated 
-#                high-score (HI-SCORE) display panel positioned symmetrically 
-#                at the center-top of the screen.
-#              - AUTOLOAD RACE CONDITION FIX: Synchronized HUD values directly 
-#                with GameManager on startup to guarantee values are printed 
-#                immediately when the game starts.
-#              Phase 4 Updates:
-#              - WILD RIFT STYLE JOYSTICK: Replaced the rigid 4-button D-Pad with a 
-#                procedural, multi-touch 360-degree analog Virtual Joystick.
-#              - MASSIVE CONTROL SCALING: Increased Joystick diameter to 320px 
-#                (knob 130px) and JUMP button to 220px to ensure premium ergonomic 
-#                comfort and accessibility on high-DPI modern mobile viewports.
-#              - SYSTEM GENERATION LOADING OVERLAY: Added hide_status_overlay() API.
-#              - GHOST CORE BUG FIXES: Added missing signal connections for 
-#                `score_changed` and `lives_changed`, and re-ordered render tree 
-#                using move_child() to force loading screens to display above menu background.
-#              - RENDER YIELD FIX: Replaced process_frame with a 0.05s physical timer 
-#                to absolutely guarantee the GPU draws the loading screen to the 
-#                monitor before the CPU thread blocks to build the 3D level.
-#              - DYNAMIC RESPONSIVE MINIMAP: Programmed context-aware layout 
-#                offsets for the Minimap. Hugs the tight bottom-right corner 
-#                on PC (16:9), and dynamically offsets upwards on Mobile to avoid 
-#                overlapping with the giant 220px JUMP thumb control.
+# Description: HUD Orchestrator. 
+#              Responsible exclusively for updating numeric gameplay indicators 
+#              (Score, High-Score, Lives), the Minimap, and managing the active 
+#              UI layers. 
+#              SOLID Refactoring:
+#              - SRP Compliance: Extracted Main Menu, Joystick, and Overlays into 
+#                dedicated single-responsibility classes. The HUD no longer acts 
+#                as a God Class.
+#              - DIP Compliance: Communicates with GameManager and sub-components 
+#                strictly via signals and public APIs.
 # Author: Enrique González Gutiérrez
 # Email: enrique.gonzalez.gutierrez@gmail.com
 # ==============================================================================
 extends Control
 class_name HUD
 
-# Signals to notify coordinators of game start (DIP Compliance)
+# Signal to notify the LevelManager to build the 3D world
 signal start_game()
 
-# HUD Components
+# UI Components
 var score_label : Label
-var high_score_label : Label # Phase 3 Record Label
+var high_score_label : Label 
 var lives_label : Label
-var status_overlay : ColorRect
-var status_label : Label
 var minimap : Minimap2D
 
-# Main Menu Components (Procedural UI)
-var menu_bg : TextureRect
-var menu_title : Label
-var start_button : Button
-var exit_button : Button
-var menu_bgm : AudioStreamPlayer
+# External Component References
+var status_overlay : StatusOverlay
+var main_menu : MainMenu
+var mobile_controls : VirtualJoystick
 
-# Mobile Virtual Controls (Phase 4)
-var mobile_controls_container : Control
+# Platform Context
 var is_mobile : bool = false
 
-# Cinematic transition variables
-var fade_overlay : ColorRect
-var fade_alpha : float = 1.0
-
 func _ready() -> void:
-	# Enforce HUD processing during pause states (captures inputs globally)
+	# Enforce HUD processing during pause states
 	process_mode = Node.PROCESS_MODE_ALWAYS
-	
 	is_mobile = OS.has_feature("mobile") or OS.has_feature("web")
 	
-	_build_hud_elements()
-	_build_mobile_controls()
+	set_anchors_and_offsets_preset(Control.PRESET_FULL_RECT)
 	
-	# Setup scene load fade-in effect
-	fade_alpha = 1.0
+	_build_base_hud_elements()
+	_instantiate_status_overlay()
 	
-	# Listen for progression, records and fail-state transitions globally (DIP Compliance)
+	# Connect to global GameManager signals (DIP Compliance)
 	if GameManager:
-		# Connect central gameplay signals (Fix: Added missing connections)
 		GameManager.score_changed.connect(_on_score_changed)
 		GameManager.lives_changed.connect(_on_lives_changed)
 		GameManager.high_score_changed.connect(_on_high_score_changed)
 		
 		GameManager.game_over.connect(_on_game_over)
-		GameManager.victory.connect(_on_victory_transition_triggered)
+		GameManager.victory.connect(_on_victory_transition)
 		
-		# --- AUTOLOAD RACE CONDITION FIX (Phase 3) ---
+		# Autoload race condition fix: Sync values immediately
 		_on_score_changed(GameManager.score)
 		_on_high_score_changed(GameManager.high_score)
 		_on_lives_changed(GameManager.lives)
 	
+	# Determine startup state: Procedural Generation or Main Menu?
 	if GameManager and GameManager.is_game_started:
-		# Automate gameplay startup on progression reload (completely bypasses main menu)
-		score_label.visible = true
-		high_score_label.visible = true
-		lives_label.visible = true
-		
-		# Minimap is always visible now on mobile too!
-		minimap.visible = true
-			
-		if is_instance_valid(mobile_controls_container):
-			mobile_controls_container.visible = true
-			
-		# Ensure overlays remain at the top even on fast progression reloads
-		move_child(status_overlay, -1)
-		move_child(fade_overlay, -1)
-			
-		call_deferred("emit_start_game_signal")
+		_start_active_gameplay_ui()
 	else:
-		# Fresh game boot: construct the main menu overlay normally
-		_build_main_menu()
+		_instantiate_main_menu()
 
-func _process(delta: float) -> void:
-	# Smoothly fade out the black screen overlay on scene load (procedural juice)
-	if is_instance_valid(fade_overlay) and fade_overlay.visible:
-		fade_alpha -= delta * 1.5 # Fades out in exactly 0.6 seconds
-		if fade_alpha <= 0.0:
-			fade_overlay.visible = false
-			fade_overlay.queue_free()
-		else:
-			fade_overlay.color.a = fade_alpha
-
-# Defer start_game signal until the current frame's node mutations are fully processed
-func emit_start_game_signal() -> void:
-	start_game.emit()
-
-# Programmatically constructs the HUD layout tree
-func _build_hud_elements() -> void:
-	set_anchors_and_offsets_preset(Control.PRESET_FULL_RECT)
-	
-	# 1. Score Label Setup (Arcade 1UP Style - Scaled for 1080p)
+# Programmatically constructs the top layout (Score, Record, Lives, Minimap)
+func _build_base_hud_elements() -> void:
+	# 1. Score Label Setup (Top-Left)
 	score_label = Label.new()
 	score_label.add_theme_font_size_override("font_size", 42)
 	score_label.add_theme_constant_override("outline_size", 10)
-	score_label.add_theme_color_override("font_outline_color", Color(0.0, 0.0, 1.0)) # Retro Blue Outline
-	score_label.add_theme_color_override("font_color", Color(1.0, 1.0, 1.0)) # White score
+	score_label.add_theme_color_override("font_outline_color", Color(0.0, 0.0, 1.0))
+	score_label.add_theme_color_override("font_color", Color(1.0, 1.0, 1.0))
 	score_label.visible = false
 	add_child(score_label)
 	
@@ -144,13 +77,13 @@ func _build_hud_elements() -> void:
 	score_label.offset_left = 64
 	score_label.offset_top = 64
 	
-	# 2. High-Score Label Setup (Centralized Symmetrical Arcade Style - Phase 3)
+	# 2. High-Score Label Setup (Center-Top)
 	high_score_label = Label.new()
 	high_score_label.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
 	high_score_label.add_theme_font_size_override("font_size", 42)
 	high_score_label.add_theme_constant_override("outline_size", 10)
-	high_score_label.add_theme_color_override("font_outline_color", Color(0.0, 0.0, 1.0)) # Retro Blue Outline
-	high_score_label.add_theme_color_override("font_color", Color(1.0, 0.5, 0.0)) # Vibrant Gold Record
+	high_score_label.add_theme_color_override("font_outline_color", Color(0.0, 0.0, 1.0))
+	high_score_label.add_theme_color_override("font_color", Color(1.0, 0.5, 0.0))
 	high_score_label.visible = false
 	add_child(high_score_label)
 	
@@ -158,13 +91,13 @@ func _build_hud_elements() -> void:
 	high_score_label.grow_horizontal = Control.GROW_DIRECTION_BOTH
 	high_score_label.offset_top = 64
 	
-	# 3. Lives Label Setup (Symmetric Stacked Style - Scaled for 1080p)
+	# 3. Lives Label Setup (Top-Right)
 	lives_label = Label.new()
 	lives_label.horizontal_alignment = HORIZONTAL_ALIGNMENT_RIGHT
 	lives_label.add_theme_font_size_override("font_size", 42)
 	lives_label.add_theme_constant_override("outline_size", 10)
-	lives_label.add_theme_color_override("font_outline_color", Color(0.0, 0.0, 1.0)) # Retro Blue Outline
-	lives_label.add_theme_color_override("font_color", Color(1.0, 0.3, 0.3)) # Vibrant Red Lives
+	lives_label.add_theme_color_override("font_outline_color", Color(0.0, 0.0, 1.0))
+	lives_label.add_theme_color_override("font_color", Color(1.0, 0.3, 0.3))
 	lives_label.visible = false
 	add_child(lives_label)
 	
@@ -174,417 +107,161 @@ func _build_hud_elements() -> void:
 	lives_label.offset_right = -64
 	lives_label.offset_top = 64
 	
-	# 4. Minimap 2D Setup (Enlarged to 280x280 for Full HD readability)
+	# 4. Minimap 2D Setup
 	minimap = Minimap2D.new()
 	var map_dim = 280
 	minimap.map_size = Vector2(map_dim, map_dim) 
 	minimap.visible = false
 	add_child(minimap)
 	
-	# --- DYNAMIC RESPONSIVE MINIMAP ANCHOR FIX ---
-	# Anchor cleanly to the bottom-right corner dynamically based on the active platform
 	minimap.set_anchors_and_offsets_preset(Control.PRESET_BOTTOM_RIGHT)
 	minimap.grow_horizontal = Control.GROW_DIRECTION_BEGIN
 	minimap.grow_vertical = Control.GROW_DIRECTION_BEGIN
 	
-	# Right margin is consistent across devices
 	var right_margin = -32
 	minimap.offset_left = -map_dim + right_margin
 	minimap.offset_right = right_margin
 	
 	if is_mobile:
-		# On Mobile, push the minimap safely UP (Y offset) so it sits directly ABOVE 
-		# the giant 220px JUMP button, guaranteeing no thumb interference.
+		# Shift minimap upwards to clear the giant mobile jump button
 		var bottom_margin = -280 
 		minimap.offset_top = -map_dim + bottom_margin
 		minimap.offset_bottom = bottom_margin
 	else:
-		# On PC, hug the bottom right corner normally
 		var bottom_margin = -32 
 		minimap.offset_top = -map_dim + bottom_margin
 		minimap.offset_bottom = bottom_margin
-	
-	# 5. Status Full-Screen Overlay
-	status_overlay = ColorRect.new()
-	status_overlay.color = Color(0.0, 0.0, 0.0, 0.75) 
-	status_overlay.visible = false
-	add_child(status_overlay)
-	status_overlay.set_anchors_and_offsets_preset(Control.PRESET_FULL_RECT)
-	
-	# 6. Status Text inside the overlay
-	status_label = Label.new()
-	status_label.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
-	status_label.vertical_alignment = VERTICAL_ALIGNMENT_CENTER
-	status_label.add_theme_font_size_override("font_size", 54) # Large clear text
-	status_overlay.add_child(status_label)
-	status_label.set_anchors_and_offsets_preset(Control.PRESET_CENTER)
-	status_label.grow_horizontal = Control.GROW_DIRECTION_BOTH
-	status_label.grow_vertical = Control.GROW_DIRECTION_BOTH
-	
-	# 7. Fade Overlay Setup (Cinematic Transition - Sits on top of everything)
-	fade_overlay = ColorRect.new()
-	fade_overlay.color = Color(0.0, 0.0, 0.0, 1.0) # Start fully black
-	add_child(fade_overlay)
-	fade_overlay.set_anchors_and_offsets_preset(Control.PRESET_FULL_RECT)
 
-# Procedurally builds the massive virtual analog stick and enlarged touch buttons (Phase 4)
-func _build_mobile_controls() -> void:
-	if not is_mobile:
-		return
-		
-	mobile_controls_container = Control.new()
-	mobile_controls_container.visible = false
-	add_child(mobile_controls_container)
-	mobile_controls_container.set_anchors_and_offsets_preset(Control.PRESET_FULL_RECT)
+# Composes the external StatusOverlay component (SRP Compliance)
+func _instantiate_status_overlay() -> void:
+	status_overlay = StatusOverlay.new()
+	add_child(status_overlay)
+	# Push overlay to the bottom of the tree so it renders on top of everything
+	move_child(status_overlay, -1)
+
+# Composes the external MainMenu component (SRP Compliance)
+func _instantiate_main_menu() -> void:
+	main_menu = MainMenu.new()
+	add_child(main_menu)
+	main_menu.start_game_requested.connect(_on_menu_start_game_requested)
+	
+	# Ensure the status overlay stays on top of the newly added menu
+	move_child(status_overlay, -1)
+
+# Composes the external VirtualJoystick and Mobile controls (SRP Compliance)
+func _instantiate_mobile_controls() -> void:
+	if not is_mobile: return
+	
+	mobile_controls = VirtualJoystick.new()
+	add_child(mobile_controls)
 	
 	var viewport_size = get_viewport_rect().size
+	mobile_controls.position = Vector2(100.0, viewport_size.y - 420.0)
 	
-	# 1. Instantiate the procedural 360-degree analog Virtual Joystick (Sized up massively to 320px)
-	var joystick := VirtualJoystick.new()
-	mobile_controls_container.add_child(joystick)
+	# Instantiate enlarged 220px Jump Button
+	var jump_btn = TouchScreenButton.new()
+	jump_btn.action = "ui_select"
 	
-	# Position at bottom-left corner with comfortable thumb clearances
-	joystick.position = Vector2(100.0, viewport_size.y - 420.0)
-	
-	# 2. Helper to procedurally generate a gorgeous, semi-transparent glowing circular touch texture for JUMP
-	var create_touch_texture = func(color: Color, size_px: int) -> GradientTexture2D:
+	var create_tex = func(color: Color) -> GradientTexture2D:
 		var tex := GradientTexture2D.new()
-		tex.width = size_px
-		tex.height = size_px
+		tex.width = 220
+		tex.height = 220
 		tex.fill = GradientTexture2D.FILL_RADIAL
 		tex.fill_from = Vector2(0.5, 0.5)
 		tex.fill_to = Vector2(0.5, 0.0)
-		
 		var grad := Gradient.new()
 		grad.colors = PackedColorArray([color, Color(color.r, color.g, color.b, 0.0)])
 		grad.offsets = PackedFloat32Array([0.75, 1.0])
 		tex.gradient = grad
 		return tex
 		
-	# Compile JUMP visual textures (Sized up massively to 220px)
-	var jump_size_px : int = 220
-	var normal_texture = create_touch_texture.call(Color(1.0, 1.0, 1.0, 0.35), jump_size_px) # Translucent White
-	var pressed_texture = create_touch_texture.call(Color(1.0, 1.0, 0.0, 0.65), jump_size_px) # Glowing Yellow
-	
-	# 3. Instantiate the enlarged JUMP button
-	var jump_btn = TouchScreenButton.new()
-	jump_btn.action = "ui_select"
-	jump_btn.texture_normal = normal_texture
-	jump_btn.texture_pressed = pressed_texture
+	jump_btn.texture_normal = create_tex.call(Color(1.0, 1.0, 1.0, 0.35))
+	jump_btn.texture_pressed = create_tex.call(Color(1.0, 1.0, 0.0, 0.65))
 	
 	var jump_label := Label.new()
 	jump_label.text = "JUMP"
 	jump_label.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
 	jump_label.vertical_alignment = VERTICAL_ALIGNMENT_CENTER
-	jump_label.add_theme_font_size_override("font_size", 34) # Larger readable text
+	jump_label.add_theme_font_size_override("font_size", 34)
 	jump_label.add_theme_constant_override("outline_size", 10)
 	jump_label.add_theme_color_override("font_outline_color", Color(0,0,0))
-	
 	jump_btn.add_child(jump_label)
 	jump_label.set_anchors_and_offsets_preset(Control.PRESET_FULL_RECT)
 	
-	mobile_controls_container.add_child(jump_btn)
-	# Positioned symmetrically at the bottom-right corner
+	add_child(jump_btn)
 	jump_btn.position = Vector2(viewport_size.x - 320.0, viewport_size.y - 320.0)
 
-# Programmatically builds the full-screen Main Menu overlay
-func _build_main_menu() -> void:
-	# 1. Menu Background
-	menu_bg = TextureRect.new()
-	menu_bg.texture = load("res://assets/ui/images/main_menu_bg.png")
-	menu_bg.expand_mode = TextureRect.EXPAND_IGNORE_SIZE
-	menu_bg.stretch_mode = TextureRect.STRETCH_KEEP_ASPECT_COVERED
-	add_child(menu_bg)
-	menu_bg.set_anchors_and_offsets_preset(Control.PRESET_FULL_RECT)
-	
-	var darken_overlay := ColorRect.new()
-	darken_overlay.color = Color(0.0, 0.0, 0.0, 0.45)
-	menu_bg.add_child(darken_overlay)
-	darken_overlay.set_anchors_and_offsets_preset(Control.PRESET_FULL_RECT)
-	
-	# 2. Glowing Title (Enlarged to 110px for 1080p presence)
-	menu_title = Label.new()
-	menu_title.text = "PAC-MAN 3D"
-	menu_title.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
-	menu_title.add_theme_font_size_override("font_size", 110)
-	menu_title.add_theme_color_override("font_color", Color(1.0, 1.0, 0.0)) 
-	menu_title.add_theme_color_override("font_outline_color", Color(0.0, 0.0, 1.0)) 
-	menu_title.add_theme_constant_override("outline_size", 16)
-	menu_bg.add_child(menu_title)
-	
-	menu_title.set_anchors_and_offsets_preset(Control.PRESET_CENTER_TOP)
-	menu_title.grow_horizontal = Control.GROW_DIRECTION_BOTH
-	menu_title.offset_top = 120
-	
-	# Container for vertical button alignment
-	var button_container := VBoxContainer.new()
-	button_container.add_theme_constant_override("separation", 32)
-	menu_bg.add_child(button_container)
-	
-	button_container.set_anchors_and_offsets_preset(Control.PRESET_CENTER)
-	button_container.grow_horizontal = Control.GROW_DIRECTION_BOTH
-	button_container.grow_vertical = Control.GROW_DIRECTION_BOTH
-	button_container.offset_top = 100
-	
-	# --- STYLING BUTTON THEMES PROCEDURALLY (Sized up massively to 54px for 1080p tactile targets) ---
-	var style_normal := StyleBoxFlat.new()
-	style_normal.bg_color = Color(0.08, 0.08, 0.08, 0.85)
-	style_normal.border_width_left = 3
-	style_normal.border_width_top = 3
-	style_normal.border_width_right = 3
-	style_normal.border_width_bottom = 3
-	style_normal.border_color = Color(0.3, 0.3, 0.3)
-	style_normal.set_corner_radius_all(12)
-	style_normal.content_margin_left = 64
-	style_normal.content_margin_right = 64
-	style_normal.content_margin_top = 28
-	style_normal.content_margin_bottom = 28
-	
-	var style_focus_hover := StyleBoxFlat.new()
-	style_focus_hover.bg_color = Color(0.18, 0.18, 0.0, 0.9) 
-	style_focus_hover.border_width_left = 4
-	style_focus_hover.border_width_top = 4
-	style_focus_hover.border_width_right = 4
-	style_focus_hover.border_width_bottom = 4
-	style_focus_hover.border_color = Color(1.0, 1.0, 0.0) 
-	style_focus_hover.set_corner_radius_all(12)
-	style_focus_hover.content_margin_left = 64
-	style_focus_hover.content_margin_right = 64
-	style_focus_hover.content_margin_top = 28
-	style_focus_hover.content_margin_bottom = 28
-	
-	# 3. Start Game Button (Sized up to 54px)
-	start_button = Button.new()
-	start_button.text = "START GAME"
-	start_button.add_theme_font_size_override("font_size", 54)
-	
-	start_button.add_theme_stylebox_override("normal", style_normal)
-	start_button.add_theme_stylebox_override("hover", style_focus_hover)
-	start_button.add_theme_stylebox_override("focus", style_focus_hover) 
-	start_button.add_theme_stylebox_override("pressed", style_focus_hover)
-	
-	start_button.add_theme_color_override("font_color", Color(0.85, 0.85, 0.85))
-	start_button.add_theme_color_override("font_hover_color", Color(1.0, 1.0, 0.0))
-	start_button.add_theme_color_override("font_focus_color", Color(1.0, 1.0, 0.0))
-	
-	button_container.add_child(start_button)
-	start_button.pressed.connect(_on_start_game_pressed)
-	
-	# 4. Exit Button (Hidden on iOS/Web where programmatic exit is blocked)
-	if not OS.has_feature("web") and not OS.has_feature("ios"):
-		exit_button = Button.new()
-		exit_button.text = "EXIT"
-		exit_button.add_theme_font_size_override("font_size", 48) # Sized up to 48px
-		
-		exit_button.add_theme_stylebox_override("normal", style_normal)
-		exit_button.add_theme_stylebox_override("hover", style_focus_hover)
-		exit_button.add_theme_stylebox_override("focus", style_focus_hover)
-		exit_button.add_theme_stylebox_override("pressed", style_focus_hover)
-		
-		exit_button.add_theme_color_override("font_color", Color(0.85, 0.85, 0.85))
-		exit_button.add_theme_color_override("font_hover_color", Color(1.0, 1.0, 0.0))
-		exit_button.add_theme_color_override("font_focus_color", Color(1.0, 1.0, 0.0))
-		
-		button_container.add_child(exit_button)
-		exit_button.pressed.connect(func(): get_tree().quit())
-	
-	start_button.grab_focus()
-	
-	# 5. Menu BGM Player
-	menu_bgm = AudioStreamPlayer.new()
-	menu_bgm.stream = load("res://assets/audio/bgm/main_menu_bgm.mp3")
-	menu_bgm.volume_db = -8.0
-	menu_bgm.autoplay = true
-	add_child(menu_bgm)
-	menu_bgm.play()
-	
-	# Ensure the loading and transition overlays are at the absolute top of the render tree
-	move_child(status_overlay, -1)
-	move_child(fade_overlay, -1)
-
-# Button Callback: Clears the menu overlays, starts BGM, and signals LevelManager to build map
-func _on_start_game_pressed() -> void:
-	# 1. HIDE ALL MENU BUTTONS AND TITLES INSTANTLY (UX Polish)
-	menu_title.visible = false
-	start_button.visible = false
-	if is_instance_valid(exit_button):
-		exit_button.visible = false
-		
-	# 2. SHOW THE LOADING OVERLAY INSTANTLY (Sits on top of active menu_bg)
-	status_label.text = "GENERATING SYSTEM...\nPLEASE WAIT"
-	status_overlay.visible = true
-	
-	# --- THE ULTIMATE GPU YIELD FIX ---
-	# A timer of 0.05s is required to fully execute Godot's internal render pipeline.
-	await get_tree().create_timer(0.05).timeout
-	
-	# 3. Now that the loading overlay fully covers the viewport, clean up the menu silently behind it!
+# Triggers when main menu Start is clicked
+func _on_menu_start_game_requested() -> void:
 	if GameManager:
 		GameManager.is_game_started = true
 		
-	if menu_bgm:
-		menu_bgm.stop()
-		menu_bgm.queue_free()
-		
-	if menu_bg:
-		menu_bg.queue_free() # Deletes menu background safely
-		
+	# Instantly show generation status
+	status_overlay.show_status("GENERATING SYSTEM...\nPLEASE WAIT", true)
+	
+	# Physical wait to guarantee GPU clears the menu and draws the overlay
+	await get_tree().create_timer(0.05).timeout
+	
+	_start_active_gameplay_ui()
+
+# Activates all standard gameplay UI elements
+func _start_active_gameplay_ui() -> void:
 	score_label.visible = true
 	high_score_label.visible = true
 	lives_label.visible = true
-	
-	# --- MOBILE MINIMAP VISIBILITY OVERRIDE ---
 	minimap.visible = true
 	
-	if is_instance_valid(mobile_controls_container):
-		mobile_controls_container.visible = true
+	_instantiate_mobile_controls()
 	
-	# 4. Emit building order (which blocks the thread, but the loader is already drawn!)
+	# Smooth cinematic fade transition on level load
+	status_overlay.fade_in_from_black()
+	
+	# Instruct LevelManager to assemble the 3D map
+	call_deferred("emit_start_game_signal")
+
+func emit_start_game_signal() -> void:
 	start_game.emit()
 
-# Public API to safely hide the status overlay once level building completes
+# Public API used by LevelManager to hide loader once 3D world is built
 func hide_status_overlay() -> void:
-	if is_instance_valid(status_overlay):
-		status_overlay.visible = false
+	if status_overlay:
+		status_overlay.hide_status()
 
-# Stacked Score output zero-padded to 6 digits (Arcade standard - Fix: Handled dynamically now)
+# --- NOTIFICATION SIGNAL CALLBACKS ---
+
 func _on_score_changed(new_score: int) -> void:
 	score_label.text = "SCORE\n%06d" % new_score
 
-# Dynamic High-Score output (Phase 3 compliance)
 func _on_high_score_changed(new_high_score: int) -> void:
 	high_score_label.text = "HI-SCORE\n%06d" % new_high_score
 
-# Stacked Lives output (Fix: Handled dynamically now)
 func _on_lives_changed(new_lives: int) -> void:
 	lives_label.text = "LIVES\n%d" % new_lives
 
-# Only triggers when all 3 lives are lost
 func _on_game_over() -> void:
 	var msg = "GAME OVER\nTap to Restart" if is_mobile else "GAME OVER\nPress R to Restart"
-	status_label.text = msg
-	status_overlay.visible = true
+	status_overlay.show_status(msg, false)
 	get_tree().paused = true
 
-# Displays a gorgeous neon status notification during the 2-second automated transition (Phase 2 Compliance)
-func _on_victory_transition_triggered() -> void:
+func _on_victory_transition() -> void:
 	var next_level_idx : int = GameManager.current_level + 1
-	if GameManager.has_next_level():
-		status_label.text = "LEVEL CLEARED!\nPREPARING LEVEL %02d..." % next_level_idx
-	else:
-		status_label.text = "VICTORY!\nLOADING FINALE CREDITS..."
-		
-	status_overlay.visible = true
+	var msg = "LEVEL CLEARED!\nPREPARING LEVEL %02d..." % next_level_idx if GameManager.has_next_level() else "VICTORY!\nLOADING FINALE CREDITS..."
+	status_overlay.show_status(msg, false)
 
-# Listens for both physical keyboard events AND mobile screen touches
+# Global Scene Restart Inputs
 func _input(event: InputEvent) -> void:
-	# Ignore input if status overlay isn't visible (unless cheating)
 	var is_restart_triggered = false
 	
 	if event is InputEventKey and event.is_pressed():
-		if event.keycode == KEY_R and status_overlay.visible:
+		if event.keycode == KEY_R and status_overlay.is_active():
 			is_restart_triggered = true
-		# RESTORE PC CHEAT KEY: Pressing 'N' emits victory globally (Phase 2 Compliance)
-		elif event.keycode == KEY_N and not status_overlay.visible:
-			if GameManager:
-				GameManager.victory.emit()
+		elif event.keycode == KEY_N and not status_overlay.is_active():
+			if GameManager: GameManager.victory.emit() # Cheat key
 			
-	elif event is InputEventScreenTouch and event.pressed and status_overlay.visible:
-		# On mobile, any tap during Game Over resets
+	elif event is InputEventScreenTouch and event.pressed and status_overlay.is_active():
 		is_restart_triggered = true
 			
 	if is_restart_triggered:
 		get_tree().paused = false
-		if GameManager:
-			GameManager.reset_game()
+		if GameManager: GameManager.reset_game()
 		get_tree().reload_current_scene()
-
-
-# ==============================================================================
-# --- PHASE 4: HELPER NESTED CLASS - PROSTHETIC VIRTUAL ANALOG JOYSTICK ---
-# Programmatically draws and maps a 360-degree floating analog stick, simulating 
-# standard key action presses inside the native Godot Input registry.
-# ==============================================================================
-class VirtualJoystick extends Control:
-	var base_radius : float = 160.0 # Sized up significantly for 1080p high-DPI thumb comfort
-	var knob_radius : float = 65.0 # Enlarged central knob
-	var is_dragging : bool = false
-	var touch_id : int = -1
-	
-	var base_center : Vector2
-	var knob_pos : Vector2
-	
-	# Dict to monitor currently simulated pressed actions
-	var simulated_actions : Dictionary = {
-		"ui_left": false,
-		"ui_right": false,
-		"ui_up": false,
-		"ui_down": false
-	}
-	
-	func _ready() -> void:
-		custom_minimum_size = Vector2(320, 320) # Sized up to match new base dimensions
-		base_center = Vector2(160, 160)
-		knob_pos = base_center
-		
-	func _draw() -> void:
-		# 1. Draw Translucent Base ring
-		draw_circle(base_center, base_radius, Color(0.08, 0.08, 0.1, 0.45))
-		# Neon cyan thick border
-		draw_arc(base_center, base_radius, 0, TAU, 32, Color(0.0, 0.8, 1.0, 0.6), 5.0)
-		
-		# 2. Draw Translucent Glowing Knob
-		draw_circle(knob_pos, knob_radius, Color(1.0, 1.0, 0.0, 0.65)) # Glowing yellow
-		# Orange neon border for high-contrast visibility
-		draw_arc(knob_pos, knob_radius, 0, TAU, 24, Color(1.0, 0.5, 0.0, 0.8), 3.0)
-		
-	func _gui_input(event: InputEvent) -> void:
-		if event is InputEventScreenTouch:
-			if event.pressed and not is_dragging:
-				is_dragging = true
-				touch_id = event.index
-				_update_joystick_displacement(event.position)
-			elif not event.pressed and event.index == touch_id:
-				_reset_joystick_state()
-				
-		elif event is InputEventScreenDrag and is_dragging and event.index == touch_id:
-			_update_joystick_displacement(event.position)
-			
-	# Calculates 2D offset vector and applies digital simulation mapping
-	func _update_joystick_displacement(touch_pos: Vector2) -> void:
-		var direction_vector : Vector2 = touch_pos - base_center
-		var current_distance : float = direction_vector.length()
-		
-		# Clamp knob within physical outer base boundary
-		if current_distance > base_radius:
-			direction_vector = direction_vector.normalized() * base_radius
-			
-		knob_pos = base_center + direction_vector
-		queue_redraw() # Request frame redraw instantly
-		
-		# Convert continuous analog vector to simulated action presses (0.35 Dead-zone)
-		var normalized_ratio : Vector2 = direction_vector / base_radius
-		
-		_simulate_action("ui_left", normalized_ratio.x < -0.35)
-		_simulate_action("ui_right", normalized_ratio.x > 0.35)
-		_simulate_action("ui_up", normalized_ratio.y < -0.35)
-		_simulate_action("ui_down", normalized_ratio.y > 0.35)
-		
-	# Restores knob to dead-center and releases all simulated keyboard bindings
-	func _reset_joystick_state() -> void:
-		is_dragging = false
-		touch_id = -1
-		knob_pos = base_center
-		queue_redraw()
-		
-		for action in simulated_actions.keys():
-			_simulate_action(action, false)
-			
-	# Safely commits Mock Input states directly into the native Godot Engine Registry
-	func _simulate_action(action_name: String, should_press: bool) -> void:
-		if simulated_actions[action_name] != should_press:
-			simulated_actions[action_name] = should_press
-			if should_press:
-				Input.action_press(action_name)
-			else:
-				Input.action_release(action_name)

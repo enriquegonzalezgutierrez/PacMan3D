@@ -3,11 +3,12 @@
 #              Draws standard/power pellets, player, and ghosts based on 
 #              their active positions mapped from 3D grid space.
 #              SOLID Refactoring:
-#              - LSP/OCP COMPLIANCE: Eradicated duck-typing and explicit class 
-#                checks ("is IcePellet") in the rendering loop. The minimap now 
-#                calls polymorphic methods on the items to determine how to draw 
-#                them, making the system closed to modification but open to extension.
-#              - SRP: Extracted into a standalone class.
+#              - LSP/OCP Compliance: Eradicated strict class-typing and internal 
+#                state peeking (e.g., checking if Ghost is FRIGHTENED). The Minimap 
+#                now relies 100% on polymorphic getters exposed by the entities, 
+#                making the rendering loop completely closed to modification.
+#              - SRP Compliance: Solely responsible for mapping 3D coords to 2D 
+#                vectors and rendering UI circles.
 # Author: Enrique González Gutiérrez
 # Email: enrique.gonzalez.gutierrez@gmail.com
 # ==============================================================================
@@ -74,23 +75,19 @@ func _draw() -> void:
 				var map_pos = to_map.call(pellet.global_position)
 				draw_circle(map_pos, pellet.get_minimap_radius(), pellet.get_minimap_color())
 				
-	# 3. Draw Player
+	# 3. Draw Player dynamically (LSP/OCP Compliance)
 	var player = get_tree().get_first_node_in_group("player") as Node3D
 	if is_instance_valid(player):
-		var map_pos = to_map.call(player.global_position)
-		draw_circle(map_pos, 4.5, Color(1.0, 1.0, 0.0)) # Bright Yellow Pac-Man
+		if player.has_method("get_minimap_color") and player.has_method("get_minimap_radius"):
+			var map_pos = to_map.call(player.global_position)
+			draw_circle(map_pos, player.get_minimap_radius(), player.get_minimap_color())
 		
-	# 4. Draw Ghosts
+	# 4. Draw Ghosts dynamically (LSP/OCP Compliance)
 	var ghosts = get_tree().get_nodes_in_group("ghosts")
 	for ghost in ghosts:
 		if is_instance_valid(ghost) and ghost is Node3D:
-			var map_pos = to_map.call(ghost.global_position)
-			var color := Color(1.0, 1.0, 1.0)
-			
-			if ghost is Ghost:
-				# Safely query the active material depending on the ghost's current state
-				var active_mat = ghost.frightened_material if ghost.current_state == Ghost.State.FRIGHTENED else ghost.original_material
-				if active_mat:
-					color = active_mat.albedo_color
-						
-			draw_circle(map_pos, 4.0, color)
+			# Notice: The Minimap no longer cares if the ghost is FRIGHTENED, EATEN, or normal.
+			# The ghost handles its own state encapsulation and returns the appropriate radar color!
+			if ghost.has_method("get_minimap_color") and ghost.has_method("get_minimap_radius"):
+				var map_pos = to_map.call(ghost.global_position)
+				draw_circle(map_pos, ghost.get_minimap_radius(), ghost.get_minimap_color())
