@@ -93,7 +93,7 @@ func _build_ui() -> void:
 	
 	# 2. Glowing Title (Enlarged to 110px for 1080p presence)
 	menu_title = Label.new()
-	menu_title.text = "PAC-MAN 3D"
+	menu_title.text = "MARTÍNMAN 3D"
 	menu_title.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
 	menu_title.add_theme_font_size_override("font_size", 110)
 	menu_title.add_theme_color_override("font_color", Color(1.0, 1.0, 0.0)) 

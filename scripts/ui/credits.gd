@@ -27,8 +27,8 @@ const FADE_SPEED : float = 1.2 # Thank you text fade speed
 
 # Credits Roll Configuration Data (Project Specific)
 var credits_data : Array[Dictionary] = [
-	{"text": "PAC-MAN 3D", "type": "title"},
-	{"text": "A modern 3D arcade reimagining", "type": "subtitle"},
+	{"text": "MARTÍNMAN 3D", "type": "title"},
+	{"text": "A modern 3D retro-cyberpunk arcade", "type": "subtitle"},
 	{"text": "", "type": "spacer_large"},
 	
 	{"text": "LEAD DEVELOPER & SOFTWARE ARCHITECT", "type": "header"},
