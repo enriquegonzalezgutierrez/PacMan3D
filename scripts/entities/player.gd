@@ -1,49 +1,26 @@
 # ==============================================================================
-# Description: CharacterBody3D controller for Pac-Man. Handles movement inputs,
-#              visual mesh rotation, and continuous arcade movement.
-#              SOLID Refactoring & Visual Polish:
-#              - LAMBDA MEMORY FIX: Connected the death particle despawn timer 
-#                directly to particles.queue_free. This lets Godot auto-disconnect 
-#                the signal if the level reloads early, preventing lambda-capture errors.
-#              - PROCEDURAL CHEWING MOUTH: Instantiates an unshaded matte-black mouth.
-#              - DYNAMIC BLINKING RETRO EYES: Procedurally generates white scleras.
-#              - SRP Refactoring (Step 2): Completely stripped all Camera3D setup.
-#              - DYNAMIC ALIGNMENT FIX: Calculates grid offset dynamically.
-#              - Giant Arcade Proportions: Giant 1.7m diameter sphere.
-#              Phase 3 Updates:
-#              - GHOST HOUSE GATE COLLISION: Added Layer 4 (8) to the collision mask 
-#                to physically block Pac-Man from entering the ghost foso area.
-#              Phase 4 Updates:
-#              - LIGHTNING SPEED OVERLOAD: Added a speed boost state machine, 
-#                scaling velocity by +50% (to 10.5) for 5.0 seconds.
-#              - ELECTRIC SPARK AURA: Procedurally attaches a bright electric-cyan 
-#                GPUParticles3D spark emitter during speed boosts.
-#              - GLOWING MOTION LIGHT TRAIL: Programmed a highly responsive 
-#                GPUParticles3D ribbon-style light trail that dynamically changes 
-#                color (Yellow, Gold, Cyan) depending on active states.
-#              - JUMP THRUST PARTICLES: Programmatically instantiates a downward 
-#                one-shot gold-neon spark jet exhaust upon jumping.
-#              - TYPO CORRECTION: Fixed 'var_blink_timer' spacing syntax.
-#              - CYBER-DJ HEADPHONES: Programmatically constructs a high-tech 
-#                gamer headset using Torus and Cylinder meshes with pulsing RGB 
-#                neon-cyan rings on Pac-Man's sides.
-#              - TORUS COMPATIBILITY FIX: Removed manual segment counts on TorusMesh 
-#                to leverage Godot 4's native smooth defaults and prevent cross-version 
-#                parser errors.
+# Description: CharacterBody3D controller for Pac-Man. Handles movement inputs, 
+#              visual mesh rotation, virtual jump physics, and power states.
+#              SOLID Refactoring:
+#              - SRP Compliance: Delegated all 3D mesh building and particle 
+#                spawning to the PlayerVisualBuilder class. This class no longer 
+#                acts as a God Class.
+#              - LSP Compliance: Implemented polymorphic minimap color/radius 
+#                getters, matching the interface used by the 2D Minimap radar.
 # Author: Enrique González Gutiérrez
 # Email: enrique.gonzalez.gutierrez@gmail.com
 # ==============================================================================
 extends CharacterBody3D
 class_name Player
 
-# Signal emitted when the death audio and particles finish (DIP Compliance)
+# Signal emitted when the death audio and particles finish
 signal death_completed()
 
 const SPEED : float = 7.0
 const CELL_SIZE : float = 2.0 
 const ALIGNMENT_FORCE : float = 15.0 
 
-# Jump & Gravity Constants (Virtual physics - Calibrated for high clearance)
+# Jump & Gravity Constants
 const JUMP_VELOCITY : float = 14.5 
 const GRAVITY : float = 40.0 
 
@@ -57,37 +34,37 @@ var visual_mesh : MeshInstance3D
 var munch_audio : AudioStreamPlayer
 var death_audio : AudioStreamPlayer
 
-# Dynamic Eye Tracking Variables
+# Visual Builder References (Injected by PlayerVisualBuilder)
 var eyes_holder : Node3D
 var pupil_material : StandardMaterial3D
+var mouth_instance : MeshInstance3D
+var headphone_ring_material : StandardMaterial3D
+
+# Dynamic Eye Tracking Variables
 var is_blinking : bool = false
 var blink_timer : float = 0.0
 var blink_duration : float = 0.15
-var next_blink_time : float = 3.0 # Initial time before first blink
+var next_blink_time : float = 3.0
 
-# Invincibility Power State Variables (Arcade Juice)
+# Invincibility Power State Variables
 var is_powered_up : bool = false
 var power_timer : float = 0.0
-const POWER_DURATION : float = 7.0 # Matches Ghost Frightened duration
+const POWER_DURATION : float = 7.0 
 var power_particles : GPUParticles3D = null
 
-# Dynamic Chewing Mouth Variables (SRP/Juice Compliance)
-var mouth_instance : MeshInstance3D
+# Dynamic Chewing Mouth Variables
 var mouth_time : float = 0.0
 
-# Phase 4 Speed Overload State Variables
+# Speed Overload State Variables
 var is_speed_boosted : bool = false
 var speed_boost_timer : float = 0.0
 const SPEED_BOOST_DURATION : float = 5.0
-const BOOSTED_SPEED : float = 10.5 # +50% faster than standard 7.0 speed
+const BOOSTED_SPEED : float = 10.5 
 var speed_particles : GPUParticles3D = null
 
-# Phase 4 Continuous Energy Motion Trail Variables
+# Continuous Energy Motion Trail Variables
 var motion_trail : GPUParticles3D = null
 var motion_trail_material : StandardMaterial3D = null
-
-# Phase 4 Cyber-DJ Headphones Neon Ring reference for procedural pulsing
-var headphone_ring_material : StandardMaterial3D = null
 
 # Gameplay State
 var spawn_position : Vector3
@@ -96,7 +73,7 @@ var next_direction : Vector3 = Vector3.ZERO
 var is_dead : bool = false
 
 # Jump States
-var virtual_floor_y : float = 0.85 # Calibrated automatically on ready
+var virtual_floor_y : float = 0.85 
 var is_jumping : bool = false
 
 # Dependency Injection initializer method
@@ -108,194 +85,35 @@ func initialize(material: StandardMaterial3D, audio_stream: AudioStream, d_strea
 func _ready() -> void:
 	add_to_group("player")
 	_configure_collision_layers()
-	_build_player_visuals()
+	
+	# Assemble visuals using our SRP Builder (SRP Compliance)
+	var visual_components = PlayerVisualBuilder.build_visuals(self, player_material)
+	visual_mesh = visual_components["visual_mesh"]
+	eyes_holder = visual_components["eyes_holder"]
+	pupil_material = visual_components["pupil_material"]
+	mouth_instance = visual_components["mouth_instance"]
+	headphone_ring_material = visual_components["headphone_ring_material"]
+	
 	_setup_audio()
 	
-	# Programmatically attach the premium visual motion light trail (Phase 4)
-	_spawn_motion_trail_particles()
+	# Instantiate and parent our motion trail
+	var trail_components = PlayerVisualBuilder.build_motion_trail()
+	motion_trail = trail_components["node"]
+	motion_trail_material = trail_components["material"]
+	add_child(motion_trail)
 	
-	# Randomize first blink timing to stagger animations
 	next_blink_time = randf_range(2.0, 5.0)
 	
-	# Connect dynamically to global power pellet activations (DIP Compliance)
 	if GameManager:
 		GameManager.power_pellet_activated.connect(activate_power_up)
 	
-	# Automatically calibrate virtual floor based on injected height coordinate (SOLID DIP)
 	virtual_floor_y = global_position.y
 
 func _configure_collision_layers() -> void:
-	# Exist on Layer 2 (Player)
 	collision_layer = 2
-	# Physically block with Layer 1 (Walls = 1) and Layer 4 (Ghost House Gate = 8)
 	collision_mask = 1 | 8
 
-func _build_player_visuals() -> void:
-	var collision_shape := CollisionShape3D.new()
-	visual_mesh = MeshInstance3D.new()
-	
-	var radius : float = 0.85
-	
-	# Main Pac-Man body sphere
-	var sphere_mesh := SphereMesh.new()
-	sphere_mesh.radius = radius
-	sphere_mesh.height = radius * 2.0
-	visual_mesh.mesh = sphere_mesh
-	visual_mesh.material_override = player_material
-	
-	# --- PROCEDURAL BLINKING PAC-MAN EYES ---
-	eyes_holder = Node3D.new()
-	
-	var sclera_mat := StandardMaterial3D.new()
-	sclera_mat.albedo_color = Color(1.0, 1.0, 1.0) # White Sclera
-	sclera_mat.roughness = 0.6
-	
-	# Keep an instance reference to pupil_material so we can dynamically tint it on power states
-	pupil_material = StandardMaterial3D.new()
-	pupil_material.albedo_color = Color(0.0, 0.8, 0.1) # Glowing Neon Green Pupil
-	pupil_material.roughness = 0.4
-	
-	# Eye mesh shapes
-	var sclera_mesh := SphereMesh.new()
-	sclera_mesh.radius = 0.20
-	sclera_mesh.height = 0.40
-	
-	var pupil_mesh := SphereMesh.new()
-	pupil_mesh.radius = 0.08
-	pupil_mesh.height = 0.16
-	
-	# 1. Left Sclera (White)
-	var left_sclera := MeshInstance3D.new()
-	left_sclera.mesh = sclera_mesh
-	left_sclera.material_override = sclera_mat
-	left_sclera.position = Vector3(-0.35, 0.45, -0.65)
-	eyes_holder.add_child(left_sclera)
-	
-	# 2. Right Sclera (White)
-	var right_sclera := MeshInstance3D.new()
-	right_sclera.mesh = sclera_mesh
-	right_sclera.material_override = sclera_mat
-	right_sclera.position = Vector3(0.35, 0.45, -0.65)
-	eyes_holder.add_child(right_sclera)
-	
-	# 3. Left Pupil (Green)
-	var left_pupil := MeshInstance3D.new()
-	left_pupil.mesh = pupil_mesh
-	left_pupil.material_override = pupil_material
-	left_pupil.position = Vector3(-0.35, 0.45, -0.83)
-	eyes_holder.add_child(left_pupil)
-	
-	# 4. Right Pupil (Green)
-	var right_pupil := MeshInstance3D.new()
-	right_pupil.mesh = pupil_mesh
-	right_pupil.material_override = pupil_material
-	right_pupil.position = Vector3(0.35, 0.45, -0.83)
-	eyes_holder.add_child(right_pupil)
-	
-	# Attach eyes to the visual mesh so they rotate dynamically with Pac-Man
-	visual_mesh.add_child(eyes_holder)
-	
-	# --- PROCEDURAL RETRO CHEWING MOUTH (SRP/OCP Compliance) ---
-	var mouth_mat := StandardMaterial3D.new()
-	mouth_mat.albedo_color = Color(0.01, 0.01, 0.01) # Deep shadow black
-	mouth_mat.roughness = 1.0
-	mouth_mat.shading_mode = StandardMaterial3D.SHADING_MODE_UNSHADED # Unshaded for black abyss effect
-	
-	var mouth_box := BoxMesh.new()
-	mouth_box.size = Vector3(1.0, 1.0, 0.5) # Base unit box to scale dynamically
-	
-	mouth_instance = MeshInstance3D.new()
-	mouth_instance.mesh = mouth_box
-	mouth_instance.material_override = mouth_mat
-	mouth_instance.position = Vector3(0.0, -0.15, -0.62) # Positioned on front lower face
-	mouth_instance.scale = Vector3(0.5, 0.1, 0.5) # Start closed
-	
-	visual_mesh.add_child(mouth_instance) # Child of body so it rotates with Pac-Man
-	
-	# --- PHASE 4: PROCEDURAL CYBER-DJ HEADPHONES ---
-	var headphones_holder := Node3D.new()
-	
-	# Materials
-	var headphone_dark_mat := StandardMaterial3D.new()
-	headphone_dark_mat.albedo_color = Color(0.06, 0.06, 0.08) # Matte Carbon Black
-	headphone_dark_mat.roughness = 0.6
-	headphone_dark_mat.metallic = 0.5
-	
-	headphone_ring_material = StandardMaterial3D.new()
-	headphone_ring_material.albedo_color = Color(0.0, 0.8, 1.0) # Electric Cyan RGB Ring
-	headphone_ring_material.emission_enabled = true
-	headphone_ring_material.emission = Color(0.0, 0.5, 1.0) # Neon emission
-	headphone_ring_material.roughness = 0.1
-	
-	# 1. Curved Headband (Thin Torus stand vertically wrapping over head)
-	# Fixed: Removed manual segment assignments to guarantee cross-version compilation
-	var band_mesh := TorusMesh.new()
-	band_mesh.inner_radius = 0.82
-	band_mesh.outer_radius = 0.88
-	
-	var band := MeshInstance3D.new()
-	band.mesh = band_mesh
-	band.material_override = headphone_dark_mat
-	band.rotation_degrees.z = 90.0 # Rotate vertical to wrap from side to side
-	headphones_holder.add_child(band)
-	
-	# 2. Left Ear Cup (Flat cylinder sitting on left side)
-	var cup_mesh := CylinderMesh.new()
-	cup_mesh.top_radius = 0.28
-	cup_mesh.bottom_radius = 0.28
-	cup_mesh.height = 0.12
-	cup_mesh.radial_segments = 16
-	
-	var left_cup := MeshInstance3D.new()
-	left_cup.mesh = cup_mesh
-	left_cup.material_override = headphone_dark_mat
-	left_cup.position = Vector3(-0.85, 0.0, 0.0)
-	left_cup.rotation_degrees.z = 90.0 # Rotate to lie flat on the ear
-	headphones_holder.add_child(left_cup)
-	
-	# 3. Right Ear Cup (Flat cylinder sitting on right side)
-	var right_cup := MeshInstance3D.new()
-	right_cup.mesh = cup_mesh
-	right_cup.material_override = headphone_dark_mat
-	right_cup.position = Vector3(0.85, 0.0, 0.0)
-	right_cup.rotation_degrees.z = 90.0
-	headphones_holder.add_child(right_cup)
-	
-	# 4. Left RGB Ring (Thin protruding neon cylinder)
-	var ring_mesh := CylinderMesh.new()
-	ring_mesh.top_radius = 0.22
-	ring_mesh.bottom_radius = 0.22
-	ring_mesh.height = 0.14 # Protrudes slightly out
-	ring_mesh.radial_segments = 16
-	
-	var left_ring := MeshInstance3D.new()
-	left_ring.mesh = ring_mesh
-	left_ring.material_override = headphone_ring_material
-	left_ring.position = Vector3(-0.86, 0.0, 0.0)
-	left_ring.rotation_degrees.z = 90.0
-	headphones_holder.add_child(left_ring)
-	
-	# 5. Right RGB Ring (Thin protruding neon cylinder)
-	var right_ring := MeshInstance3D.new()
-	right_ring.mesh = ring_mesh
-	right_ring.material_override = headphone_ring_material
-	right_ring.position = Vector3(0.86, 0.0, 0.0)
-	right_ring.rotation_degrees.z = 90.0
-	headphones_holder.add_child(right_ring)
-	
-	visual_mesh.add_child(headphones_holder)
-	
-	# --- PHYSICAL COLLIDER ---
-	var sphere_shape := SphereShape3D.new()
-	sphere_shape.radius = radius
-	collision_shape.shape = sphere_shape
-	
-	add_child(visual_mesh)
-	add_child(collision_shape)
-
-# Sets up separate, non-overlapping audio channels
 func _setup_audio() -> void:
-	# 1. Munch Audio Player (Waka-Waka)
 	munch_audio = AudioStreamPlayer.new()
 	if munch_stream:
 		munch_audio.stream = munch_stream
@@ -303,7 +121,6 @@ func _setup_audio() -> void:
 	munch_audio.volume_db = -5.0 
 	add_child(munch_audio)
 	
-	# 2. Death Audio Player
 	death_audio = AudioStreamPlayer.new()
 	if death_stream:
 		death_audio.stream = death_stream
@@ -311,13 +128,11 @@ func _setup_audio() -> void:
 	death_audio.volume_db = -3.0 
 	add_child(death_audio)
 
-# Public method to be called when eating a pellet
 func play_eat_sound() -> void:
 	if munch_audio and munch_audio.stream:
 		munch_audio.stop()
 		munch_audio.play()
 
-# Public method: Initiates the sequential, gated death routine (SRP Compliance)
 func die() -> void:
 	if is_dead:
 		return
@@ -326,15 +141,14 @@ func die() -> void:
 	if visual_mesh:
 		visual_mesh.visible = false
 		
-	# Clean up any active power particle trails on death
 	_deactivate_power_up()
 	_deactivate_speed_boost()
 	
-	# Safely disable the motion trail on death
 	if is_instance_valid(motion_trail):
 		motion_trail.emitting = false
 		
-	play_death_particles()
+	# Trigger explosive death particles via builder (SRP Compliance)
+	PlayerVisualBuilder.trigger_death_particles(get_parent(), global_position, player_material)
 	
 	if death_audio and death_audio.stream:
 		await death_audio.finished
@@ -342,63 +156,11 @@ func die() -> void:
 		await get_tree().create_timer(1.0).timeout
 		
 	death_completed.emit()
-	
 	_actual_respawn()
 
-# Programmatically spawns particles and starts audio playback
-func play_death_particles() -> void:
-	if death_audio and death_audio.stream:
-		death_audio.play()
-		
-	var particles := GPUParticles3D.new()
-	
-	var mesh := BoxMesh.new()
-	mesh.size = Vector3(0.15, 0.15, 0.15)
-	
-	var mat := StandardMaterial3D.new()
-	if player_material:
-		mat.albedo_color = player_material.albedo_color
-	else:
-		mat.albedo_color = Color(1.0, 1.0, 0.0)
-	mat.shading_mode = StandardMaterial3D.SHADING_MODE_UNSHADED
-	mesh.material = mat
-	particles.draw_pass_1 = mesh
-	
-	var p_mat := ParticleProcessMaterial.new()
-	p_mat.emission_shape = ParticleProcessMaterial.EMISSION_SHAPE_SPHERE
-	p_mat.emission_sphere_radius = 0.3
-	
-	p_mat.direction = Vector3.UP
-	p_mat.spread = 180.0 
-	
-	p_mat.initial_velocity_min = 4.0
-	p_mat.initial_velocity_max = 7.0
-	p_mat.gravity = Vector3(0.0, -12.0, 0.0) 
-	
-	p_mat.damping_min = 1.0
-	p_mat.damping_max = 2.0
-	
-	particles.process_material = p_mat
-	
-	particles.amount = 30
-	particles.one_shot = true
-	particles.explosiveness = 1.0
-	particles.lifetime = 0.8
-	
-	var death_position = global_position
-	
-	get_parent().add_child(particles)
-	particles.global_position = death_position
-	particles.emitting = true
-	
-	# --- DIRECT METHOD CONNECTION FIX ---
-	get_tree().create_timer(1.0).timeout.connect(particles.queue_free)
-
-# Teleports the player back to start
 func respawn() -> void:
 	_actual_respawn()
 
-# Handles physical coordinate teleports and restores visibility
 func _actual_respawn() -> void:
 	global_position = spawn_position
 	velocity = Vector3.ZERO
@@ -409,255 +171,79 @@ func _actual_respawn() -> void:
 	if visual_mesh:
 		visual_mesh.visible = true
 		
-	# Re-enable the motion trail on respawn
 	if is_instance_valid(motion_trail):
 		motion_trail.emitting = false
 	
 	is_dead = false
 
-# Public API helper
 func get_spawn_height_offset() -> float:
 	return 0.85
 
-# --- POWER UP SEQUENCE (JUICE COMPLIANCE) ---
+# --- POWER UP CYCLE ---
 
-# Public Callback: Triggers invincibility state transformations (OCP Compliance)
 func activate_power_up() -> void:
 	is_powered_up = true
 	power_timer = POWER_DURATION
 	
-	# 1. Glow body to a vibrant neon golden-orange
-	player_material.albedo_color = Color(1.0, 0.45, 0.0) # Golden Orange
+	# Change colors to golden-orange
+	player_material.albedo_color = Color(1.0, 0.45, 0.0) 
 	player_material.emission_enabled = true
-	player_material.emission = Color(1.0, 0.25, 0.0) # Golden Glow
+	player_material.emission = Color(1.0, 0.25, 0.0) 
 	
-	# 2. Shift pupils to an angry glowing neon-red
 	if pupil_material:
-		pupil_material.albedo_color = Color(1.0, 0.0, 0.0) # Fierce Red
+		pupil_material.albedo_color = Color(1.0, 0.0, 0.0) 
 		pupil_material.emission_enabled = true
-		pupil_material.emission = Color(1.0, 0.0, 0.0) # Red Glow
+		pupil_material.emission = Color(1.0, 0.0, 0.0) 
 		
-	# 3. Spawn subtle gold sparkle particle aura (Toned down to 12 particles for mobile)
 	if not is_instance_valid(power_particles):
-		_spawn_power_particles()
+		power_particles = PlayerVisualBuilder.build_power_particles()
+		add_child(power_particles)
 
-# Programmatically configures and attaches a glowing aura trail underneath Pac-Man
-func _spawn_power_particles() -> void:
-	power_particles = GPUParticles3D.new()
-	
-	var mesh := BoxMesh.new()
-	mesh.size = Vector3(0.08, 0.08, 0.08)
-	
-	var p_mat := StandardMaterial3D.new()
-	p_mat.albedo_color = Color(1.0, 0.8, 0.0) # Golden sparkles
-	p_mat.shading_mode = StandardMaterial3D.SHADING_MODE_UNSHADED
-	mesh.material = p_mat
-	power_particles.draw_pass_1 = mesh
-	
-	var proc_mat := ParticleProcessMaterial.new()
-	proc_mat.emission_shape = ParticleProcessMaterial.EMISSION_SHAPE_SPHERE
-	proc_mat.emission_sphere_radius = 0.5
-	proc_mat.direction = Vector3.UP
-	proc_mat.spread = 45.0
-	proc_mat.initial_velocity_min = 1.0
-	proc_mat.initial_velocity_max = 2.0
-	proc_mat.gravity = Vector3(0.0, -2.0, 0.0)
-	
-	power_particles.process_material = proc_mat
-	power_particles.amount = 12 # Optimized for mobile GPU fill-rate
-	power_particles.lifetime = 0.5
-	
-	add_child(power_particles)
-	power_particles.position = Vector3(0.0, -0.2, 0.0) # Centered at feet level
-
-# Restores the original visual colors and clears particle emitters
 func _deactivate_power_up() -> void:
 	is_powered_up = false
-	
-	# Restore normal body
-	player_material.albedo_color = Color(1.0, 1.0, 0.0) # Yellow
+	player_material.albedo_color = Color(1.0, 1.0, 0.0) 
 	player_material.emission_enabled = false
 	
-	# Restore normal green pupils
 	if pupil_material:
-		pupil_material.albedo_color = Color(0.0, 0.8, 0.1) # Green
+		pupil_material.albedo_color = Color(0.0, 0.8, 0.1) 
 		pupil_material.emission_enabled = false
 		
-	# Delete the particle trail
 	if is_instance_valid(power_particles):
 		power_particles.queue_free()
 
+# --- SPEED BOOST CYCLE ---
 
-# --- PHASE 4: SPEED OVERLOAD POWER STATE ---
-
-# Public Callback: Triggers dynamic speed boost and attaches custom visual particle sparks
 func activate_speed_boost() -> void:
 	is_speed_boosted = true
 	speed_boost_timer = SPEED_BOOST_DURATION
 	
 	if not is_instance_valid(speed_particles):
-		_spawn_speed_particles()
+		speed_particles = PlayerVisualBuilder.build_speed_particles()
+		add_child(speed_particles)
 
-# Programmatically configures and attaches a glowing electric aura around Pac-Man
-func _spawn_speed_particles() -> void:
-	speed_particles = GPUParticles3D.new()
-	
-	var mesh := BoxMesh.new()
-	mesh.size = Vector3(0.06, 0.06, 0.06)
-	
-	var p_mat := StandardMaterial3D.new()
-	p_mat.albedo_color = Color(0.0, 1.0, 1.0) # Electric Cyan sparks
-	p_mat.shading_mode = StandardMaterial3D.SHADING_MODE_UNSHADED
-	p_mat.emission_enabled = true
-	p_mat.emission = Color(0.0, 0.8, 1.0) # Glowing Cyan electricity
-	mesh.material = p_mat
-	speed_particles.draw_pass_1 = mesh
-	
-	var proc_mat := ParticleProcessMaterial.new()
-	proc_mat.emission_shape = ParticleProcessMaterial.EMISSION_SHAPE_SPHERE
-	proc_mat.emission_sphere_radius = 0.65
-	proc_mat.direction = Vector3.UP
-	proc_mat.spread = 180.0
-	proc_mat.initial_velocity_min = 2.0
-	proc_mat.initial_velocity_max = 4.0
-	proc_mat.gravity = Vector3(0.0, 1.5, 0.0) # Sparks float upwards
-	
-	speed_particles.process_material = proc_mat
-	speed_particles.amount = 12 # Optimized down to 12 to prevent mobile rendering stutters
-	speed_particles.lifetime = 0.4
-	
-	add_child(speed_particles)
-	speed_particles.position = Vector3(0.0, -0.1, 0.0) # Centered at body level
-
-# Cleans up particle emitters and resets speed variables safely
 func _deactivate_speed_boost() -> void:
 	is_speed_boosted = false
 	if is_instance_valid(speed_particles):
 		speed_particles.queue_free()
 
+# --- CONTINUOUS TRAIL MATH ---
 
-# --- PHASE 4: CONTINUOUS ENERGY MOTION TRAIL ---
-
-# Programmatically configures and attaches the continuous neon light-trail
-func _spawn_motion_trail_particles() -> void:
-	motion_trail = GPUParticles3D.new()
-	motion_trail.name = "MotionTrail"
-	
-	# Visual sphere mesh constituting the trail segments
-	var sphere_mesh := SphereMesh.new()
-	sphere_mesh.radius = 0.16
-	sphere_mesh.height = 0.32
-	
-	motion_trail_material = StandardMaterial3D.new()
-	motion_trail_material.shading_mode = StandardMaterial3D.SHADING_MODE_UNSHADED
-	motion_trail_material.albedo_color = Color(1.0, 1.0, 0.0) # Default Yellow
-	motion_trail_material.emission_enabled = true
-	motion_trail_material.emission = Color(0.5, 0.5, 0.0) # Gentle neon glow
-	
-	sphere_mesh.material = motion_trail_material
-	motion_trail.draw_pass_1 = sphere_mesh
-	
-	var proc_mat := ParticleProcessMaterial.new()
-	proc_mat.emission_shape = ParticleProcessMaterial.EMISSION_SHAPE_SPHERE
-	proc_mat.emission_sphere_radius = 0.15 # Tightly centered
-	proc_mat.direction = Vector3.ZERO # Particles drop static in space as player moves
-	proc_mat.gravity = Vector3.ZERO
-	proc_mat.initial_velocity_min = 0.0
-	proc_mat.initial_velocity_max = 0.0
-	
-	# Exponentially scales down particles over lifetime to form a perfect tapering trail tail
-	var curve := Curve.new()
-	curve.add_point(Vector2(0.0, 1.0))
-	curve.add_point(Vector2(1.0, 0.0))
-	
-	var curve_tex := CurveTexture.new()
-	curve_tex.curve = curve
-	proc_mat.scale_curve = curve_tex
-	
-	motion_trail.process_material = proc_mat
-	motion_trail.amount = 20 # Optimized down from 40 for seamless lag-free mobile rendering
-	motion_trail.lifetime = 0.35 # Ribbon trails vanish quickly
-	motion_trail.emitting = false # Checked dynamically inside movement loop
-	
-	add_child(motion_trail)
-	motion_trail.position = Vector3(0.0, -0.1, 0.0) # Positioned at floor/feet level
-
-# Sincroniza dinámicamente el color y energía de emisión de la estela según los estados activos
 func _update_motion_trail_materials() -> void:
 	if not is_instance_valid(motion_trail_material):
 		return
 		
 	if is_speed_boosted:
-		# Overload Speed: Intense Electric Cyan
 		motion_trail_material.albedo_color = Color(0.0, 1.0, 1.0)
 		motion_trail_material.emission = Color(0.0, 0.8, 1.0)
-		motion_trail_material.emission_energy_multiplier = randf_range(1.0, 1.5) # Dynamic electrical hum
+		motion_trail_material.emission_energy_multiplier = randf_range(1.0, 1.5) 
 	elif is_powered_up:
-		# Invincible: Intense Glowing Fire Gold
 		motion_trail_material.albedo_color = Color(1.0, 0.45, 0.0)
 		motion_trail_material.emission = Color(1.0, 0.2, 0.0)
 		motion_trail_material.emission_energy_multiplier = 1.2
 	else:
-		# Standard movement: Clean glowing yellow
 		motion_trail_material.albedo_color = Color(1.0, 1.0, 0.0)
 		motion_trail_material.emission = Color(0.6, 0.6, 0.0)
 		motion_trail_material.emission_energy_multiplier = 0.8
-
-
-# --- PHASE 4: JUMP THRUST JET EXHAUST ---
-
-# Programmatically instantiates an energetic gold-neon burst straight downwards
-func _trigger_jump_thrust_particles() -> void:
-	var particles := GPUParticles3D.new()
-	
-	# Small unshaded yellow spark blocks
-	var mesh := BoxMesh.new()
-	mesh.size = Vector3(0.08, 0.08, 0.08)
-	
-	var mat := StandardMaterial3D.new()
-	mat.albedo_color = Color(1.0, 1.0, 0.0) # Golden Yellow
-	mat.shading_mode = StandardMaterial3D.SHADING_MODE_UNSHADED
-	mat.emission_enabled = true
-	mat.emission = Color(1.0, 0.5, 0.0) # Glowing orange core
-	mesh.material = mat
-	particles.draw_pass_1 = mesh
-	
-	var p_mat := ParticleProcessMaterial.new()
-	p_mat.emission_shape = ParticleProcessMaterial.EMISSION_SHAPE_SPHERE
-	p_mat.emission_sphere_radius = 0.2
-	
-	# Blast straight downwards!
-	p_mat.direction = Vector3.DOWN
-	p_mat.spread = 35.0 # Narrow rocket nozzle cone
-	p_mat.initial_velocity_min = 6.0
-	p_mat.initial_velocity_max = 9.0
-	p_mat.gravity = Vector3(0.0, -8.0, 0.0) # Gravity pulls them down further
-	p_mat.damping_min = 1.0
-	p_mat.damping_max = 2.0
-	
-	# Exponentially scales down particles over lifetime
-	var curve := Curve.new()
-	curve.add_point(Vector2(0.0, 1.0))
-	curve.add_point(Vector2(1.0, 0.0))
-	
-	var curve_tex := CurveTexture.new()
-	curve_tex.curve = curve
-	p_mat.scale_curve = curve_tex
-	
-	particles.process_material = p_mat
-	particles.amount = 12 # Optimized down from 20 for lag-free physics frames
-	particles.one_shot = true
-	particles.explosiveness = 1.0
-	particles.lifetime = 0.35
-	
-	get_parent().add_child(particles)
-	# Positioned exactly at the lower feet boundary of Pac-Man's capsule sphere
-	particles.global_position = global_position - Vector3(0.0, 0.45, 0.0)
-	particles.emitting = true
-	
-	# Self-destroy on completion (LSP/Memory compliance)
-	get_tree().create_timer(0.6).timeout.connect(particles.queue_free)
-
 
 func _physics_process(delta: float) -> void:
 	if is_dead:
@@ -665,35 +251,30 @@ func _physics_process(delta: float) -> void:
 		move_and_slide()
 		return
 
-	# --- VIRTUAL JUMP PHYSICS (GRAVITY & LANDING) ---
+	# Virtual Jump Physics
 	if global_position.y > virtual_floor_y:
-		# Apply gravity downwards
 		velocity.y -= GRAVITY * delta
 	else:
-		# Clamp Pac-Man flat on the floor
 		velocity.y = 0.0
 		global_position.y = virtual_floor_y
 		is_jumping = false
 		
-	# Trigger Jump: spacebar
 	if Input.is_action_just_pressed("ui_select") and not is_jumping:
 		velocity.y = JUMP_VELOCITY
 		is_jumping = true
 		
-		# Trigger the upward jet-thrust spark blast (Phase 4)
-		_trigger_jump_thrust_particles()
+		# Trigger the upward jet-thrust spark blast (SRP Compliance)
+		PlayerVisualBuilder.trigger_jump_thrust(get_parent(), global_position)
 
-	# --- INVINCIBILITY CYCLE PROCESSOR ---
+	# Invincibility process
 	if is_powered_up:
 		power_timer -= delta
 		if power_timer <= 0.0:
 			_deactivate_power_up()
 		else:
-			# Cooldown Warning: blink body, eyes, and sparks during the final 2.5 seconds
 			if power_timer <= 2.5:
 				var blink = int(power_timer * 5.0) % 2 == 0
 				if blink:
-					# Temporarily show original colors
 					player_material.albedo_color = Color(1.0, 1.0, 0.0)
 					player_material.emission_enabled = false
 					if pupil_material:
@@ -702,7 +283,6 @@ func _physics_process(delta: float) -> void:
 					if is_instance_valid(power_particles):
 						power_particles.emitting = false
 				else:
-					# Return to golden glow
 					player_material.albedo_color = Color(1.0, 0.45, 0.0)
 					player_material.emission_enabled = true
 					player_material.emission = Color(1.0, 0.25, 0.0)
@@ -713,65 +293,53 @@ func _physics_process(delta: float) -> void:
 					if is_instance_valid(power_particles):
 						power_particles.emitting = true
 
-	# --- SPEED BOOSTER TIMER PROCESSOR (Phase 4) ---
+	# Speed booster process
 	if is_speed_boosted:
 		speed_boost_timer -= delta
 		if speed_boost_timer <= 0.0:
 			_deactivate_speed_boost()
 
-	# --- PROCEDURAL HEADPHONE RGB PULSE ---
-	# Fast subtle neon pulsing to simulate listening to the level's music (Phase 4)
+	# Headphone pulse animation
 	if is_instance_valid(headphone_ring_material) and velocity.length() > 0.1:
 		var pulse : float = 1.0 + sin(Time.get_ticks_msec() * 0.015) * 0.35
 		headphone_ring_material.emission_energy_multiplier = pulse
 	elif is_instance_valid(headphone_ring_material):
-		headphone_ring_material.emission_energy_multiplier = 0.8 # Calm standby glow
+		headphone_ring_material.emission_energy_multiplier = 0.8 
 
 	_handle_arcade_input()
 	_process_arcade_movement()
 	_process_eye_blinking(delta)
 	_process_mouth_animation(delta)
 
-# Orchestrates smooth chewing and dynamic mouth-stretching while running (SRP Compliance)
 func _process_mouth_animation(delta: float) -> void:
 	if not is_instance_valid(mouth_instance) or is_dead:
 		return
 		
-	# Only chew if Pac-Man is actively moving (velocity magnitude is high)
 	if velocity.length() > 0.1:
 		mouth_time += delta
-		# Fast biting cycle (24.0 rad/s)
-		# Biting factor oscillates cleanly between 0.0 and 1.0
 		var bite_factor : float = (sin(mouth_time * 24.0) + 1.0) / 2.0
-		
-		# Squash and Stretch: scale mouth vertically while stretching cheeks horizontally
 		mouth_instance.scale.y = lerpf(0.05, 0.72, bite_factor)
 		mouth_instance.scale.x = lerpf(0.5, 0.62, bite_factor)
 	else:
-		# Relax mouth to a slightly open line when static
 		mouth_instance.scale.y = 0.12
 		mouth_instance.scale.x = 0.52
 
-# Handles the dynamic eye-blinking scale animation
 func _process_eye_blinking(delta: float) -> void:
 	if not is_instance_valid(eyes_holder):
 		return
 		
-	# Skip standard blinking cycles if Pac-Man is in a focused, angry invincibility state
 	if is_powered_up:
-		eyes_holder.scale.y = 1.0 # Keep eyes wide open
+		eyes_holder.scale.y = 1.0 
 		return
 		
 	blink_timer += delta
 	if not is_blinking:
 		if blink_timer >= next_blink_time:
-			# Shut eyes closed
 			is_blinking = true
 			blink_timer = 0.0
 			eyes_holder.scale.y = 0.05
 	else:
 		if blink_timer >= blink_duration:
-			# Re-open eyes and calculate randomized next interval
 			is_blinking = false
 			blink_timer = 0.0
 			next_blink_time = randf_range(2.5, 6.0)
@@ -795,17 +363,12 @@ func _process_arcade_movement() -> void:
 			next_direction = Vector3.ZERO 
 			
 	if current_direction != Vector3.ZERO:
-		# Preserve the vertical jump velocity while moving horizontally
 		var y_vel = velocity.y
-		
-		# Scales actual physical velocity dynamically based on Speed Overload boost state
 		var current_run_speed : float = BOOSTED_SPEED if is_speed_boosted else SPEED
 		
 		velocity = current_direction * current_run_speed
 		velocity.y = y_vel
 		
-		# --- DYNAMIC GRID OFFSET MATH ---
-		# Calculates offsets dynamically using global map bounds to prevent even/odd size mismatches
 		var offset_x : float = 32.0
 		var offset_z : float = 32.0
 		if GameManager and GameManager.grid_width > 0:
@@ -829,10 +392,19 @@ func _process_arcade_movement() -> void:
 		velocity = Vector3.ZERO
 		velocity.y = y_vel
 		
-	# --- MOTION TRAIL EMITTER ACTIVATION ---
-	# Emit glowing trailing particles only when Pac-Man is actively moving
 	if is_instance_valid(motion_trail):
-		_update_motion_trail_materials() # Sync color palette
+		_update_motion_trail_materials() 
 		motion_trail.emitting = (velocity.length() > 0.1)
 		
 	move_and_slide()
+
+# ==============================================================================
+# --- MINIMAP POLYMORPHISM (LSP/OCP COMPLIANCE) ---
+# Safely exposes drawing instructions to the 2D Minimap radar.
+# ==============================================================================
+
+func get_minimap_color() -> Color:
+	return Color(1.0, 1.0, 0.0) # Electric Yellow
+
+func get_minimap_radius() -> float:
+	return 4.5
