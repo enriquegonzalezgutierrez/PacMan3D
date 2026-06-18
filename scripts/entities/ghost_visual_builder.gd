@@ -1,128 +1,75 @@
 # ==============================================================================
-# Description: Procedural 3D Mesh Builder for Ghosts.
-#              Assembles the procedural capsule, retro eyes, wavy skirt, and 
-#              calls the strategy pattern to attach custom decorations.
-#              SOLID Refactoring:
-#              - SRP Compliance: Extracted entirely from ghost.gd. This class 
-#                is strictly responsible for the 3D visual generation, completely 
-#                decoupling graphics from AI and physics logic.
+# Description: Procedural 3D Mesh and CPUParticle Builder for Ghosts (Ciber-Molinos).
+#              SOLID Refactoring & Visual Fixes:
+#              - Autonomous Texture Scanner (DIP): Scans the 'textures' subdirectory 
+#                on the fly, automatically resolving and compiling Meshy AI's 
+#                long random filenames into a StandardMaterial3D (unshaded).
+#              - Material Sync: Returns the compiled PBR textured material in the 
+#                output dictionary so ghost.gd can set it as its original_material, 
+#                preventing flat solid color overrides.
 # Author: Enrique González Gutiérrez
 # Email: enrique.gonzalez.gutierrez@gmail.com
 # ==============================================================================
 extends RefCounted
 class_name GhostVisualBuilder
 
-# Assembles the ghost's 3D components and returns the dynamic node references 
-# needed by ghost.gd for procedural animations.
-static func build_visuals(ghost: CharacterBody3D, strategy: GhostBehavior, original_material: StandardMaterial3D) -> Dictionary:
-	var visual_mesh = MeshInstance3D.new()
+# Assembles the ghost's 3D components and returns the dynamic node references
+static func build_visuals(ghost: CharacterBody3D, strategy: GhostBehavior, original_material: StandardMaterial3D, ghost_type: String) -> Dictionary:
+	var visual_mesh : Node3D = null
 	var collision_shape = CollisionShape3D.new()
 	
-	# 1. Query dynamic visual specifications from the Strategy (OCP/SRP Compliance)
-	var radius : float = 0.9
-	var height : float = 1.8
+	# Default standard dimensions
+	var radius : float = 0.6
+	var height : float = 1.7
 	
 	if strategy:
 		radius = strategy.get_capsule_radius()
 		height = strategy.get_capsule_height()
 		
-	# 2. Main Capsule Body
-	var capsule_mesh := CapsuleMesh.new()
-	capsule_mesh.radius = radius
-	capsule_mesh.height = height
-	visual_mesh.mesh = capsule_mesh
+	# 1. Programmatically load and instantiate the correct Ciber-Molino FBX model
+	var model_name : String = ghost_type.to_lower()
+	var character_path : String = "res://assets/models/ghosts/" + model_name + "/" + model_name + ".fbx"
 	
-	if not original_material:
-		original_material = StandardMaterial3D.new()
-		original_material.albedo_color = Color(1.0, 0.0, 0.0)
-		original_material.roughness = 0.2
+	if ResourceLoader.exists(character_path):
+		var character_scene = load(character_path) as PackedScene
+		if character_scene:
+			visual_mesh = character_scene.instantiate()
+			
+	# Defensive Fallback: If FBX is missing, fallback to a standard low-poly capsule
+	if not is_instance_valid(visual_mesh):
+		visual_mesh = MeshInstance3D.new()
+		var fallback_mesh := CapsuleMesh.new()
+		fallback_mesh.radius = radius
+		fallback_mesh.height = height
+		visual_mesh.mesh = fallback_mesh
+		if original_material:
+			visual_mesh.material_override = original_material
+			
+	# 2. Programmatically compile the PBR material from Meshy AI texture maps (SRP Compliance)
+	var pbr_material := StandardMaterial3D.new()
+	pbr_material.shading_mode = StandardMaterial3D.SHADING_MODE_UNSHADED # Unshaded for glowing neon details!
+	
+	# Dynamically scan the textures folder to load textures regardless of dynamic filename indices
+	_load_textures_for_ghost(model_name, pbr_material)
+	
+	# Recursively map our compiled PBR material onto all internal mesh surfaces
+	_apply_material_recursive(visual_mesh, pbr_material)
+	
+	# Scale up to a massive 1.5x to match the new giant 1080p proportions
+	visual_mesh.scale = Vector3(1.5, 1.5, 1.5)
+	
+	# Find where the Skeleton3D actually lives inside the instantiated scene
+	var blades_node = _find_blades_node_recursive(visual_mesh)
+	if blades_node:
+		print("[MARTÍN_MAN] Ghost [", ghost_type, "] blades node resolved at: ", blades_node.name)
 		
-	visual_mesh.material_override = original_material
+	# 4. Attach the color-matched base thruster exhaust CPUParticles3D
+	var particle_color = original_material.albedo_color if original_material else Color(1.0, 0.0, 0.0)
+	var thruster_emitter = _build_thruster_particles(particle_color)
+	visual_mesh.add_child(thruster_emitter)
+	thruster_emitter.emitting = true
 	
-	# 3. Procedural Retro Ghost Eyes
-	var eyes_holder = Node3D.new()
-	
-	var sclera_mat := StandardMaterial3D.new()
-	sclera_mat.albedo_color = Color(1.0, 1.0, 1.0) # Pure White Sclera
-	sclera_mat.roughness = 0.6
-	
-	var pupil_mat := StandardMaterial3D.new()
-	pupil_mat.albedo_color = Color(0.0, 0.2, 1.0) # Classic Blue pupils
-	pupil_mat.roughness = 0.4
-	
-	# Default forward pupil offsets on face
-	var pupil_left_pos := Vector3(-0.35, 0.4, -0.75 - radius * 0.2)
-	var pupil_right_pos := Vector3(0.35, 0.4, -0.75 - radius * 0.2)
-	
-	if strategy:
-		var custom_offsets : Dictionary = strategy.get_pupil_offsets()
-		pupil_left_pos = custom_offsets.get("left", pupil_left_pos)
-		pupil_right_pos = custom_offsets.get("right", pupil_right_pos)
-	
-	var sclera_mesh := SphereMesh.new()
-	sclera_mesh.radius = 0.2
-	sclera_mesh.height = 0.4
-	
-	var pupil_mesh := SphereMesh.new()
-	pupil_mesh.radius = 0.08
-	pupil_mesh.height = 0.16
-	
-	# Left Eye
-	var left_sclera := MeshInstance3D.new()
-	left_sclera.mesh = sclera_mesh
-	left_sclera.material_override = sclera_mat
-	left_sclera.position = Vector3(-0.35, 0.4, -0.75) 
-	eyes_holder.add_child(left_sclera)
-	
-	var left_pupil := MeshInstance3D.new()
-	left_pupil.mesh = pupil_mesh
-	left_pupil.material_override = pupil_mat
-	left_pupil.position = pupil_left_pos
-	eyes_holder.add_child(left_pupil)
-	
-	# Right Eye
-	var right_sclera := MeshInstance3D.new()
-	right_sclera.mesh = sclera_mesh
-	right_sclera.material_override = sclera_mat
-	right_sclera.position = Vector3(0.35, 0.4, -0.75)
-	eyes_holder.add_child(right_sclera)
-	
-	var right_pupil := MeshInstance3D.new()
-	right_pupil.mesh = pupil_mesh
-	right_pupil.material_override = pupil_mat
-	right_pupil.position = pupil_right_pos
-	eyes_holder.add_child(right_pupil)
-	
-	visual_mesh.add_child(eyes_holder)
-	
-	# 4. Procedural Retro Wavy Skirt
-	var skirt_spheres : Array[MeshInstance3D] = []
-	var skirt_radius : float = 0.28
-	var skirt_mesh := SphereMesh.new()
-	skirt_mesh.radius = skirt_radius
-	skirt_mesh.height = skirt_radius * 2.0
-	
-	var skirt_base_y = -height / 2.0
-	var skirt_offsets = [
-		Vector3(-radius * 0.5, skirt_base_y, 0.0),
-		Vector3(radius * 0.5, skirt_base_y, 0.0),
-		Vector3(0.0, skirt_base_y, -radius * 0.5),
-		Vector3(0.0, skirt_base_y, radius * 0.5)
-	]
-	
-	for offset in skirt_offsets:
-		var sphere := MeshInstance3D.new()
-		sphere.mesh = skirt_mesh
-		sphere.material_override = original_material 
-		sphere.position = offset
-		visual_mesh.add_child(sphere) 
-		skirt_spheres.append(sphere)
-		
-	# 5. Procedural Accessories Attachment
-	if strategy:
-		strategy.attach_custom_decorations(visual_mesh)
-	
-	# 6. Physical Collision Shape
+	# 5. Programmatically compile the Physics Capsule collider
 	var capsule_shape := CapsuleShape3D.new()
 	capsule_shape.radius = radius
 	capsule_shape.height = height
@@ -132,10 +79,114 @@ static func build_visuals(ghost: CharacterBody3D, strategy: GhostBehavior, origi
 	ghost.add_child(visual_mesh)
 	ghost.add_child(collision_shape)
 	
-	# Return references needed for animation (hovering, blinking, waving)
 	return {
 		"visual_mesh": visual_mesh,
-		"eyes_holder": eyes_holder,
-		"skirt_spheres": skirt_spheres,
-		"capsule_height": height
+		"blades_node": blades_node,
+		"capsule_height": height,
+		"compiled_material": pbr_material # --- RETURN THE TEXTURED PBR MATERIAL ---
 	}
+
+# Helper to recursively apply flat materials to nested MeshInstance3D nodes inside the FBX
+static func _apply_material_recursive(node: Node, material: Material) -> void:
+	if node is MeshInstance3D:
+		node.material_override = material
+	for child in node.get_children():
+		_apply_material_recursive(child, material)
+
+# Scan and apply textures dynamically based on file system directories (DIP Compliance)
+static func _load_and_apply_texture(target_mat: StandardMaterial3D, folder_path: String, type: String) -> void:
+	if not DirAccess.dir_exists_absolute(folder_path):
+		return
+		
+	var dir = DirAccess.open(folder_path)
+	if dir:
+		dir.list_dir_begin()
+		var file_name = dir.get_next()
+		while file_name != "":
+			if not dir.current_is_dir() and not file_name.ends_with(".import"):
+				var name_lower : String = file_name.to_lower()
+				var is_match : bool = false
+				
+				# Filter for specific texture type (e.g. metallic, normal, roughness, or base color)
+				if type == "albedo" and "metallic" not in name_lower and "normal" not in name_lower and "roughness" not in name_lower:
+					if "texture" in name_lower or "albedo" in name_lower or "diffuse" in name_lower:
+						is_match = true
+				elif type == "metallic" and "metallic" in name_lower:
+					is_match = true
+				elif type == "normal" and "normal" in name_lower:
+					is_match = true
+				elif type == "roughness" and "roughness" in name_lower:
+					is_match = true
+					
+				if is_match:
+					var full_tex_path = folder_path + file_name
+					var tex = load(full_tex_path) as Texture2D
+					if tex:
+						apply_texture_channel(target_mat, tex, type)
+						break
+			file_name = dir.get_next()
+		dir.list_dir_end()
+
+static var is_match_detected : bool = false
+
+static func apply_texture_channel(mat: StandardMaterial3D, tex: Texture2D, type: String) -> void:
+	match type:
+		"albedo": mat.albedo_texture = tex
+		"metallic":
+			mat.metallic = 1.0
+			mat.metallic_texture = tex
+		"roughness": mat.roughness_texture = tex
+		"normal":
+			mat.normal_enabled = true
+			mat.normal_texture = tex
+
+# Autonomous Directory Texture Loader (DIP Compliance)
+# Scans the textures/ folder, identifies maps, and binds them cleanly to the material
+static func _load_textures_for_ghost(ghost_name: String, target_mat: StandardMaterial3D) -> void:
+	var path = "res://assets/models/ghosts/" + ghost_name + "/textures/"
+	_load_and_apply_texture(target_mat, path, "albedo")
+	_load_and_apply_texture(target_mat, path, "metallic")
+	_load_and_apply_texture(target_mat, path, "roughness")
+	_load_and_apply_texture(target_mat, path, "normal")
+
+# Recursive helper to locate the independent blades/propeller mesh
+static func _find_blades_node_recursive(node: Node) -> Node3D:
+	var name_lower = node.name.to_lower()
+	if node is MeshInstance3D and ("1" in node.name or "blade" in name_lower or "propeller" in name_lower or "part" in name_lower):
+		return node
+	for child in node.get_children():
+		var found = _find_blades_node_recursive(child)
+		if found:
+			return found
+	return null
+
+# Compiles a gorgeous downward rocket jet stream (Juice Compliance)
+static func _build_thruster_particles(color: Color) -> CPUParticles3D:
+	var emitter := CPUParticles3D.new()
+	var mesh := BoxMesh.new()
+	mesh.size = Vector3(0.04, 0.04, 0.04)
+	
+	var mat := StandardMaterial3D.new()
+	mat.shading_mode = StandardMaterial3D.SHADING_MODE_UNSHADED
+	mat.albedo_color = color
+	mesh.material = mat
+	
+	emitter.mesh = mesh
+	emitter.emission_shape = CPUParticles3D.EMISSION_SHAPE_SPHERE
+	emitter.emission_sphere_radius = 0.10
+	emitter.direction = Vector3.DOWN 
+	emitter.spread = 15.0 
+	emitter.initial_velocity_min = 2.0
+	emitter.initial_velocity_max = 4.0
+	emitter.gravity = Vector3(0.0, -9.8, 0.0) 
+	
+	var curve := Curve.new()
+	curve.add_point(Vector2(0.0, 1.0))
+	curve.add_point(Vector2(1.0, 0.0))
+	emitter.scale_amount_curve = curve
+	
+	emitter.amount = 8 
+	emitter.lifetime = 0.3
+	emitter.position = Vector3(0.0, -0.4, 0.0) 
+	
+	return emitter

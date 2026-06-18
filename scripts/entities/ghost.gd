@@ -4,11 +4,13 @@
 #              abstract behavior strategy.
 #              SOLID Refactoring:
 #              - SRP & LSP Compliance: Maintained clean separation of concerns.
-#              - Positional 3D Audio: Upgraded eaten audio to AudioStreamPlayer3D. 
-#                Implemented dynamic stereo panning, log distance attenuation, 
-#                and atmospheric low-pass damping filters.
-#              - API Fix: Removed non-existent attenuation_filter_enabled property 
-#                to comply with Godot 4's native AudioStreamPlayer3D specifications.
+#              - Ciber-Molino Animation: Dynamically spins the FBX model's native 
+#                3D blades in real-time if detected by the visual builder.
+#              - Positional 3D Audio: Upgraded eaten audio to AudioStreamPlayer3D.
+#              - Material Overwrite Bug Fix: Captures the compiled textured material 
+#                returned by the GhostVisualBuilder on startup, updating 
+#                original_material. This completely prevents active game states 
+#                from overwriting the brick and neon textures with flat colors.
 # Author: Enrique González Gutiérrez
 # Email: enrique.gonzalez.gutierrez@gmail.com
 # ==============================================================================
@@ -49,7 +51,7 @@ var grid_height : int = 0
 var eaten_stream : AudioStream
 
 # Internal Node Components
-var visual_mesh : MeshInstance3D
+var raw_visual_node : Node3D 
 var eaten_audio : AudioStreamPlayer3D
 var current_direction : Vector3 = Vector3.FORWARD
 var next_direction : Vector3 = Vector3.FORWARD
@@ -64,16 +66,10 @@ var frightened_timer : float = 0.0
 var frightened_duration : float = 7.0 
 
 # Visual Builder References (Injected by GhostVisualBuilder)
-var eyes_holder : Node3D
-var skirt_spheres : Array[MeshInstance3D] = []
+var blades_node : Node3D # Reference to the spinning windmill blades
 var capsule_height : float = 1.8 
 
-# Dynamic Eye Tracking Variables
-var is_blinking : bool = false
-var blink_timer : float = 0.0
-var blink_duration : float = 0.15
-var next_blink_time : float = 3.0
-
+# Dynamic Hovering state
 var hover_time : float = 0.0
 
 # Foso navigation state
@@ -119,18 +115,21 @@ func _ready() -> void:
 	_configure_collision_layers()
 	
 	# Delegate visual construction to the static builder (SRP Compliance)
-	var visual_components = GhostVisualBuilder.build_visuals(self, behavior_strategy, original_material)
-	visual_mesh = visual_components["visual_mesh"]
-	eyes_holder = visual_components["eyes_holder"]
-	skirt_spheres = visual_components["skirt_spheres"]
+	var visual_components = GhostVisualBuilder.build_visuals(self, behavior_strategy, original_material, ghost_type)
+	raw_visual_node = visual_components["visual_mesh"]
+	blades_node = visual_components["blades_node"]
 	capsule_height = visual_components["capsule_height"]
+	
+	# --- VISUAL FIX: SYNC ORIGINAL MATERIAL ---
+	# Assign original_material to the compiled, beautifully textured material returned by the builder.
+	# This guarantees that the loop restoring standard materials actually loads the textures!
+	if visual_components.has("compiled_material"):
+		original_material = visual_components["compiled_material"]
 	
 	_setup_player_detection()
 	_setup_audio()
 	
-	next_blink_time = randf_range(2.0, 5.0)
 	hover_time = randf_range(0.0, 5.0)
-	
 	_detect_exit_position_dynamically()
 	
 	current_direction = CARDINAL_DIRECTIONS.pick_random()
@@ -183,14 +182,10 @@ func _setup_player_detection() -> void:
 # Programmatically constructs the spatial 3D audio player (3D Positional Audio Compliance)
 func _setup_audio() -> void:
 	eaten_audio = AudioStreamPlayer3D.new()
-	eaten_audio.unit_size = 10.0 # Attenuation begins at 10 meters
-	eaten_audio.max_distance = 30.0 # Fades completely past map limits
-	eaten_audio.panning_strength = 1.0 # High-contrast stereo panning
-	
-	# --- API FIX: ENABLING FILTERS AUTOMATICALLY IN GODOT 4 ---
-	# In Godot 4, setting the cutoff frequency automatically activates the low-pass 
-	# distance filter, completely removing the need for a separate boolean property.
-	eaten_audio.attenuation_filter_cutoff_hz = 5000.0 # 5 kHz low-pass cutoff
+	eaten_audio.unit_size = 10.0 
+	eaten_audio.max_distance = 30.0 
+	eaten_audio.panning_strength = 1.0 
+	eaten_audio.attenuation_filter_cutoff_hz = 5000.0 
 	
 	if eaten_stream:
 		eaten_audio.stream = eaten_stream
@@ -330,69 +325,54 @@ func _physics_process(delta: float) -> void:
 	move_and_slide()
 	_process_ghost_animations(delta)
 
+# Animates the hovering float and the spinning windmill blades (SRP Compliance)
 func _process_ghost_animations(delta: float) -> void:
 	if is_frozen: return
 		
 	hover_time += delta
-	_process_eye_blinking(delta)
 	
-	if is_instance_valid(visual_mesh):
-		visual_mesh.position.y = sin(hover_time * 3.0) * 0.06
+	# 1. Gentle floating hovering vertical bobbing (Sine-wave)
+	if is_instance_valid(raw_visual_node):
+		raw_visual_node.position.y = sin(hover_time * 3.0) * 0.06
 		
-	for i in range(skirt_spheres.size()):
-		var sphere = skirt_spheres[i]
-		if is_instance_valid(sphere):
-			var phase_offset : float = i * (PI / 2.0)
-			var skirt_base_y = -capsule_height / 2.0
-			sphere.position.y = skirt_base_y + sin(hover_time * 6.0 + phase_offset) * 0.08
+	# 2. Programmatic Spinning Blades (Diorama/Skeletal Rotation)
+	if is_instance_valid(blades_node):
+		blades_node.rotate_z(12.0 * delta)
 			
+	# 3. Smooth steering orientation towards active moving direction
 	if not is_inside_foso and current_direction != Vector3.ZERO:
 		var target_rotation_y = atan2(-current_direction.x, -current_direction.z)
 		rotation.y = lerp_angle(rotation.y, target_rotation_y, 0.2)
 
-func _process_eye_blinking(delta: float) -> void:
-	if not is_instance_valid(eyes_holder):
-		return
-		
-	blink_timer += delta
-	if not is_blinking:
-		if blink_timer >= next_blink_time:
-			is_blinking = true
-			blink_timer = 0.0
-			eyes_holder.scale.y = 0.05
-	else:
-		if blink_timer >= blink_duration:
-			is_blinking = false
-			blink_timer = 0.0
-			next_blink_time = randf_range(2.5, 6.0)
-			eyes_holder.scale.y = 1.0
-
+# Overrides material recursively across all internal FBX MeshInstance3D nodes
 func _apply_material(mat: StandardMaterial3D) -> void:
 	if current_state == State.EATEN:
 		return
 		
-	if visual_mesh and mat:
-		visual_mesh.material_override = mat
-		for sphere in skirt_spheres:
-			if is_instance_valid(sphere):
-				sphere.material_override = mat
+	# --- SOLID RECURSIVE FIX ---
+	# Recursively applies materials across all sub-meshes of the FBX structure safely.
+	if is_instance_valid(raw_visual_node) and mat:
+		_apply_material_recursive(raw_visual_node, mat)
+
+# Helper to recursively apply materials to nested MeshInstance3D nodes inside the FBX
+func _apply_material_recursive(node: Node, material: Material) -> void:
+	if node is MeshInstance3D:
+		node.material_override = material
+	for child in node.get_children():
+		_apply_material_recursive(child, material)
 
 func _set_body_visibility(should_be_visible: bool) -> void:
-	if visual_mesh:
+	# Fixed: Swapped direct assignment with safe recursive material overrides
+	if is_instance_valid(raw_visual_node):
 		if should_be_visible:
-			visual_mesh.material_override = original_material
-			for sphere in skirt_spheres:
-				if is_instance_valid(sphere):
-					sphere.visible = true
-					sphere.material_override = original_material
+			_apply_material_recursive(raw_visual_node, original_material)
 		else:
-			visual_mesh.material_override = _get_invisible_material()
-			for sphere in skirt_spheres:
-				if is_instance_valid(sphere):
-					sphere.visible = false
-				
-		if is_instance_valid(eyes_holder):
-			eyes_holder.visible = true
+			_apply_material_recursive(raw_visual_node, _get_invisible_material())
+			
+		# Ensure eyes remain visible during floatings (if any eyes_holder exists)
+		var eyes = raw_visual_node.get_node_or_null("eyes_holder")
+		if is_instance_valid(eyes):
+			eyes.visible = true
 
 func _get_invisible_material() -> StandardMaterial3D:
 	var mat = StandardMaterial3D.new()
@@ -582,7 +562,6 @@ func _on_player_detected(body: Node3D) -> void:
 			next_direction = current_direction
 		elif current_state != State.EATEN:
 			player_caught.emit(false, global_position)
-
 
 # ==============================================================================
 # --- MINIMAP POLYMORPHISM (LSP/OCP COMPLIANCE) ---
