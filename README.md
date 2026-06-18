@@ -17,17 +17,21 @@ This project focuses on robust core mechanics, physics-based movement, procedura
 
 ---
 
-## Features (Phase 1, 2, 3 & 4 Completed)
+## Features (Phases 1, 2, 3, 4 & 5 Completed)
 *   **Procedural Level Generator (Python):** Automatically crafts braided, symmetric, 100% connected 3D mazes in under `0.01` seconds with zero dead-ends or 2x2 plazas.
 *   **Multi-Style Visual Themes:** Levels are rendered dynamically in one of four procedurally generated themes:
     *   `pipes`: Connected double-deck pipeline rails with brushed satin metallic reflections.
     *   `blocks`: Monolithic neon arcade cubes.
     *   `pillars`: Futuristic columns topped with glowing, emissive floating spheres.
-    *   `circuits`: Holographic printed circuit boards with glowing continuous neón data-bus tracks.
+    *   `circuits`: Holographic printed circuit boards with glowing continuous neon data-bus tracks.
 *   **Decoupled Diorama Camera:** A standalone camera tracking node utilizing steep perspectives, narrow FOVs, smooth spatial LERP damping, and a procedural drone bobbing.
 *   **Arcade-Accurate Ghost AI:** Features coordinate-based pathfinding, behavior strategies (Blinky, Pinky, Inky, Clyde), kinematic foso-exiting logic, and a deterministic "Eaten" state where floating eyes return to their spawn pads to heal.
 *   **Automated Level Progression & Scaling:** Seamless level transitions that dynamically scale ghost speeds, music pitch, and reduce power-pellet timers.
-*   **Secure High-Score Persistence:** Encrypted binary save file (`user://high_scores.dat`) with AES-256 password protection for cross-platform cheat prevention (PC and Android).
+*   **Secure Local Persistence:** Encrypted binary save files with AES-256 password protection for cross-platform cheat prevention (PC and Android sandboxes).
+*   **Local Tournament Leaderboard (Top 5):** Structured, encrypted scoreboard tracking the 5 highest local scores. Includes automated data migration to import and update legacy single-score saves from older versions seamlessly on startup.
+*   **Classic Letter-Wheel Initials UI:** Interactive 3-slot A-Z character cycling wheel in the HUD upon qualifying Game Over states. Designed with dual control mappings, supporting both tactile mobile arrow buttons and PC keyboard navigation.
+*   **3D Positional Audio Attenuation:** Immersive spatial 3D audio. Pac-Man's waka-waka and ghost sirens automatically pan stereo and attenuate log-distantly based on camera coords, including high-frequency air-absorption low-pass filtering.
+*   **Interactive Audio Settings Panel:** Self-contained UI overlay programmatically configuring `"Music"` and `"SFX"` AudioServer buses out-of-the-box, saving decibel volume states to encrypted files.
 *   **Smart Laser Gate & Portal Arches:** One-way physical laser barriers (Layer 4) preventing Pac-Man from cheating, paired with self-aligning holographic portal gateways with shimmering energy curtains.
 *   **Energy Motion Trails & Thrusters:** Particle-driven continuous light trails (dynamically color-coded: Yellow, Gold, Cyan), jet-thrust jump spark exhausts, and glowing lightning bolt speed pellets.
 *   **Cyber Spawn Pods:** Symmetrical high-tech dark carbon and glowing neon containment pads lining the foso floor underneath each ghost.
@@ -44,7 +48,7 @@ This project focuses on robust core mechanics, physics-based movement, procedura
 *   `/data/` - JSON level configuration files.
 *   `/scripts/core/` - Global GameManager, LevelManager orchestrator, MapValidator, and LevelBuilder assembler.
 *   `/scripts/entities/` - Player, Ghosts, behaviors, DioramaCamera, Portals, and Pellets.
-*   `/scripts/ui/` - HUD, procedural Main Menu, credits roll, and 2D Vectorial Minimap.
+*   `/scripts/ui/` - HUD, Settings, procedural Main Menu, credits roll, and 2D Vectorial Minimap.
 
 ---
 

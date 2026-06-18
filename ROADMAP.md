@@ -92,24 +92,24 @@ Email: enrique.gonzalez.gutierrez@gmail.com
 *   Instantiated an energetic downward gold-neon spark jet exhaust upon jumping.
 
 ### 4. Mobile Virtual Joystick & Controls [X]
-*   Replaced the rigid 4-button D-Pad with a custom 360-degree floating analog stick (320px base, 130px knob) and enlarged JUMP button to 220px for ultimate ergonomics.
+*   Replaced the D-Pad with a custom 360-degree floating analog stick (320px base, 130px knob) and enlarged JUMP button to 220px for ultimate ergonomics.
 
 ### 5. Cinematic System Loader [X]
 *   Designed a dedicated black loading screen ("GENERATING SYSTEM...") with deferred frame rendering and an 800ms minimum pacing delay to ensure seamless transitions on high-end PCs.
 
 ---
 
-## Phase 5: Tournament Mode, settings & 3D Audio (FUTURE SCOPE)
+## Phase 5: Tournament Mode, Settings & 3D Audio (COMPLETED)
 
-### 1. Local Tournament Leaderboard (Top 5)
-*   Expand the high-score serialization into a top 5 local leaderboard array.
-*   Develop an arcade-classic letter-wheel entry interface (A-Z) in the HUD to let players input their 3-letter initials (e.g. `ENR`, `AAA`) on Game Over.
+### 1. Local Tournament Leaderboard (Top 5) [X]
+*   Expanded the high-score serialization into an encrypted Top 5 local leaderboard array, including automatic legacy migration of older high score saves.
+*   Developed an arcade-classic letter-wheel entry interface (A-Z) in the HUD to let players input their 3-letter initials on Game Over.
 
-### 2. 3D Positional Audio Attenuation
-*   Replace standard AudioStreamPlayers with AudioStreamPlayer3Ds for waka-waka and ghost sirens, attenuating volume based on distance to the diorama camera.
+### 2. 3D Positional Audio Attenuation [X]
+*   Upgraded stereo audio players to AudioStreamPlayer3D, implementing real-time dynamic panning, distance attenuation, and low-pass air absorption filters.
 
-### 3. Interactive Settings Panel
-*   Create a clean, cyber-style settings menu inside the Main Menu to adjust master, sfx, and music volumes.
+### 3. Interactive Settings Panel [X]
+*   Created a clean, cyber-style settings menu inside the Main Menu to adjust master, sfx, and music volumes, utilizing dynamic audio bus generation and encrypted persistence.
 
 ---
 
