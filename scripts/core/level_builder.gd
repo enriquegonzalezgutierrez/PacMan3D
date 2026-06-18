@@ -19,20 +19,25 @@
 #                camera's South-to-North viewport to produce optimal metal reflections.
 #              - REFCOUNTED SIGNAL FIX: Removed invalid get_tree() deferred calls 
 #                inside RefCounted builder, restoring direct signal bindings.
-#              Phase 3 Updates:
-#              - GHOST HOUSE LASER GATE: Programmatically instantiates a neon-pink 
-#                one-way physical laser barrier on Layer 4 (8) at the foso gate 
-#                coordinates to block Pac-Man while permitting eaten ghosts.
-#              - SPEED PELLET PROBABILISTIC SPAWNING (OCP Compliance): Added 
-#                SpeedPellet (lightning bolt) spawning on corner cells (type 3) 
-#                under a balanced 60/20/20 probability split.
 #              Phase 4 Updates:
 #              - CYBER CIRCUITS THEME: Developed a fourth modular maze style ("circuits") 
 #                featuring matte obsidian board panels wrapped with glowing, 
-#                tint-matched holographic micro-conduits and corner nodes.
+#                tint-matched holographic micro-conduits and nodes.
 #              - CYBER SPAWN PODS: Instantiates color-matched high-tech glowing 
 #                containment pads flat on the foso floor under each ghost's 
 #                respective starting spawn coordinate.
+#              - SOLID PHYSICAL BLACK FLOOR: Instantiates a massive, matte, deep-black 
+#                floor plane underneath the maze to eliminate environmental glares 
+#                and visual oversaturation in OpenGL / Compatibility rendering.
+#              - WARNING FIX: Replaced obsolete 'specular' parameter with native 
+#                Godot 4 'metallic_specular' to prevent engine remapping warnings.
+#              - GLOSSY NEON TOY SHELLS (Visual Muddying Fix): Switched Player and 
+#                ghost materials from heavy chrome metals to highly saturated, 
+#                double-layered glossy toy plastic (0.05 metallic, 0.15 roughness, 
+#                1.0 clearcoat) with a 30% cyber-glow emission. This guarantees 
+#                vibrant, radiant, non-darkening primary colors under any light.
+#              - CLEAN SIGNATURES: Removed unused offset parameters from 
+#                _spawn_flat_dark_floor() to prevent compilation warnings.
 # Author: Enrique González Gutiérrez
 # Email: enrique.gonzalez.gutierrez@gmail.com
 # ==============================================================================
@@ -72,11 +77,16 @@ func _initialize_materials() -> void:
 	wall_material.metallic = 0.85 # Controlled metal look
 	wall_material.metallic_specular = 0.5 # Natural specular reflection
 	
-	# 2. Player Material
+	# 2. Player Material (Glossy Neon Yellow Toy - Saturated & Double-layered Clearcoat)
 	player_material = StandardMaterial3D.new()
-	player_material.albedo_color = Color(1.0, 1.0, 0.0) # Yellow
-	player_material.roughness = 0.1
-	player_material.metallic = 0.1
+	player_material.albedo_color = Color(1.0, 1.0, 0.0) # Pure vibrant electric yellow
+	player_material.roughness = 0.15 # Highly polished gloss
+	player_material.metallic = 0.05 # Low metal prevents environment blackening
+	player_material.clearcoat_enabled = true # Double-layer high-gloss glaze
+	player_material.clearcoat = 1.0
+	player_material.clearcoat_roughness = 0.08
+	player_material.emission_enabled = true
+	player_material.emission = Color(1.0, 0.9, 0.0) * 0.30 # 30% internal neon glow
 	
 	# 3. Ghost Frightened Material
 	ghost_frightened_material = StandardMaterial3D.new()
@@ -84,22 +94,53 @@ func _initialize_materials() -> void:
 	ghost_frightened_material.emission_enabled = true
 	ghost_frightened_material.emission = Color(0.0, 0.2, 0.8) # Glowing neon blue
 	
-	# 4. Standard Ghost Materials
+	# 4. Standard Ghost Materials (Glossy Neon Cyber Toys - 30% Emissive)
+	var blinky_color := Color(1.0, 0.0, 0.15) # Saturated electric red
 	var blinky_mat := StandardMaterial3D.new()
-	blinky_mat.albedo_color = Color(1.0, 0.0, 0.0) # Red
+	blinky_mat.albedo_color = blinky_color
+	blinky_mat.roughness = 0.15
+	blinky_mat.metallic = 0.05
+	blinky_mat.clearcoat_enabled = true
+	blinky_mat.clearcoat = 1.0
+	blinky_mat.clearcoat_roughness = 0.08
+	blinky_mat.emission_enabled = true
+	blinky_mat.emission = blinky_color * 0.32 # 32% cyber-glow emission
 	ghost_materials["Blinky"] = blinky_mat
 	
+	var pinky_color := Color(1.0, 0.2, 0.6) # Saturated hot pink
 	var pinky_mat := StandardMaterial3D.new()
-	pinky_mat.albedo_color = Color(1.0, 0.7, 0.8) # Pink
-	pinky_mat.roughness = 0.4
+	pinky_mat.albedo_color = pinky_color
+	pinky_mat.roughness = 0.15
+	pinky_mat.metallic = 0.05
+	pinky_mat.clearcoat_enabled = true
+	pinky_mat.clearcoat = 1.0
+	pinky_mat.clearcoat_roughness = 0.08
+	pinky_mat.emission_enabled = true
+	pinky_mat.emission = pinky_color * 0.32
 	ghost_materials["Pinky"] = pinky_mat
 	
+	var inky_color := Color(0.0, 0.9, 1.0) # Saturated electric cyan
 	var inky_mat := StandardMaterial3D.new()
-	inky_mat.albedo_color = Color(0.0, 1.0, 1.0) # Cyan
+	inky_mat.albedo_color = inky_color
+	inky_mat.roughness = 0.15
+	inky_mat.metallic = 0.05
+	inky_mat.clearcoat_enabled = true
+	inky_mat.clearcoat = 1.0
+	inky_mat.clearcoat_roughness = 0.08
+	inky_mat.emission_enabled = true
+	inky_mat.emission = inky_color * 0.32
 	ghost_materials["Inky"] = inky_mat
 	
+	var clyde_color := Color(1.0, 0.5, 0.0) # Saturated solar orange
 	var clyde_mat := StandardMaterial3D.new()
-	clyde_mat.albedo_color = Color(1.0, 0.6, 0.0) # Orange
+	clyde_mat.albedo_color = clyde_color
+	clyde_mat.roughness = 0.15
+	clyde_mat.metallic = 0.05
+	clyde_mat.clearcoat_enabled = true
+	clyde_mat.clearcoat = 1.0
+	clyde_mat.clearcoat_roughness = 0.08
+	clyde_mat.emission_enabled = true
+	clyde_mat.emission = clyde_color * 0.32
 	ghost_materials["Clyde"] = clyde_mat
 
 # Main entry point to compile the 3D environment out of the level JSON data
@@ -120,6 +161,9 @@ func build(level_data: Dictionary) -> void:
 	
 	var map_offset_x : float = (float(width) * CELL_SIZE) / 2.0
 	var map_offset_z : float = (float(height) * CELL_SIZE) / 2.0
+	
+	# --- SPAWN HIGH-QUALITY MATTE BLACK FLOOR (Phase 4 OpenGL Fix) ---
+	_spawn_flat_dark_floor(width, height)
 	
 	# Gate tracking coordinates (Symmetric center-top doorway of foso)
 	var gate_y : int = 12
@@ -168,18 +212,18 @@ func _setup_world_environment() -> void:
 	var world_env := WorldEnvironment.new()
 	var env_res := Environment.new()
 	
-	# --- PHASE 2: CYBER AMBIENT LIGHT FILL ---
+	# --- PHASE 2: CYBER AMBIENT LIGHT FILL (Optimized for OpenGL) ---
 	env_res.ambient_light_source = Environment.AMBIENT_SOURCE_COLOR
-	env_res.ambient_light_color = Color(0.12, 0.12, 0.18) # Soft blue neon glow fill for shadows
-	env_res.ambient_light_energy = 0.85 # Fills dark void spots
+	env_res.ambient_light_color = Color(0.15, 0.15, 0.22) # Richer cyber blue fill to light metallic shadow sides
+	env_res.ambient_light_energy = 1.0 # High-end ambient fill
 	
-	# Configure high-quality additive Bloom and Glow offsets (Toned down)
+	# Configure high-quality additive Bloom and Glow offsets (Toned down for stability)
 	env_res.background_mode = Environment.BG_CLEAR_COLOR
-	env_res.background_color = Color(0.02, 0.02, 0.03, 1.0) # Deep retro cyber navy space
+	env_res.background_color = Color(0.01, 0.01, 0.02, 1.0) # Deep retro cyber navy space
 	env_res.glow_enabled = true
-	env_res.glow_intensity = 0.55 # Softer glowing transitions
-	env_res.glow_strength = 0.85
-	env_res.glow_bloom = 0.12 # Controlled bloom margins
+	env_res.glow_intensity = 0.45 # Softer glowing transitions to eliminate shader lags
+	env_res.glow_strength = 0.8
+	env_res.glow_bloom = 0.10 # Controlled bloom margins
 	env_res.glow_blend_mode = Environment.GLOW_BLEND_MODE_ADDITIVE
 	
 	world_env.environment = env_res
@@ -190,14 +234,31 @@ func _setup_world_environment() -> void:
 	if is_instance_valid(main_node):
 		var dir_light = main_node.get_node_or_null("DirectionalLight3D") as DirectionalLight3D
 		if is_instance_valid(dir_light):
-			dir_light.light_energy = 0.75 # Softened sun to prevent metallic hotspot glares
+			dir_light.light_energy = 0.55 # Softened sun to prevent metallic hotspot glares in OpenGL
 			dir_light.light_color = Color(1.0, 1.0, 1.0) 
 			
 			# --- ALIGN SUNLIGHT DIRECTION WITH DIORAMA CAMERA PERSPECTIVE ---
-			# Camera points South-to-North (-Z) from a high angle.
-			# Positioning the sun at Top-Right-Back (shining diagonally down-left-forward towards -Z)
-			# creates highly structural tubular reflections and gorgeous, clean specular highlights.
 			dir_light.rotation_degrees = Vector3(-50.0, -35.0, 0.0)
+
+# Programmatically spawns a single, massive, dark-matte floor plane under the entire maze (OpenGL / Compatibility Fix)
+func _spawn_flat_dark_floor(width: int, height: int) -> void:
+	var floor_mesh := BoxMesh.new()
+	# Covers the entire map area plus a safe 6-meter border safety margin
+	floor_mesh.size = Vector3(float(width) * CELL_SIZE + 6.0, 0.1, float(height) * CELL_SIZE + 6.0)
+	
+	var floor_mat := StandardMaterial3D.new()
+	floor_mat.albedo_color = Color(0.01, 0.01, 0.02) # Deep, elegant cyber dark-blue/black floor
+	floor_mat.roughness = 0.95 # Completely matte, eliminates any blinding reflections or glare
+	floor_mat.metallic = 0.0
+	floor_mat.metallic_specular = 0.1 # Fixed: Changed obsolete 'specular' to Godot 4 'metallic_specular'
+	floor_mat.shading_mode = StandardMaterial3D.SHADING_MODE_PER_PIXEL
+	
+	var floor_instance := MeshInstance3D.new()
+	floor_instance.mesh = floor_mesh
+	floor_instance.material_override = floor_mat
+	floor_instance.position = Vector3(0.0, -0.05, 0.0) # Sits exactly flat on the floor level
+	
+	parent_node.add_child(floor_instance)
 
 # Instantiates procedurally designed wall meshes depending on the active level theme
 func _create_wall(pos: Vector3, x: int, z: int, level_data: Dictionary) -> void:

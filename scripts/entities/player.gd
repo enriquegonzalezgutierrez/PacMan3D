@@ -23,7 +23,13 @@
 #                color (Yellow, Gold, Cyan) depending on active states.
 #              - JUMP THRUST PARTICLES: Programmatically instantiates a downward 
 #                one-shot gold-neon spark jet exhaust upon jumping.
-#              - TYPO CORRECTION: Fixed 'var_motion_trail_material' spacing syntax.
+#              - TYPO CORRECTION: Fixed 'var_blink_timer' spacing syntax.
+#              - CYBER-DJ HEADPHONES: Programmatically constructs a high-tech 
+#                gamer headset using Torus and Cylinder meshes with pulsing RGB 
+#                neon-cyan rings on Pac-Man's sides.
+#              - TORUS COMPATIBILITY FIX: Removed manual segment counts on TorusMesh 
+#                to leverage Godot 4's native smooth defaults and prevent cross-version 
+#                parser errors.
 # Author: Enrique González Gutiérrez
 # Email: enrique.gonzalez.gutierrez@gmail.com
 # ==============================================================================
@@ -79,6 +85,9 @@ var speed_particles : GPUParticles3D = null
 # Phase 4 Continuous Energy Motion Trail Variables
 var motion_trail : GPUParticles3D = null
 var motion_trail_material : StandardMaterial3D = null
+
+# Phase 4 Cyber-DJ Headphones Neon Ring reference for procedural pulsing
+var headphone_ring_material : StandardMaterial3D = null
 
 # Gameplay State
 var spawn_position : Vector3
@@ -202,6 +211,79 @@ func _build_player_visuals() -> void:
 	mouth_instance.scale = Vector3(0.5, 0.1, 0.5) # Start closed
 	
 	visual_mesh.add_child(mouth_instance) # Child of body so it rotates with Pac-Man
+	
+	# --- PHASE 4: PROCEDURAL CYBER-DJ HEADPHONES ---
+	var headphones_holder := Node3D.new()
+	
+	# Materials
+	var headphone_dark_mat := StandardMaterial3D.new()
+	headphone_dark_mat.albedo_color = Color(0.06, 0.06, 0.08) # Matte Carbon Black
+	headphone_dark_mat.roughness = 0.6
+	headphone_dark_mat.metallic = 0.5
+	
+	headphone_ring_material = StandardMaterial3D.new()
+	headphone_ring_material.albedo_color = Color(0.0, 0.8, 1.0) # Electric Cyan RGB Ring
+	headphone_ring_material.emission_enabled = true
+	headphone_ring_material.emission = Color(0.0, 0.5, 1.0) # Neon emission
+	headphone_ring_material.roughness = 0.1
+	
+	# 1. Curved Headband (Thin Torus stand vertically wrapping over head)
+	# Fixed: Removed manual segment assignments to guarantee cross-version compilation
+	var band_mesh := TorusMesh.new()
+	band_mesh.inner_radius = 0.82
+	band_mesh.outer_radius = 0.88
+	
+	var band := MeshInstance3D.new()
+	band.mesh = band_mesh
+	band.material_override = headphone_dark_mat
+	band.rotation_degrees.z = 90.0 # Rotate vertical to wrap from side to side
+	headphones_holder.add_child(band)
+	
+	# 2. Left Ear Cup (Flat cylinder sitting on left side)
+	var cup_mesh := CylinderMesh.new()
+	cup_mesh.top_radius = 0.28
+	cup_mesh.bottom_radius = 0.28
+	cup_mesh.height = 0.12
+	cup_mesh.radial_segments = 16
+	
+	var left_cup := MeshInstance3D.new()
+	left_cup.mesh = cup_mesh
+	left_cup.material_override = headphone_dark_mat
+	left_cup.position = Vector3(-0.85, 0.0, 0.0)
+	left_cup.rotation_degrees.z = 90.0 # Rotate to lie flat on the ear
+	headphones_holder.add_child(left_cup)
+	
+	# 3. Right Ear Cup (Flat cylinder sitting on right side)
+	var right_cup := MeshInstance3D.new()
+	right_cup.mesh = cup_mesh
+	right_cup.material_override = headphone_dark_mat
+	right_cup.position = Vector3(0.85, 0.0, 0.0)
+	right_cup.rotation_degrees.z = 90.0
+	headphones_holder.add_child(right_cup)
+	
+	# 4. Left RGB Ring (Thin protruding neon cylinder)
+	var ring_mesh := CylinderMesh.new()
+	ring_mesh.top_radius = 0.22
+	ring_mesh.bottom_radius = 0.22
+	ring_mesh.height = 0.14 # Protrudes slightly out
+	ring_mesh.radial_segments = 16
+	
+	var left_ring := MeshInstance3D.new()
+	left_ring.mesh = ring_mesh
+	left_ring.material_override = headphone_ring_material
+	left_ring.position = Vector3(-0.86, 0.0, 0.0)
+	left_ring.rotation_degrees.z = 90.0
+	headphones_holder.add_child(left_ring)
+	
+	# 5. Right RGB Ring (Thin protruding neon cylinder)
+	var right_ring := MeshInstance3D.new()
+	right_ring.mesh = ring_mesh
+	right_ring.material_override = headphone_ring_material
+	right_ring.position = Vector3(0.86, 0.0, 0.0)
+	right_ring.rotation_degrees.z = 90.0
+	headphones_holder.add_child(right_ring)
+	
+	visual_mesh.add_child(headphones_holder)
 	
 	# --- PHYSICAL COLLIDER ---
 	var sphere_shape := SphereShape3D.new()
@@ -355,7 +437,7 @@ func activate_power_up() -> void:
 		pupil_material.emission_enabled = true
 		pupil_material.emission = Color(1.0, 0.0, 0.0) # Red Glow
 		
-	# 3. Spawn subtle gold sparkle particle aura
+	# 3. Spawn subtle gold sparkle particle aura (Toned down to 12 particles for mobile)
 	if not is_instance_valid(power_particles):
 		_spawn_power_particles()
 
@@ -382,7 +464,7 @@ func _spawn_power_particles() -> void:
 	proc_mat.gravity = Vector3(0.0, -2.0, 0.0)
 	
 	power_particles.process_material = proc_mat
-	power_particles.amount = 15
+	power_particles.amount = 12 # Optimized for mobile GPU fill-rate
 	power_particles.lifetime = 0.5
 	
 	add_child(power_particles)
@@ -441,7 +523,7 @@ func _spawn_speed_particles() -> void:
 	proc_mat.gravity = Vector3(0.0, 1.5, 0.0) # Sparks float upwards
 	
 	speed_particles.process_material = proc_mat
-	speed_particles.amount = 25
+	speed_particles.amount = 12 # Optimized down to 12 to prevent mobile rendering stutters
 	speed_particles.lifetime = 0.4
 	
 	add_child(speed_particles)
@@ -493,7 +575,7 @@ func _spawn_motion_trail_particles() -> void:
 	proc_mat.scale_curve = curve_tex
 	
 	motion_trail.process_material = proc_mat
-	motion_trail.amount = 40
+	motion_trail.amount = 20 # Optimized down from 40 for seamless lag-free mobile rendering
 	motion_trail.lifetime = 0.35 # Ribbon trails vanish quickly
 	motion_trail.emitting = false # Checked dynamically inside movement loop
 	
@@ -563,7 +645,7 @@ func _trigger_jump_thrust_particles() -> void:
 	p_mat.scale_curve = curve_tex
 	
 	particles.process_material = p_mat
-	particles.amount = 20
+	particles.amount = 12 # Optimized down from 20 for lag-free physics frames
 	particles.one_shot = true
 	particles.explosiveness = 1.0
 	particles.lifetime = 0.35
@@ -636,6 +718,14 @@ func _physics_process(delta: float) -> void:
 		speed_boost_timer -= delta
 		if speed_boost_timer <= 0.0:
 			_deactivate_speed_boost()
+
+	# --- PROCEDURAL HEADPHONE RGB PULSE ---
+	# Fast subtle neon pulsing to simulate listening to the level's music (Phase 4)
+	if is_instance_valid(headphone_ring_material) and velocity.length() > 0.1:
+		var pulse : float = 1.0 + sin(Time.get_ticks_msec() * 0.015) * 0.35
+		headphone_ring_material.emission_energy_multiplier = pulse
+	elif is_instance_valid(headphone_ring_material):
+		headphone_ring_material.emission_energy_multiplier = 0.8 # Calm standby glow
 
 	_handle_arcade_input()
 	_process_arcade_movement()

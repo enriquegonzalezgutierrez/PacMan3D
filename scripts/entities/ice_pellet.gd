@@ -7,6 +7,9 @@
 #                collision detection from other items.
 #              - LSP/OCP COMPLIANCE: Exposes minimap drawing properties via 
 #                polymorphic methods to prevent duck-typing in Minimap2D.
+#              Phase 4 Updates:
+#              - MASSIVE SCALE INDICATOR: Sized up the neon ice diamond mesh to 0.60 
+#                size for optimal visual presence and easy mobile collection.
 # Author: Enrique González Gutiérrez
 # Email: enrique.gonzalez.gutierrez@gmail.com
 # ==============================================================================
@@ -49,9 +52,12 @@ func _build_pellet_visuals() -> void:
 	mesh_instance = MeshInstance3D.new()
 	var collision_shape := CollisionShape3D.new()
 	
+	# Sized up massively to 0.60 for optimal Full HD diorama visibility
+	var size_val : float = 0.60
+	
 	# Rotated box mesh to form a perfect diamond shape
 	var box_mesh := BoxMesh.new()
-	box_mesh.size = Vector3(0.35, 0.35, 0.35)
+	box_mesh.size = Vector3(size_val, size_val, size_val)
 	mesh_instance.mesh = box_mesh
 	mesh_instance.material_override = ice_material
 	
@@ -60,7 +66,7 @@ func _build_pellet_visuals() -> void:
 	
 	# Custom capsule collider sized to fit the diamond boundaries
 	var sphere_shape := SphereShape3D.new()
-	sphere_shape.radius = 0.35
+	sphere_shape.radius = size_val
 	collision_shape.shape = sphere_shape
 	
 	add_child(mesh_instance)

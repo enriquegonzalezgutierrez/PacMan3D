@@ -1,8 +1,10 @@
 # ==============================================================================
 # Description: Flanker/Tactician behavior strategy for Inky (Cyan).
 #              Implements SOLID Open/Closed Principle (OCP).
-#              Updates: Overrode visual hooks to make Inky stubby and 
-#                       offset his pupils inward to look cross-eyed.
+#              Phase 4 Updates:
+#              - SIDEWAYS CYBER CAP: Programmatically builds a cool sideways 
+#                cyberpunk baseball cap on Inky's head composed of a squashed 
+#                SphereMesh crown and a flat, multi-axis tilted BoxMesh visor.
 # Author: Enrique González Gutiérrez
 # Email: enrique.gonzalez.gutierrez@gmail.com
 # ==============================================================================
@@ -40,3 +42,40 @@ func get_pupil_offsets() -> Dictionary:
 		"left": Vector3(-0.23, 0.4, -0.93),
 		"right": Vector3(0.23, 0.4, -0.93)
 	}
+
+# Procedurally builds and attaches the sideways cyberpunk baseball cap
+func attach_custom_decorations(visual_mesh: MeshInstance3D) -> void:
+	var cap_holder := Node3D.new()
+	
+	# Electric Cyan neon material
+	var cap_mat := StandardMaterial3D.new()
+	cap_mat.albedo_color = Color(0.0, 0.8, 1.0) # Saturated electric cyan
+	cap_mat.emission_enabled = true
+	cap_mat.emission = Color(0.0, 0.4, 0.8) # Cyan glow
+	cap_mat.roughness = 0.1
+	
+	var capsule_height = get_capsule_height()
+	
+	# 1. Cap Crown (Squashed sphere sitting flush on top of head)
+	var crown_mesh := SphereMesh.new()
+	crown_mesh.radius = 0.46
+	crown_mesh.height = 0.28
+	
+	var crown := MeshInstance3D.new()
+	crown.mesh = crown_mesh
+	crown.material_override = cap_mat
+	crown.position = Vector3(0.0, capsule_height / 2.0 - 0.02, 0.0)
+	cap_holder.add_child(crown)
+	
+	# 2. Visor / Bill (Flat box rotated diagonally on three axes)
+	var visor_mesh := BoxMesh.new()
+	visor_mesh.size = Vector3(0.6, 0.04, 0.35)
+	
+	var visor := MeshInstance3D.new()
+	visor.mesh = visor_mesh
+	visor.material_override = cap_mat
+	visor.position = Vector3(0.18, capsule_height / 2.0 - 0.04, -0.42)
+	visor.rotation_degrees = Vector3(-10.0, -35.0, -15.0) # Tilted sideways and slightly downwards
+	cap_holder.add_child(visor)
+	
+	visual_mesh.add_child(cap_holder)

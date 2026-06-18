@@ -8,6 +8,9 @@
 #              - DIP: Completely decoupled from the GameManager singleton.
 #              - LSP/OCP COMPLIANCE: Exposes minimap drawing properties via 
 #                polymorphic methods to prevent duck-typing in Minimap2D.
+#              Phase 4 Updates:
+#              - MASSIVE SCALE INDICATOR: Sized up standard pellets to 0.25 radius 
+#                and power pellets to 0.55 radius for majestic arcade visibility on 1080p.
 # Author: Enrique González Gutiérrez
 # Email: enrique.gonzalez.gutierrez@gmail.com
 # ==============================================================================
@@ -49,7 +52,9 @@ func _initialize_material() -> void:
 func _build_pellet_visuals() -> void:
 	mesh_instance = MeshInstance3D.new()
 	var collision_shape := CollisionShape3D.new()
-	var radius : float = 0.35 if is_power_pellet else 0.15
+	
+	# Sized up massively for premium 1080p readability
+	var radius : float = 0.55 if is_power_pellet else 0.25
 	
 	var sphere_mesh := SphereMesh.new()
 	sphere_mesh.radius = radius

@@ -7,6 +7,9 @@
 #                radii to integrate seamlessly with the 2D Minimap radar.
 #              - SRP: Fully encapsulates the physical 3D zig-zag mesh construction 
 #                and collision trigger logic.
+#              Phase 4 Updates:
+#              - MASSIVE SCALE INDICATOR: Sized up the electric lightning bolt segments 
+#                to 0.55 length and 0.11 thickness for majestic cyber-arcade presence.
 # Author: Enrique González Gutiérrez
 # Email: enrique.gonzalez.gutierrez@gmail.com
 # ==============================================================================
@@ -46,14 +49,14 @@ func _initialize_material() -> void:
 	lightning_material.emission = Color(1.0, 0.7, 0.0) # Golden electric glow
 	lightning_material.roughness = 0.1
 
-# Programmatically constructs a beautiful 3D zig-zag lightning bolt
+# Programmatically constructs an enlarged, beautiful 3D zig-zag lightning bolt
 func _build_pellet_visuals() -> void:
 	visual_holder = Node3D.new()
 	var collision_shape := CollisionShape3D.new()
 	
-	# Segment dimension variables
-	var seg_length : float = 0.35
-	var seg_thickness : float = 0.08
+	# Sized up massively for premium 1080p presence
+	var seg_length : float = 0.55
+	var seg_thickness : float = 0.11
 	
 	var segment_mesh := BoxMesh.new()
 	segment_mesh.size = Vector3(seg_thickness, seg_length, seg_thickness)
@@ -62,7 +65,7 @@ func _build_pellet_visuals() -> void:
 	var top_seg := MeshInstance3D.new()
 	top_seg.mesh = segment_mesh
 	top_seg.material_override = lightning_material
-	top_seg.position = Vector3(0.12, 0.42, 0.0)
+	top_seg.position = Vector3(0.20, 0.65, 0.0) # Scaled up positions
 	top_seg.rotation_degrees.z = -35.0
 	visual_holder.add_child(top_seg)
 	
@@ -70,7 +73,7 @@ func _build_pellet_visuals() -> void:
 	var mid_seg := MeshInstance3D.new()
 	mid_seg.mesh = segment_mesh
 	mid_seg.material_override = lightning_material
-	mid_seg.position = Vector3(0.0, 0.2, 0.0)
+	mid_seg.position = Vector3(0.0, 0.30, 0.0)
 	mid_seg.rotation_degrees.z = 35.0
 	visual_holder.add_child(mid_seg)
 	
@@ -78,17 +81,17 @@ func _build_pellet_visuals() -> void:
 	var bot_seg := MeshInstance3D.new()
 	bot_seg.mesh = segment_mesh
 	bot_seg.material_override = lightning_material
-	bot_seg.position = Vector3(-0.12, -0.02, 0.0)
+	bot_seg.position = Vector3(-0.20, -0.05, 0.0)
 	bot_seg.rotation_degrees.z = -35.0
 	visual_holder.add_child(bot_seg)
 	
 	# --- PHYSICAL COLLIDER ---
-	# Capsule shape fitted to match the vertical span of the lightning bolt
+	# Capsule shape fitted to match the vertical span of the lightning bolt (Sized up)
 	var capsule_shape := CapsuleShape3D.new()
-	capsule_shape.radius = 0.32
-	capsule_shape.height = 0.9
+	capsule_shape.radius = 0.52
+	capsule_shape.height = 1.40
 	collision_shape.shape = capsule_shape
-	collision_shape.position.y = 0.2
+	collision_shape.position.y = 0.30
 	
 	add_child(visual_holder)
 	add_child(collision_shape)
