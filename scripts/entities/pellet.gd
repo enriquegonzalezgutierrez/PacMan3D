@@ -1,12 +1,11 @@
 # ==============================================================================
 # Description: Script for the Pellet entity (Area3D). Spawns themed items 
 #              by loading a static 3D FBX model of the Gin Xoriguer bottle.
-#              SOLID Refactoring & Visual Fixes:
-#              - Real Power Pellet Textures: Removed the flat gold override 
-#                from the large power bottles. They now display the original 
-#                red cap, green clay glass, and Mahon label, but scaled to 1.6x 
-#                and surrounded by a column of floating golden sparks.
-#              - Luminous Textures: Keeps unshaded mapping for realistic details.
+#              SOLID Refactoring & Shading Fix:
+#              - Texture Preservation: Removed the flat gold override from the 
+#                large power bottles. Both standard and power bottles now recursively 
+#                call the unshaded dynamic texture loader, fully restoring the 
+#                red cap, green body, and Mahon label on both mobile and PC.
 # Author: Enrique González Gutiérrez
 # Email: enrique.gonzalez.gutierrez@gmail.com
 # ==============================================================================
@@ -69,9 +68,7 @@ func _build_pellet_visuals() -> void:
 		
 	else:
 		# --- POWER PELLET (Large Textured Xoriguer Bottle + Sparks) ---
-		# Fixed: No more solid gold override! 
-		# We preserve the real green glass, red cap, and Mahon windmill label textures, 
-		# but brighten them (unshaded) and surround them with floating golden sparks.
+		# Fixed: Removed the gold_mat override. Now dynamically skins with real unshaded textures!
 		_brighten_imported_materials_recursive(bottle_mesh)
 		
 		# Scaled up to a massive 1.6x for highly prominent collectible feedback
@@ -93,23 +90,38 @@ func _build_pellet_visuals() -> void:
 	add_child(collision_shape)
 
 # Helper to recursively apply flat materials to nested MeshInstance3D nodes inside the FBX
-static func _apply_material_recursive(node: Node, material: Material) -> void:
+func _apply_material_recursive(node: Node, material: Material) -> void:
 	if node is MeshInstance3D:
 		node.material_override = material
 	for child in node.get_children():
 		_apply_material_recursive(child, material)
 
 # Helper to recursively duplicate and brighten imported textures inside the FBX (SRP/OCP)
-static func _brighten_imported_materials_recursive(node: Node) -> void:
+func _brighten_imported_materials_recursive(node: Node) -> void:
 	if node is MeshInstance3D:
-		# Extract the active imported material resource of the mesh
 		var active_mat = node.get_active_material(0)
-		if active_mat is StandardMaterial3D:
-			# Duplicate to avoid overwriting the base file on disk
-			var dup_mat = active_mat.duplicate() as StandardMaterial3D
-			# Force unshaded mode to render the label and green glass with 100% native brightness
-			dup_mat.shading_mode = StandardMaterial3D.SHADING_MODE_UNSHADED
-			node.material_override = dup_mat
+		if not active_mat:
+			active_mat = StandardMaterial3D.new()
+			
+		var dup_mat = active_mat.duplicate() as StandardMaterial3D
+		dup_mat.shading_mode = StandardMaterial3D.SHADING_MODE_UNSHADED
+		
+		# --- MOBILE STATIC INJECTOR ---
+		# We directly load the newly renamed static texture files from the assets folder.
+		var tex_dir : String = "res://assets/models/items/textures/"
+		
+		if ResourceLoader.exists(tex_dir + "albedo.png"):
+			dup_mat.albedo_texture = load(tex_dir + "albedo.png") as Texture2D
+		if ResourceLoader.exists(tex_dir + "metallic.png"):
+			dup_mat.metallic = 1.0
+			dup_mat.metallic_texture = load(tex_dir + "metallic.png") as Texture2D
+		if ResourceLoader.exists(tex_dir + "roughness.png"):
+			dup_mat.roughness_texture = load(tex_dir + "roughness.png") as Texture2D
+		if ResourceLoader.exists(tex_dir + "normal.png"):
+			dup_mat.normal_enabled = true
+			dup_mat.normal_texture = load(tex_dir + "normal.png") as Texture2D
+			
+		node.material_override = dup_mat
 			
 	for child in node.get_children():
 		_brighten_imported_materials_recursive(child)
@@ -179,11 +191,3 @@ func _on_body_entered(body: Node3D) -> void:
 			
 		eaten.emit(is_power_pellet)
 		queue_free()
-
-# --- MINIMAP POLYMORPHISM (LSP/OCP COMPLIANCE) ---
-
-func get_minimap_color() -> Color:
-	return Color(1.0, 0.8, 0.0) if is_power_pellet else Color(0.05, 0.8, 0.1)
-
-func get_minimap_radius() -> float:
-	return 3.5 if is_power_pellet else 1.5

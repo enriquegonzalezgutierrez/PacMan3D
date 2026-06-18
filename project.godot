@@ -1,13 +1,14 @@
-; ==============================================================================
-; Description: Godot Engine Configuration File.
-#              Automatically managed by the editor, formatted in standard INI.
-#              SOLID Refactoring:
-#              - Autoload Singletons: Configured GameManager and AudioManager 
-#                globally for persistent, decoupled session and audio state tracking.
-#              - Brand Alignment: Renamed to "MartinMan 3D" (strictly ASCII-safe).
-; ==============================================================================
+; Engine configuration file.
+; It's best edited using the editor UI and not directly,
+; since the parameters that go here are not all obvious.
+;
+; Format:
+;   [section] ; section goes between []
+;   param=value ; assign values to parameters
 
 config_version=5
+
+"MartinMan 3D(strictlyASCII-safe).config_version"=5
 
 [application]
 

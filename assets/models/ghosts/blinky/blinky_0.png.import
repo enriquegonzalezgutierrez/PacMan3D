@@ -2,15 +2,12 @@
 
 importer="texture"
 type="CompressedTexture2D"
-uid="uid://dq00w4w3ihsf"
+uid="uid://buvbofumxlpcd"
 path.s3tc="res://.godot/imported/blinky_0.png-32227610b7cc0837e0dd2f0d8a253066.s3tc.ctex"
 path.etc2="res://.godot/imported/blinky_0.png-32227610b7cc0837e0dd2f0d8a253066.etc2.ctex"
 metadata={
 "imported_formats": ["s3tc_bptc", "etc2_astc"],
 "vram_texture": true
-}
-generator_parameters={
-"md5": "e8254c31273bf90454b0c462e4bb0e39"
 }
 
 [deps]

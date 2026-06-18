@@ -2,11 +2,12 @@
 # Description: Standalone Frost-Blue Ice Utility Pellet (Area3D). 
 #              Loads the 3D ice.fbx model, scales it to 1.4x, and applies 
 #              a translucent unshaded cyan ice shader with a mist particle emitter.
-#              SOLID Refactoring & Shading Fix:
-#              - Texture Preservation: Removed the flat-color override. 
-#                It now duplicates the FBX's native materials and makes them 
-#                UNSHADED. This completely preserves the cracks and icy details 
-#                of your custom ice model at 100% native brightness.
+#              SOLID Refactoring & Android Shading Fix:
+#              - Mobile Static Injector (DIP): Loads standardized texture filenames 
+#                ('albedo.png', 'normal.png', etc.) directly from disk. 
+#                This completely bypasses Android's DirAccess limitations, 
+#                guaranteeing 100% mobile texture compatibility on exported APKs.
+#              - Scale Up: Scaled massively to 1.4x for high-end diorama visibility.
 # Author: Enrique González Gutiérrez
 # Email: enrique.gonzalez.gutierrez@gmail.com
 # ==============================================================================
@@ -55,7 +56,6 @@ func _build_pellet_visuals() -> void:
 		ice_mesh.mesh = fallback_mesh
 		
 	# 2. Configure materials and scales (SRP Compliance)
-	# Fixed: No more flat-color override! We duplicate and make imported materials UNSHADED.
 	_brighten_imported_materials_recursive(ice_mesh)
 	
 	# Scale up to a massive 1.4x for high-end diorama visibility
@@ -79,15 +79,32 @@ func _build_pellet_visuals() -> void:
 	add_child(collision_shape)
 
 # Helper to recursively duplicate and brighten imported textures inside the FBX (SRP/OCP)
-static func _brighten_imported_materials_recursive(node: Node) -> void:
+func _brighten_imported_materials_recursive(node: Node) -> void:
 	if node is MeshInstance3D:
 		var active_mat = node.get_active_material(0)
-		if active_mat is StandardMaterial3D:
-			var dup_mat = active_mat.duplicate() as StandardMaterial3D
-			dup_mat.shading_mode = StandardMaterial3D.SHADING_MODE_UNSHADED
-			# Force a translucent look if preferred, but unshaded ensures 100% brightness
-			dup_mat.transparency = BaseMaterial3D.TRANSPARENCY_ALPHA
-			node.material_override = dup_mat
+		if not active_mat:
+			active_mat = StandardMaterial3D.new()
+			
+		var dup_mat = active_mat.duplicate() as StandardMaterial3D
+		dup_mat.shading_mode = StandardMaterial3D.SHADING_MODE_UNSHADED
+		# Keep alpha transparency active for frosty ice glow
+		dup_mat.transparency = BaseMaterial3D.TRANSPARENCY_ALPHA
+		
+		# --- MOBILE STATIC INJECTOR (Bypasses Android DirAccess limitations) ---
+		var tex_dir : String = "res://assets/models/items/ice/textures/"
+		
+		if ResourceLoader.exists(tex_dir + "albedo.png"):
+			dup_mat.albedo_texture = load(tex_dir + "albedo.png") as Texture2D
+		if ResourceLoader.exists(tex_dir + "metallic.png"):
+			dup_mat.metallic = 1.0
+			dup_mat.metallic_texture = load(tex_dir + "metallic.png") as Texture2D
+		if ResourceLoader.exists(tex_dir + "roughness.png"):
+			dup_mat.roughness_texture = load(tex_dir + "roughness.png") as Texture2D
+		if ResourceLoader.exists(tex_dir + "normal.png"):
+			dup_mat.normal_enabled = true
+			dup_mat.normal_texture = load(tex_dir + "normal.png") as Texture2D
+			
+		node.material_override = dup_mat
 			
 	for child in node.get_children():
 		_brighten_imported_materials_recursive(child)

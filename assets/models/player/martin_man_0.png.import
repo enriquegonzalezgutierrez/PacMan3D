@@ -2,15 +2,12 @@
 
 importer="texture"
 type="CompressedTexture2D"
-uid="uid://3i557s8hqy4h"
+uid="uid://c7xbqm6bslqlx"
 path.s3tc="res://.godot/imported/martin_man_0.png-ad2ea17918f2ae657d6b5f784cb9b5e2.s3tc.ctex"
 path.etc2="res://.godot/imported/martin_man_0.png-ad2ea17918f2ae657d6b5f784cb9b5e2.etc2.ctex"
 metadata={
 "imported_formats": ["s3tc_bptc", "etc2_astc"],
 "vram_texture": true
-}
-generator_parameters={
-"md5": "542d1fc88c8c37b68a711f7c2a6505ba"
 }
 
 [deps]

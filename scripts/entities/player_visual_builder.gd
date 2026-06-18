@@ -1,17 +1,13 @@
 # ==============================================================================
 # Description: Code-Only 3D Character and Animation Assembler for MartínMan.
-#              Loads the FBX character mesh, compiles the Meshy AI PBR textures 
-#              into a StandardMaterial3D, extracts Mixamo FBX animations 
-#              dynamically, and sets up the CPUParticles emitters.
 #              SOLID Refactoring & Visual Fixes:
 #              - Rigged Mesh Swapping: Upgraded the loader to instantiate the 
-#                base mesh directly from animations/idle.fbx (which contains 
-#                the fully rigged Skeleton3D skin from Mixamo) instead of the 
-#                static unrigged martin_man.fbx.
+#                base mesh directly from animations/idle.fbx.
+#              - Static Path Loader (DIP): Updated texture paths to read the newly 
+#                renamed 'albedo.png', 'normal.png', etc. directly from disk. 
+#                This guarantees 100% texture rendering on Android mobile APKs.
 #              - Visual Scaling Fix: Programmatically scaled up the 3D character 
-#                mesh by 1.75x to give MartínMan a majestic, robust presence 
-#                inside the 2-meter corridors.
-#              - Console Cleanup: Removed all diagnostic tree printing logs.
+#                mesh by 1.75x to fit the 2-meter corridors.
 # Author: Enrique González Gutiérrez
 # Email: enrique.gonzalez.gutierrez@gmail.com
 # ==============================================================================
@@ -39,33 +35,29 @@ static func build_visuals(player: CharacterBody3D, _unused_material: StandardMat
 		fallback_mesh.height = 1.7
 		visual_mesh.mesh = fallback_mesh
 		
-	# 2. Programmatically compile the PBR material from Meshy AI texture maps
+	# 2. Programmatically compile the PBR material from the new clean texture paths (DIP Compliance)
 	var pbr_material := StandardMaterial3D.new()
 	pbr_material.roughness = 0.5 
 	
-	var texture_base_path := "res://assets/models/player/textures/Meshy_AI_Birthday_King_0618070038_texture"
+	var texture_base_path := "res://assets/models/player/textures/"
 	
-	# Load Albedo (Base Color) map
-	var albedo_tex_path = texture_base_path + ".png"
-	if ResourceLoader.exists(albedo_tex_path):
-		pbr_material.albedo_texture = load(albedo_tex_path)
+	# Load Albedo
+	if ResourceLoader.exists(texture_base_path + "albedo.png"):
+		pbr_material.albedo_texture = load(texture_base_path + "albedo.png") as Texture2D
 		
-	# Load Metallic map
-	var metallic_tex_path = texture_base_path + "_metallic.png"
-	if ResourceLoader.exists(metallic_tex_path):
+	# Load Metallic
+	if ResourceLoader.exists(texture_base_path + "metallic.png"):
 		pbr_material.metallic = 1.0 
-		pbr_material.metallic_texture = load(metallic_tex_path)
+		pbr_material.metallic_texture = load(texture_base_path + "metallic.png") as Texture2D
 		
-	# Load Roughness map
-	var roughness_tex_path = texture_base_path + "_roughness.png"
-	if ResourceLoader.exists(roughness_tex_path):
-		pbr_material.roughness_texture = load(roughness_tex_path)
+	# Load Roughness
+	if ResourceLoader.exists(texture_base_path + "roughness.png"):
+		pbr_material.roughness_texture = load(texture_base_path + "roughness.png") as Texture2D
 		
 	# Load Normal detail map
-	var normal_tex_path = texture_base_path + "_normal.png"
-	if ResourceLoader.exists(normal_tex_path):
+	if ResourceLoader.exists(texture_base_path + "normal.png"):
 		pbr_material.normal_enabled = true
-		pbr_material.normal_texture = load(normal_tex_path)
+		pbr_material.normal_texture = load(texture_base_path + "normal.png") as Texture2D
 		
 	# Recursively map our compiled PBR material onto all internal mesh surfaces
 	_apply_material_recursive(visual_mesh, pbr_material)

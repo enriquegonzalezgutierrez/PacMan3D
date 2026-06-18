@@ -2,15 +2,12 @@
 
 importer="texture"
 type="CompressedTexture2D"
-uid="uid://bv02jwmui2de2"
+uid="uid://c6svtic7xymc4"
 path.s3tc="res://.godot/imported/idle_0.png-93a45102ed1b8b2975f95bf81b06be40.s3tc.ctex"
 path.etc2="res://.godot/imported/idle_0.png-93a45102ed1b8b2975f95bf81b06be40.etc2.ctex"
 metadata={
 "imported_formats": ["s3tc_bptc", "etc2_astc"],
 "vram_texture": true
-}
-generator_parameters={
-"md5": "542d1fc88c8c37b68a711f7c2a6505ba"
 }
 
 [deps]

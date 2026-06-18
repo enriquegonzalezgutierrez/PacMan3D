@@ -2,15 +2,12 @@
 
 importer="texture"
 type="CompressedTexture2D"
-uid="uid://cnuyrani4syrs"
+uid="uid://145hxxvjjdeq"
 path.s3tc="res://.godot/imported/xoriguer_bottle_1.png-c1d84dca4ad9a1473d24b80eb4feefcf.s3tc.ctex"
 path.etc2="res://.godot/imported/xoriguer_bottle_1.png-c1d84dca4ad9a1473d24b80eb4feefcf.etc2.ctex"
 metadata={
 "imported_formats": ["s3tc_bptc", "etc2_astc"],
 "vram_texture": true
-}
-generator_parameters={
-"md5": "4e9943c336517990cb0824cc89e9dbb0"
 }
 
 [deps]

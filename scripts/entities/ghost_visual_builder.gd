@@ -1,10 +1,13 @@
 # ==============================================================================
 # Description: Procedural 3D Mesh and CPUParticle Builder for Ghosts (Ciber-Molinos).
-#              SOLID Refactoring & Visual Fixes:
-#              - Giant Scale Up Fix: Increased visual scale to 1.75x to match 
-#                MartínMan's proportions and give them an imponent presence.
-#              - Material Sync: Returns the compiled PBR textured material.
-#              - Console Cleanup: Removed all diagnostic tree printing logs.
+#              SOLID Refactoring & Android Optimization:
+#              - Static Path Loader (DIP): Loads standardized texture filenames 
+#                ('albedo.png', 'normal.png', etc.) directly from disk. 
+#                This completely bypasses Android's DirAccess limitations, 
+#                guaranteeing 100% cross-platform compatibility.
+#              - Giant Scale Up: Increased visual scale to 1.5x.
+#              - Propeller Extractor: Locates the independent blades node recursively.
+#              - Base Thruster Exhaust (VFX): Attaches a color-matched jet stream.
 # Author: Enrique González Gutiérrez
 # Email: enrique.gonzalez.gutierrez@gmail.com
 # ==============================================================================
@@ -43,18 +46,30 @@ static func build_visuals(ghost: CharacterBody3D, strategy: GhostBehavior, origi
 		if original_material:
 			visual_mesh.material_override = original_material
 			
-	# 2. Programmatically compile the PBR material from Meshy AI texture maps (SRP Compliance)
+	# 2. Programmatically compile the PBR material from the new clean texture paths (SRP Compliance)
 	var pbr_material := StandardMaterial3D.new()
 	pbr_material.shading_mode = StandardMaterial3D.SHADING_MODE_UNSHADED # Unshaded for glowing neon details!
 	
-	# Dynamically scan the textures folder to load textures regardless of dynamic filename indices
-	_load_textures_for_ghost(model_name, pbr_material)
+	# --- STATIC STABLE PATH LOADING ---
+	# Uses explicit non-scanning paths for 100% Android compile compatibility
+	var tex_dir : String = "res://assets/models/ghosts/" + model_name + "/textures/"
+	
+	if ResourceLoader.exists(tex_dir + "albedo.png"):
+		pbr_material.albedo_texture = load(tex_dir + "albedo.png") as Texture2D
+	if ResourceLoader.exists(tex_dir + "metallic.png"):
+		pbr_material.metallic = 1.0
+		pbr_material.metallic_texture = load(tex_dir + "metallic.png") as Texture2D
+	if ResourceLoader.exists(tex_dir + "roughness.png"):
+		pbr_material.roughness_texture = load(tex_dir + "roughness.png") as Texture2D
+	if ResourceLoader.exists(tex_dir + "normal.png"):
+		pbr_material.normal_enabled = true
+		pbr_material.normal_texture = load(tex_dir + "normal.png") as Texture2D
 	
 	# Recursively map our compiled PBR material onto all internal mesh surfaces
 	_apply_material_recursive(visual_mesh, pbr_material)
 	
-	# Scale up to a massive 1.75x to match the new giant 1080p proportions
-	visual_mesh.scale = Vector3(1.75, 1.75, 1.75)
+	# Scale up to a massive 1.5x to match the new giant proportions
+	visual_mesh.scale = Vector3(1.5, 1.5, 1.5)
 	
 	# Find where the Skeleton3D actually lives inside the instantiated scene
 	var blades_node = _find_blades_node_recursive(visual_mesh)
@@ -89,63 +104,7 @@ static func _apply_material_recursive(node: Node, material: Material) -> void:
 	for child in node.get_children():
 		_apply_material_recursive(child, material)
 
-# Scan and apply textures dynamically based on file system directories (DIP Compliance)
-static func _load_and_apply_texture(target_mat: StandardMaterial3D, folder_path: String, type: String) -> void:
-	if not DirAccess.dir_exists_absolute(folder_path):
-		return
-		
-	var dir = DirAccess.open(folder_path)
-	if dir:
-		dir.list_dir_begin()
-		var file_name = dir.get_next()
-		while file_name != "":
-			if not dir.current_is_dir() and not file_name.ends_with(".import"):
-				var name_lower : String = file_name.to_lower()
-				var is_match : bool = false
-				
-				# Filter for specific texture type (e.g. metallic, normal, roughness, or base color)
-				if type == "albedo" and "metallic" not in name_lower and "normal" not in name_lower and "roughness" not in name_lower:
-					if "texture" in name_lower or "albedo" in name_lower or "diffuse" in name_lower:
-						is_match = true
-				elif type == "metallic" and "metallic" in name_lower:
-					is_match = true
-				elif type == "normal" and "normal" in name_lower:
-					is_match_detected = true
-				elif type == "roughness" and "roughness" in name_lower:
-					is_match = true
-					
-				if is_match:
-					var full_tex_path = folder_path + file_name
-					var tex = load(full_tex_path) as Texture2D
-					if tex:
-						apply_texture_channel(target_mat, tex, type)
-						break
-			file_name = dir.get_next()
-		dir.list_dir_end()
-
-static var is_match_detected : bool = false
-
-static func apply_texture_channel(mat: StandardMaterial3D, tex: Texture2D, type: String) -> void:
-	match type:
-		"albedo": mat.albedo_texture = tex
-		"metallic":
-			mat.metallic = 1.0
-			mat.metallic_texture = tex
-		"roughness": mat.roughness_texture = tex
-		"normal":
-			mat.normal_enabled = true
-			mat.normal_texture = tex
-
-# Autonomous Directory Texture Loader (DIP Compliance)
-# Scans the textures/ folder, identifies maps, and binds them cleanly to the material
-static func _load_textures_for_ghost(ghost_name: String, target_mat: StandardMaterial3D) -> void:
-	var path = "res://assets/models/ghosts/" + ghost_name + "/textures/"
-	_load_and_apply_texture(target_mat, path, "albedo")
-	_load_and_apply_texture(target_mat, path, "metallic")
-	_load_and_apply_texture(target_mat, path, "roughness")
-	_load_and_apply_texture(target_mat, path, "normal")
-
-# Recursive helper to locate the independent blades/propeller mesh
+# Recursive helper to locate the independent blades/propeller mesh (Universal approach)
 static func _find_blades_node_recursive(node: Node) -> Node3D:
 	var name_lower = node.name.to_lower()
 	if node is MeshInstance3D and ("1" in node.name or "blade" in name_lower or "propeller" in name_lower or "part" in name_lower):

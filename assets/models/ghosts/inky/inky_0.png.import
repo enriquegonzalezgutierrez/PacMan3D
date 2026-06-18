@@ -2,15 +2,12 @@
 
 importer="texture"
 type="CompressedTexture2D"
-uid="uid://c2165hxpr2yhb"
+uid="uid://munp77x67ycx"
 path.s3tc="res://.godot/imported/inky_0.png-820e31158508d4cccc1379d74ccc177c.s3tc.ctex"
 path.etc2="res://.godot/imported/inky_0.png-820e31158508d4cccc1379d74ccc177c.etc2.ctex"
 metadata={
 "imported_formats": ["s3tc_bptc", "etc2_astc"],
 "vram_texture": true
-}
-generator_parameters={
-"md5": "0b77e83706fdfd3312fcfe1fc454c0b2"
 }
 
 [deps]
