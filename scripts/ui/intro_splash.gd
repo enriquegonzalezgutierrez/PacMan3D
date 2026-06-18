@@ -2,9 +2,10 @@
 # Description: Handles the cinematic intro video playback and transitions 
 #              smoothly to the Main Menu scene once completed or skipped.
 #              SOLID Refactoring & Feature Update:
-#              - Intro Audio Support (SRP): Programmatically instantiates and 
-#                plays the main menu BGM track during video playback, ensuring 
-#                clean audio termination on transition to prevent overlap bugs.
+#              - Seamless Persistent Audio (SRP): Delegated background music 
+#                playback to the global AudioManager autoload. The music is 
+#                no longer stopped during transition, allowing it to continue 
+#                seamlessly into the Main Menu.
 # Author: Enrique González Gutiérrez
 # Email: enrique.gonzalez.gutierrez@gmail.com
 # ==============================================================================
@@ -12,30 +13,24 @@ extends Control
 class_name IntroSplash
 
 @onready var video_player : VideoStreamPlayer = $VideoStreamPlayer
-var intro_audio : AudioStreamPlayer
 
 func _ready() -> void:
 	# Enforce processing during initial load transitions
 	process_mode = Node.PROCESS_MODE_ALWAYS
 	
-	# Programmatically configure and play the intro soundtrack (SRP Compliance)
-	_setup_intro_audio()
+	# Programmatically request AudioManager to play the menu BGM (DIP Compliance)
+	_setup_persistent_intro_audio()
 	
 	if is_instance_valid(video_player):
 		video_player.finished.connect(_on_video_finished)
 		video_player.play()
 
-# Programmatically configures and plays the intro soundtrack
-func _setup_intro_audio() -> void:
-	intro_audio = AudioStreamPlayer.new()
-	
-	# Load main_menu_bgm as the introductory theme
+# Requests the global AudioManager singleton to start playing the menu theme
+func _setup_persistent_intro_audio() -> void:
 	var bgm_stream = load("res://assets/audio/bgm/main_menu_bgm.mp3")
-	if bgm_stream:
-		intro_audio.stream = bgm_stream
-		intro_audio.volume_db = -8.0 # Comfortable volume level
-		add_child(intro_audio)
-		intro_audio.play()
+	if bgm_stream and AudioManager:
+		# Start playing on the persistent global channel (no restart on transition!)
+		AudioManager.play_bgm(bgm_stream, -8.0)
 
 func _input(event: InputEvent) -> void:
 	# Allow players to skip the intro video by pressing SPACE, ESC or tapping the screen
@@ -53,18 +48,15 @@ func _input(event: InputEvent) -> void:
 func _on_video_finished() -> void:
 	_transition_to_menu()
 
-# Cleans up audio and video players before changing scene (DIP Compliance)
+# Cleans up only the video player, letting the music play uninterrupted (DIP Compliance)
 func _transition_to_menu() -> void:
 	# Disable inputs to prevent multiple duplicate transition triggers
 	set_process_input(false)
 	
-	# Safely stop and terminate audio/video emitters
+	# Stop the video player
 	if is_instance_valid(video_player):
 		video_player.stop()
 		
-	if is_instance_valid(intro_audio):
-		intro_audio.stop()
-		intro_audio.queue_free()
-		
 	# Instantly transition to the main scene containing the HUD and Main Menu
+	# Notice: We DO NOT stop AudioManager, allowing the soundtrack to flow beautifully.
 	get_tree().change_scene_to_file("res://scenes/levels/main.tscn")

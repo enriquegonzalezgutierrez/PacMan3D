@@ -1,13 +1,13 @@
 # ==============================================================================
 # Description: Procedural Main Menu component.
 #              Constructs the title, button layouts (Start, Settings, Exit), 
-#              and coordinates BGM playbacks on the targeted "Music" bus.
+#              and coordinates BGM playbacks on the persistent global AudioManager.
 #              SOLID Refactoring:
-#              - SRP Compliance: Extracted the settings panel into its own class. 
-#                The MainMenu is solely responsible for booting screens and focus 
-#                routing.
-#              - DIP Compliance: Restores user audio configurations dynamically 
-#                on startup via AudioServer without hardcoded singletons.
+#              - SRP Compliance: Extracted all persistent audio playbacks to the 
+#                AudioManager Autoload. The Title menu no longer handles audio nodes.
+#              - DIP Compliance: Coordinates with the persistent AudioManager 
+#                strictly via public APIs, allowing seamless, uninterrupted BGM 
+#                transitions from the Splash Screen.
 # Author: Enrique González Gutiérrez
 # Email: enrique.gonzalez.gutierrez@gmail.com
 # ==============================================================================
@@ -22,7 +22,6 @@ var menu_title : Label
 var start_button : Button
 var settings_button : Button
 var exit_button : Button
-var menu_bgm : AudioStreamPlayer
 
 func _ready() -> void:
 	# Enforce processing during pause states
@@ -30,11 +29,14 @@ func _ready() -> void:
 	
 	set_anchors_and_offsets_preset(Control.PRESET_FULL_RECT)
 	
-	# 1. Load and restore user volume preferences instantly on launch (DIP Compliance)
+	# 1. Load and restore user volume preferences instantly on launch
 	_load_initial_audio_volumes()
 	
 	# 2. Compile title screen UI
 	_build_ui()
+	
+	# 3. Synchronize persistent background music playback (DIP Compliance)
+	_sync_menu_bgm()
 
 # Loads user settings silently on startup to ensure correct volumes out-of-the-box
 func _load_initial_audio_volumes() -> void:
@@ -42,7 +44,6 @@ func _load_initial_audio_volumes() -> void:
 	var music_vol := 0.7
 	var sfx_vol := 0.8
 	
-	# Settings path matching the SettingsPanel constants
 	if FileAccess.file_exists("user://settings.dat"):
 		var file = FileAccess.open_encrypted_with_pass("user://settings.dat", FileAccess.READ, "PacMan3D_SecureSettingsKey_9903")
 		if file:
@@ -51,30 +52,29 @@ func _load_initial_audio_volumes() -> void:
 			sfx_vol = file.get_float()
 			file.close()
 			
-	# Dynamically obtain or compile engine buses
 	var master_idx = AudioServer.get_bus_index("Master")
 	var music_idx = AudioServer.get_bus_index("Music")
-	if music_idx == -1:
-		AudioServer.add_bus()
-		music_idx = AudioServer.get_bus_count() - 1
-		AudioServer.set_bus_name(music_idx, "Music")
-		
 	var sfx_idx = AudioServer.get_bus_index("SFX")
-	if sfx_idx == -1:
-		AudioServer.add_bus()
-		sfx_idx = AudioServer.get_bus_count() - 1
-		AudioServer.set_bus_name(sfx_idx, "SFX")
-		
+	
 	var apply_vol = func(bus_idx: int, linear_val: float):
-		if linear_val <= 0.0:
-			AudioServer.set_bus_mute(bus_idx, true)
-		else:
-			AudioServer.set_bus_mute(bus_idx, false)
-			AudioServer.set_bus_volume_db(bus_idx, linear_to_db(linear_val))
+		if bus_idx != -1:
+			if linear_val <= 0.0:
+				AudioServer.set_bus_mute(bus_idx, true)
+			else:
+				AudioServer.set_bus_mute(bus_idx, false)
+				AudioServer.set_bus_volume_db(bus_idx, linear_to_db(linear_val))
 			
 	apply_vol.call(master_idx, master_vol)
 	apply_vol.call(music_idx, music_vol)
 	apply_vol.call(sfx_idx, sfx_vol)
+
+# Requests AudioManager to play the menu theme.
+# If already playing from the Intro Splash, it continues uninterrupted!
+func _sync_menu_bgm() -> void:
+	var bgm_stream = load("res://assets/audio/bgm/main_menu_bgm.mp3")
+	if bgm_stream and AudioManager:
+		# Symmetrical playback check: Continues smoothly without resetting!
+		AudioManager.play_bgm(bgm_stream, -8.0)
 
 # Programmatically builds the Main Menu title overlay
 func _build_ui() -> void:
@@ -175,10 +175,12 @@ func _build_ui() -> void:
 		exit_button = Button.new()
 		exit_button.text = "EXIT"
 		exit_button.add_theme_font_size_override("font_size", 48)
+		
 		exit_button.add_theme_stylebox_override("normal", style_normal)
 		exit_button.add_theme_stylebox_override("hover", style_focus_hover)
 		exit_button.add_theme_stylebox_override("focus", style_focus_hover)
 		exit_button.add_theme_stylebox_override("pressed", style_focus_hover)
+		
 		exit_button.add_theme_color_override("font_color", Color(0.85, 0.85, 0.85))
 		exit_button.add_theme_color_override("font_hover_color", Color(1.0, 1.0, 0.0))
 		exit_button.add_theme_color_override("font_focus_color", Color(1.0, 1.0, 0.0))
@@ -186,19 +188,6 @@ func _build_ui() -> void:
 		exit_button.pressed.connect(func(): get_tree().quit())
 	
 	start_button.grab_focus()
-	
-	# 6. Menu BGM Player
-	menu_bgm = AudioStreamPlayer.new()
-	menu_bgm.stream = load("res://assets/audio/bgm/main_menu_bgm.mp3")
-	menu_bgm.volume_db = -8.0
-	
-	# --- SPECIFIC BUS ROUTING (DIP Compliance) ---
-	# Assign menu background soundtrack to the programmatically generated Music bus
-	menu_bgm.bus = "Music"
-	
-	menu_bgm.autoplay = true
-	add_child(menu_bgm)
-	menu_bgm.play()
 
 # Triggered when Start Game is clicked
 func _on_start_pressed() -> void:
@@ -208,8 +197,10 @@ func _on_start_pressed() -> void:
 	if is_instance_valid(exit_button):
 		exit_button.visible = false
 		
-	if menu_bgm:
-		menu_bgm.stop()
+	# --- SILENT STOP ---
+	# Turn off BGM persistent soundtrack cleanly before entering gameplay corridors
+	if AudioManager:
+		AudioManager.stop_bgm()
 		
 	start_game_requested.emit()
 	queue_free()
