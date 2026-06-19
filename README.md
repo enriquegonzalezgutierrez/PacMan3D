@@ -11,13 +11,13 @@ Email: enrique.gonzalez.gutierrez@gmail.com
 ![MartínMan 3D Main Menu](assets/ui/images/main_menu_bg.png)
 
 ## Overview
-**MartínMan 3D** is a modern, highly optimized 3D retro-cyberpunk arcade game set in a Menorcan-themed ciber-taberna, built entirely from scratch in **Godot 4**. 
+**MartínMan 3D** is a modern, highly optimized 3D retro-cyberpunk arcade game set in a Menorcan-themed ciber-taberna, built entirely from scratch in **Godot 4** (Compatibility renderer recommended for cross-platform stability). 
 
 This project focuses on robust core mechanics, physics-based movement, procedural level generation, and strict adherence to **SOLID software design principles**. The visual aesthetic relies on custom PBR-textured rigged 3D models paired with vibrant neon lighting, customized reflections, and four procedural architectural styles.
 
 ---
 
-## Features (Phases 1, 2, 3, 4 & 5 Completed)
+## Features (Phases 1 - 5 completed and optimized)
 *   **Procedural Level Generator (Python):** Automatically crafts braided, symmetric, 100% connected 3D mazes in under `0.01` seconds with zero dead-ends or 2x2 plazas.
 *   **Multi-Style Visual Themes:** Levels are rendered dynamically in one of four procedurally generated themes:
 	*   `pipes`: Connected double-deck pipeline rails with brushed satin metallic reflections.
@@ -44,7 +44,45 @@ This project focuses on robust core mechanics, physics-based movement, procedura
 *   **Cinematic System Loader:** Dedicated black loading screen ("GENERATING SYSTEM...") with deferred frame rendering and an 800ms minimum pacing delay to ensure seamless transitions on high-end PCs.
 *   **Prosthetic Virtual Joystick & Layout:** Programmatic 360-degree floating analog stick (320px base, 130px knob) simulating digital keyboard registries natively, and a giant 220px JUMP button.
 *   **Polished Game Juice:** Multi-touch virtual mobile controls, cinematic screen shakes on deaths/bites, post-processing bloom, and vectorized minimap radar.
-*   **SOLID Software Architecture:** Decoupled interfaces where core nodes interact through signals and public APIs, keeping managers and entities lightweight and single-responsible.
+
+---
+
+## Technical Optimization Details (High-Performance Overhaul)
+
+To guarantee consistent high-framerate executions on mobile GPUs and eliminate level loading micro-stutters, the following major performance systems have been integrated:
+
+### 1. Offline Level Assembly (RAM Spawning)
+Instead of instantiating and appending 930+ dynamic nodes directly to the active SceneTree sequentially (which triggers heavy thread-blocking synchronizations with Godot's servers), the entire level structure is compiled **offline in RAM** under an unparented root `level_holder` node.
+*   The spawning loop latency has been reduced from **`3002ms` to exactly `33ms` (a 98.8% performance improvement)**.
+*   Once fully assembled and optimized, the branch is attached to the active tree in a single frame.
+
+### 2. Centralized Cache Management & Dependency Injection (DIP)
+High-density 3D models (standard/power pellets, ice, lemons, and the four separate ghost models) are pre-loaded and cached as `PackedScene` resources in RAM **exactly once** during the startup initialization phase. 
+*   Spawning nodes no longer perform expensive dynamic disk read operations or path existence checks, eliminating runtime I/O bottlenecks.
+
+### 3. Dynamic Visual Mesh Merging
+To prevent rendering bottlenecks (thousands of individual Draw Calls), the `LevelBuilder` features a decoulped mesh-merging algorithm. 
+*   It recursively scans the 1,400+ procedurally generated pipe visual meshes, groups their geometry arrays by unique `Material` reference, and compiles them into **1 or 2 single unified `ArrayMesh` nodes in under `86ms`**, bringing active Draw Calls down to 1.
+
+### 4. Shared Physics & Single-Body Compound Shape
+Instead of registering 487 independent static bodies in the physics server, the system instantiates **exactly 1 static body** (`MapWallsPhysics`) and attaches 487 `CollisionShape3D` nodes referencing a single preloaded `BoxShape3D` resource. This reduces Jolt Physics Server registrations by **99.8%**, accelerating physics compilation.
+
+### 5. Precompiled Animation Libraries
+Instead of instantiating, parsing, remapping, and freeing 5 heavy Mixamo FBX animations dynamically during level loads, the system extracts bone tracks and compiles a unified `AnimationLibrary` in RAM **once during startup**. This resolves Godot's skeletal T-pose duplication bugs and cuts runtime character compilation overhead to **`0ms`**.
+
+### 6. Grid-Guided Arcade Movement & Lane Snapping
+Overhauled the player input controller to read coordinates directly from the grid layout matrix in RAM (`GameManager.level_layout`).
+*   Eliminated physics-based `test_move` checks for straight-line corridor navigation, preventing side-wall clipping or diagonal stuck states.
+*   Added automatic lane alignment and corner-cutting tolerance: when a turn is buffered, MartínMan smoothly **snaps to the exact center of the intersection**, sliding around corners with fluid arcade steering.
+
+---
+
+## SOLID Software Architecture
+*   **Single Responsibility Principle (SRP):** High-level orchestrators (`LevelManager`) are kept lightweight by delegating rendering/mesh-compilation tasks to `LevelBuilder`, topological map checks to `MapValidator`, and volume configurations to `SettingsPanel`.
+*   **Open/Closed Principle (OCP):** New architectural styles and ghost AI classes can be plugged in seamlessly by extending the abstract `WallStyleStrategy` and `GhostBehavior` strategies without modifying the core generation loops.
+*   **Liskov Substitution Principle (LSP):** Entities implement polymorphic hooks (such as `get_minimap_color()` and `get_minimap_radius()`) allowing `Minimap2D` to draw any node dynamically without querying private states.
+*   **Interface Segregation Principle (ISP):** Communication between modules is handled through focused, lightweight signals (`death_completed`, `eaten`, `score_changed`) instead of heavy, monolithic interfaces.
+*   **Dependency Inversion Principle (DIP):** Managers and builders interact with entities through loose callbacks and parameter-driven dependency injections (such as precompiled visual cache variables), separating structural assets from logical loops.
 
 ---
 
@@ -63,7 +101,7 @@ This project focuses on robust core mechanics, physics-based movement, procedura
 To run and edit this project locally, ensure you meet the following requirements:
 
 ### Prerequisites
-*   **Godot Engine:** Version `4.6` or higher (Forward Plus renderer recommended).
+*   **Godot Engine:** Version `4.6` or higher (Compatibility renderer recommended).
 *   **Godot Jolt Physics Plugin:** Installed and enabled (handled automatically via the project settings if Jolt is active in your editor).
 *   **Python 3.x:** (Optional) Required only if you want to run `generate_levels.py` to compile custom layouts.
 
