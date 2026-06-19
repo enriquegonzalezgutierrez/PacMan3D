@@ -10,6 +10,11 @@
 #              - Caching & DIP Compliance: Caches high-density assets (standard 
 #                pellets, ice cubes, lemons, and the four separate ghost models) 
 #                once during construction to avoid redundant runtime disk I/O.
+#              - Physics Resource Sharing: Reuses a single shared BoxShape3D 
+#                across all generated wall blocks, eliminating hundreds of heap 
+#                allocations during level assembly.
+#              - Performance Telemetry: Integrated high-resolution millisecond 
+#                timers to log precisely where initialization overhead resides.
 # Author: Enrique González Gutiérrez
 # Email: enrique.gonzalez.gutierrez@gmail.com
 # ==============================================================================
@@ -18,6 +23,9 @@ class_name LevelBuilder
 
 const CELL_SIZE : float = 2.0
 const WALL_HEIGHT : float = 2.0
+
+# --- SHARED PHYSICS ASSET ---
+var shared_wall_shape : BoxShape3D = null
 
 # Asset Path Configurations
 const BOTTLE_MODEL_PATH : String = "res://assets/models/items/xoriguer_bottle.fbx"
@@ -46,6 +54,16 @@ var cached_ice_scene : PackedScene = null
 var cached_lemon_scene : PackedScene = null
 var cached_ghost_scenes : Dictionary = {}
 
+# Cached pre-compiled animation library and billboard poster texture (DIP Compliance)
+var cached_player_animation_library : AnimationLibrary = null
+var cached_billboard_poster : Texture2D = null
+
+# Telemetry counters
+var walls_spawned : int = 0
+var pellets_spawned : int = 0
+var ice_spawned : int = 0
+var speed_spawned : int = 0
+
 # Strategy Pattern Dictionary for Wall rendering themes (OCP Compliance)
 var wall_strategies : Dictionary = {
 	"blocks": WallStyleStrategy.Blocks.new(),
@@ -67,6 +85,8 @@ func _init(parent: Node3D) -> void:
 
 # Preloads and caches high-density assets to avoid disk operations during loops
 func _preload_mesh_assets() -> void:
+	var start_time : int = Time.get_ticks_msec()
+	
 	# Cache Standard Pellet
 	if ResourceLoader.exists(BOTTLE_MODEL_PATH):
 		cached_bottle_scene = load(BOTTLE_MODEL_PATH) as PackedScene
@@ -99,6 +119,31 @@ func _preload_mesh_assets() -> void:
 			cached_ghost_scenes[g_type] = load(path) as PackedScene
 		else:
 			push_warning("LevelBuilder: Could not find model asset for ghost: " + g_type)
+			
+	# Initialize shared static collision boundary shape (Optimization Compliance)
+	shared_wall_shape = BoxShape3D.new()
+	shared_wall_shape.size = Vector3(CELL_SIZE, 20.0, CELL_SIZE)
+	
+	# Pre-compile MartínMan's dynamic skeleton and animations once at startup (SRP/DIP compliance)
+	var start_player_compile : int = Time.get_ticks_msec()
+	cached_player_animation_library = PlayerVisualBuilder.compile_animation_library()
+	var player_compile_duration : int = Time.get_ticks_msec() - start_player_compile
+	print("[TELEMETRY] MartínMan's skeletal AnimationLibrary compiled once in RAM in: ", player_compile_duration, "ms")
+	
+	# --- NEW: Preload the high-resolution billboard poster once (DIP Compliance) ---
+	var billboard_base_path := "res://assets/ui/images/xoriguer_ad"
+	var extensions := [".png", ".jpg", ".jpeg", ".PNG", ".JPG", ".JPEG"]
+	for ext in extensions:
+		var test_path = billboard_base_path + ext
+		if ResourceLoader.exists(test_path):
+			cached_billboard_poster = load(test_path) as Texture2D
+			break
+			
+	if not cached_billboard_poster:
+		push_warning("LevelBuilder: Could not find billboard poster asset at: " + billboard_base_path)
+	
+	var duration : int = Time.get_ticks_msec() - start_time
+	print("[TELEMETRY] LevelBuilder preloaded all 3D assets once in: ", duration, "ms")
 
 # Compiles and setups materials procedurally
 func _initialize_materials() -> void:
@@ -177,6 +222,14 @@ func build(level_data: Dictionary) -> void:
 	if not is_instance_valid(parent_node) or level_data.is_empty():
 		return
 		
+	var start_time : int = Time.get_ticks_msec()
+	
+	# Reset telemetry counters
+	walls_spawned = 0
+	pellets_spawned = 0
+	ice_spawned = 0
+	speed_spawned = 0
+		
 	if level_data.has("wall_color"):
 		var w_color = Color(level_data["wall_color"])
 		wall_material.albedo_color = w_color
@@ -232,6 +285,10 @@ func build(level_data: Dictionary) -> void:
 			my_portal.initialize(partner_portal)
 
 	_spawn_perimeter_billboards(map_offset_x, map_offset_z)
+	
+	var duration : int = Time.get_ticks_msec() - start_time
+	print("[TELEMETRY] 3D Level Assembly completed in: ", duration, "ms")
+	print("[TELEMETRY] Grid Entities Spawned -> Walls: ", walls_spawned, ", Bottles: ", pellets_spawned, ", Hielo: ", ice_spawned, ", Limones: ", speed_spawned)
 
 func _setup_world_environment() -> void:
 	var world_env := WorldEnvironment.new()
@@ -293,17 +350,24 @@ func _create_wall(pos: Vector3, x: int, z: int, level_data: Dictionary) -> void:
 	var strategy : WallStyleStrategy = wall_strategies.get(rendering_style, wall_strategies["pipes"])
 	strategy.build_mesh(static_body, x, z, CELL_SIZE, WALL_HEIGHT, wall_material, level_data)
 		
-	# Physical Collider (Uniform across all styles)
-	var box_shape := BoxShape3D.new()
-	box_shape.size = Vector3(CELL_SIZE, 20.0, CELL_SIZE)
-	
+	# Physical Collider (Uniform across all styles, referencing the shared resource shape)
 	var collision_shape := CollisionShape3D.new()
-	collision_shape.shape = box_shape
+	
+	if shared_wall_shape:
+		collision_shape.shape = shared_wall_shape
+	else:
+		# Fallback to standalone shape compilation in case of dynamic anomalies
+		var fallback_shape := BoxShape3D.new()
+		fallback_shape.size = Vector3(CELL_SIZE, 20.0, CELL_SIZE)
+		collision_shape.shape = fallback_shape
+		
 	collision_shape.position.y = 10.0 
 	static_body.add_child(collision_shape)
 	
 	static_body.position = pos
 	parent_node.add_child(static_body)
+	
+	walls_spawned += 1
 
 # Programmatically compiles 4 giant billboards on the cardial directions of the perimeter
 func _spawn_perimeter_billboards(ox: float, oz: float) -> void:
@@ -378,30 +442,24 @@ func _create_billboard_sign(pos: Vector3, rot_y: float) -> void:
 	right_neon.position = Vector3(1.32, 3.00, 0.0) 
 	billboard_root.add_child(right_neon)
 	
-	# --- MULTI-EXTENSION DEFENSIVE LOADER ---
-	var ad_tex : Texture2D = null
-	var extensions = [".png", ".jpg", ".jpeg", ".PNG", ".JPG", ".JPEG"]
-	for ext in extensions:
-		var test_path = "res://assets/ui/images/xoriguer_ad" + ext
-		if ResourceLoader.exists(test_path):
-			ad_tex = load(test_path) as Texture2D
-			break
-			
-	if ad_tex:
+	# --- DIP / CACHING IMPLEMENTATION ---
+	# Uses the pre-loaded high-resolution billboard texture, preventing runtime disk hits
+	if cached_billboard_poster:
 		var poster_sprite := Sprite3D.new()
-		poster_sprite.texture = ad_tex
+		poster_sprite.texture = cached_billboard_poster
 		poster_sprite.shaded = false 
 		poster_sprite.double_sided = true 
 		poster_sprite.alpha_cut = Sprite3D.ALPHA_CUT_DISCARD 
 		
 		var target_height : float = 3.8
-		var img_height : float = float(ad_tex.get_height())
+		var img_height : float = float(cached_billboard_poster.get_height())
 		if img_height > 0.0:
 			poster_sprite.pixel_size = target_height / img_height
 			
 		poster_sprite.position = Vector3(0.0, 3.00, 0.07) 
 		billboard_root.add_child(poster_sprite)
 	else:
+		# Standalone fallback if the cached poster is missing
 		var poster_mesh := BoxMesh.new()
 		poster_mesh.size = Vector3(2.4, 3.8, 0.02)
 		var poster_mat := StandardMaterial3D.new()
@@ -531,6 +589,8 @@ func _create_pellet(pos: Vector3, is_power: bool) -> void:
 	
 	if GameManager:
 		GameManager.register_pellet()
+		
+	pellets_spawned += 1
 
 # Spawns a frosty ice pellet on the grid injecting the pre-cached scene asset
 func _create_ice_pellet(pos: Vector3) -> void:
@@ -550,6 +610,8 @@ func _create_ice_pellet(pos: Vector3) -> void:
 	
 	if GameManager:
 		GameManager.register_pellet()
+		
+	ice_spawned += 1
 
 # Spawns an electric lemon pellet on the grid injecting the pre-cached scene asset
 func _create_speed_pellet(pos: Vector3) -> void:
@@ -569,11 +631,18 @@ func _create_speed_pellet(pos: Vector3) -> void:
 	
 	if GameManager:
 		GameManager.register_pellet()
+		
+	speed_spawned += 1
 
+# Instantiates the player character injecting pre-assembled models from RAM
 func _spawn_player(pos: Vector3) -> void:
 	var player_instance := Player.new()
 	player_instance.spawn_position = pos
 	player_instance.position = pos
+	
+	# --- Inject the precompiled AnimationLibrary into Player (SOLID DIP) ---
+	if cached_player_animation_library:
+		player_instance.precompiled_anim_library = cached_player_animation_library
 	
 	player_instance.initialize(player_material, waka_audio_stream, death_audio_stream)
 	player_instance.position.y = player_instance.get_spawn_height_offset()

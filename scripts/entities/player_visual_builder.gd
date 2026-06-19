@@ -8,6 +8,10 @@
 #                This guarantees 100% texture rendering on Android mobile APKs.
 #              - Visual Scaling Fix: Programmatically scaled up the 3D character 
 #                mesh by 1.75x to fit the 2-meter corridors.
+#              - DIP Compliance: Implements compile_animation_library() to precompile 
+#                all skeletal bone track paths into a single reusable RAM library, 
+#                rebuilding the player natively during level start without T-poses 
+#                or dynamic disk loading stalls.
 # Author: Enrique González Gutiérrez
 # Email: enrique.gonzalez.gutierrez@gmail.com
 # ==============================================================================
@@ -15,7 +19,7 @@ extends RefCounted
 class_name PlayerVisualBuilder
 
 # Compiles MartínMan's meshes, materials, and registers the 5 Mixamo animations code-only
-static func build_visuals(player: CharacterBody3D, _unused_material: StandardMaterial3D) -> Dictionary:
+static func build_visuals(player: CharacterBody3D, _player_material: StandardMaterial3D, precompiled_anim_library: AnimationLibrary = null) -> Dictionary:
 	var visual_mesh : Node3D = null
 	var collision_shape := CollisionShape3D.new()
 	var anim_player := AnimationPlayer.new()
@@ -71,23 +75,28 @@ static func build_visuals(player: CharacterBody3D, _unused_material: StandardMat
 	var skeleton_relative_path : String = ""
 	if skeleton:
 		skeleton_relative_path = str(visual_mesh.get_path_to(skeleton))
-		print("[MARTÍN_MAN] Resolved Skeleton3D node path: ", skeleton_relative_path)
-	
-	# 4. Extract, REMAP and register the 5 Mixamo FBX animations code-only
-	var anim_base_dir := "res://assets/models/player/animations/"
-	_load_and_register_animation(anim_player, anim_base_dir + "idle.fbx", "idle", skeleton_relative_path)
-	_load_and_register_animation(anim_player, anim_base_dir + "running.fbx", "running", skeleton_relative_path)
-	_load_and_register_animation(anim_player, anim_base_dir + "jump.fbx", "jump", skeleton_relative_path)
-	_load_and_register_animation(anim_player, anim_base_dir + "falling.fbx", "falling", skeleton_relative_path)
-	_load_and_register_animation(anim_player, anim_base_dir + "death.fbx", "death", skeleton_relative_path)
-	
-	# Set up standard loop modes for continuous animations (Godot 4 API)
-	if anim_player.has_animation("idle"):
-		anim_player.get_animation("idle").loop_mode = Animation.LOOP_LINEAR
-	if anim_player.has_animation("running"):
-		anim_player.get_animation("running").loop_mode = Animation.LOOP_LINEAR
-	if anim_player.has_animation("falling"):
-		anim_player.get_animation("falling").loop_mode = Animation.LOOP_LINEAR
+		
+	# --- DIP / CACHING IMPLEMENTATION ---
+	if precompiled_anim_library:
+		# Direct registration from pre-compiled RAM cache (0ms cost!)
+		anim_player.add_animation_library("", precompiled_anim_library)
+		print("[CACHE STATUS] PlayerVisualBuilder: Injected AnimationLibrary attached successfully!")
+	else:
+		# Fallback dynamic compilation on the fly (original logic)
+		var anim_base_dir := "res://assets/models/player/animations/"
+		_load_and_register_animation(anim_player, anim_base_dir + "idle.fbx", "idle", skeleton_relative_path)
+		_load_and_register_animation(anim_player, anim_base_dir + "running.fbx", "running", skeleton_relative_path)
+		_load_and_register_animation(anim_player, anim_base_dir + "jump.fbx", "jump", skeleton_relative_path)
+		_load_and_register_animation(anim_player, anim_base_dir + "falling.fbx", "falling", skeleton_relative_path)
+		_load_and_register_animation(anim_player, anim_base_dir + "death.fbx", "death", skeleton_relative_path)
+		
+		# Set up standard loop modes for continuous animations (Godot 4 API)
+		if anim_player.has_animation("idle"):
+			anim_player.get_animation("idle").loop_mode = Animation.LOOP_LINEAR
+		if anim_player.has_animation("running"):
+			anim_player.get_animation("running").loop_mode = Animation.LOOP_LINEAR
+		if anim_player.has_animation("falling"):
+			anim_player.get_animation("falling").loop_mode = Animation.LOOP_LINEAR
 		
 	# Rotate the character mesh 180 degrees so he faces forward along the Z running axis
 	visual_mesh.rotation_degrees.y = 180.0
@@ -110,6 +119,68 @@ static func build_visuals(player: CharacterBody3D, _unused_material: StandardMat
 		"visual_mesh": visual_mesh,
 		"anim_player": anim_player
 	}
+
+# Compiles and remaps all 5 dynamic Mixamo animations into a single reusable AnimationLibrary (SOLID DIP)
+static func compile_animation_library() -> AnimationLibrary:
+	var library := AnimationLibrary.new()
+	var skeleton_relative_path : String = ""
+	var character_path := "res://assets/models/player/animations/idle.fbx"
+	
+	# Resolve the skeleton relative path from a temporary instance
+	if ResourceLoader.exists(character_path):
+		var temp_instance = load(character_path).instantiate()
+		var skeleton = _find_skeleton(temp_instance)
+		if skeleton:
+			skeleton_relative_path = str(temp_instance.get_path_to(skeleton))
+		temp_instance.queue_free()
+		
+	# Compile and remap the 5 animations into the library
+	var anim_base_dir := "res://assets/models/player/animations/"
+	_load_and_remap_to_library(library, anim_base_dir + "idle.fbx", "idle", skeleton_relative_path)
+	_load_and_remap_to_library(library, anim_base_dir + "running.fbx", "running", skeleton_relative_path)
+	_load_and_remap_to_library(library, anim_base_dir + "jump.fbx", "jump", skeleton_relative_path)
+	_load_and_remap_to_library(library, anim_base_dir + "falling.fbx", "falling", skeleton_relative_path)
+	_load_and_remap_to_library(library, anim_base_dir + "death.fbx", "death", skeleton_relative_path)
+	
+	# Set up standard loop modes for continuous animations (Godot 4 API)
+	if library.has_animation("idle"):
+		library.get_animation("idle").loop_mode = Animation.LOOP_LINEAR
+	if library.has_animation("running"):
+		library.get_animation("running").loop_mode = Animation.LOOP_LINEAR
+	if library.has_animation("falling"):
+		library.get_animation("falling").loop_mode = Animation.LOOP_LINEAR
+		
+	return library
+
+# Internal helper to extract, clone, and remap tracks from an FBX scene into a shared library
+static func _load_and_remap_to_library(library: AnimationLibrary, fbx_path: String, anim_key: String, skeleton_relative_path: String) -> void:
+	if not ResourceLoader.exists(fbx_path):
+		return
+		
+	var anim_scene = load(fbx_path) as PackedScene
+	if anim_scene:
+		var temp_instance = anim_scene.instantiate()
+		var temp_player = temp_instance.get_node_or_null("AnimationPlayer") as AnimationPlayer
+		
+		if temp_player and temp_player.get_animation_list().size() > 0:
+			var raw_anim_name = temp_player.get_animation_list()[0]
+			var anim_resource = temp_player.get_animation(raw_anim_name).duplicate() as Animation # Duplicate to prevent shared mutations
+			
+			# --- BONE TRACK REMAPPER ---
+			# Dynamically rewrites track paths to match MartínMan's actual skeleton path (e.g. RootNode/Skeleton3D)
+			if skeleton_relative_path != "":
+				for track_idx in range(anim_resource.get_track_count()):
+					var path = anim_resource.track_get_path(track_idx)
+					var path_str = str(path)
+					if ":" in path_str:
+						var split = path_str.split(":")
+						var bone_part = split[1]
+						var new_path = skeleton_relative_path + ":" + bone_part
+						anim_resource.track_set_path(track_idx, NodePath(new_path))
+						
+			library.add_animation(anim_key, anim_resource)
+			
+		temp_instance.queue_free()
 
 # Helper to recursively apply PBR materials to nested MeshInstance3D nodes inside the FBX
 static func _apply_material_recursive(node: Node, material: Material) -> void:
@@ -140,7 +211,6 @@ static func _load_and_register_animation(target_player: AnimationPlayer, fbx_pat
 		var temp_player = temp_instance.get_node_or_null("AnimationPlayer") as AnimationPlayer
 		
 		if temp_player and temp_player.get_animation_list().size() > 0:
-			# Mixamo default animation is always the first record
 			var raw_anim_name = temp_player.get_animation_list()[0]
 			var anim_resource = temp_player.get_animation(raw_anim_name)
 			

@@ -11,6 +11,8 @@
 #              - DIP Compliance: Added dependency injection to accept a 
 #                pre-cached PackedScene of the 3D lemon model, eliminating 
 #                redundant disk reads at runtime during level generation.
+#              - Performance Telemetry: Integrated class-level static counters 
+#                to log cache status on the first spawn without flooding the logs.
 # Author: Enrique González Gutiérrez
 # Email: enrique.gonzalez.gutierrez@gmail.com
 # ==============================================================================
@@ -22,6 +24,10 @@ signal speed_pellet_eaten()
 
 # Dependency Injection Placeholder (Injected by LevelBuilder to prevent disk I/O)
 var lemon_scene_cache : PackedScene = null
+
+# Static Telemetry Counters (Optimization Verification)
+static var cache_hits : int = 0
+static var cache_misses : int = 0
 
 # Internal visual component references
 var visual_holder : Node3D
@@ -44,18 +50,28 @@ func _configure_collision_layers() -> void:
 func _build_pellet_visuals() -> void:
 	visual_holder = Node3D.new()
 	var collision_shape := CollisionShape3D.new()
+	var lemon_mesh : Node3D = null
 	
 	# --- DIP / CACHING IMPLEMENTATION ---
 	# Retrieve the model from the injected memory cache. If none exists, execute a fallback load.
-	var lemon_mesh : Node3D = null
 	if lemon_scene_cache:
 		lemon_mesh = lemon_scene_cache.instantiate()
+		
+		# Telemetry check: log first cache hit
+		SpeedPellet.cache_hits += 1
+		if SpeedPellet.cache_hits == 1:
+			print("[CACHE STATUS] SpeedPellet: First cache HIT verified successfully!")
 	else:
 		var lemon_path := "res://assets/models/items/lemon/lemon.fbx"
 		if ResourceLoader.exists(lemon_path):
 			var lemon_scene = load(lemon_path) as PackedScene
 			if lemon_scene:
 				lemon_mesh = lemon_scene.instantiate()
+				
+		# Telemetry check: log first cache miss
+		SpeedPellet.cache_misses += 1
+		if SpeedPellet.cache_misses == 1:
+			print("[CACHE STATUS] SpeedPellet: First cache MISS detected (loading fallback from disk)!")
 			
 	# Defensive Fallback: If FBX is missing, compile a stylized CylinderMesh
 	if not is_instance_valid(lemon_mesh):
@@ -101,6 +117,7 @@ func _brighten_imported_materials_recursive(node: Node) -> void:
 		dup_mat.shading_mode = StandardMaterial3D.SHADING_MODE_UNSHADED
 		
 		# --- MOBILE STATIC INJECTOR (Bypasses Android DirAccess limitations) ---
+		# We directly load the newly renamed static texture files from the assets folder.
 		var tex_dir : String = "res://assets/models/items/lemon/textures/"
 		
 		if ResourceLoader.exists(tex_dir + "albedo.png"):

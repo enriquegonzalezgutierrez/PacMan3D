@@ -11,11 +11,17 @@
 #              - DIP Compliance: Receives a pre-cached PackedScene representation 
 #                of its specific 3D model, eliminating disk hits during runtime 
 #                instantiation.
+#              - Performance Telemetry: Integrated class-level static counters 
+#                to log cache status on the first spawn without flooding the logs.
 # Author: Enrique González Gutiérrez
 # Email: enrique.gonzalez.gutierrez@gmail.com
 # ==============================================================================
 extends RefCounted
 class_name GhostVisualBuilder
+
+# Static Telemetry Counters (Optimization Verification)
+static var cache_hits : int = 0
+static var cache_misses : int = 0
 
 # Assembles the ghost's 3D components and returns the dynamic node references
 static func build_visuals(ghost: CharacterBody3D, strategy: GhostBehavior, original_material: StandardMaterial3D, ghost_type: String, preloaded_scene: PackedScene = null) -> Dictionary:
@@ -35,12 +41,22 @@ static func build_visuals(ghost: CharacterBody3D, strategy: GhostBehavior, origi
 	# Instantiate from memory if cache is injected; execute fallback load from disk otherwise
 	if preloaded_scene:
 		visual_mesh = preloaded_scene.instantiate()
+		
+		# Telemetry check: log first cache hit
+		GhostVisualBuilder.cache_hits += 1
+		if GhostVisualBuilder.cache_hits == 1:
+			print("[CACHE STATUS] GhostVisualBuilder: First cache HIT verified successfully!")
 	else:
 		var character_path : String = "res://assets/models/ghosts/" + model_name + "/" + model_name + ".fbx"
 		if ResourceLoader.exists(character_path):
 			var character_scene = load(character_path) as PackedScene
 			if character_scene:
 				visual_mesh = character_scene.instantiate()
+				
+		# Telemetry check: log first cache miss
+		GhostVisualBuilder.cache_misses += 1
+		if GhostVisualBuilder.cache_misses == 1:
+			print("[CACHE STATUS] GhostVisualBuilder: First cache MISS detected (loading fallback from disk)!")
 			
 	# Defensive Fallback: If FBX is missing, fallback to a standard low-poly capsule
 	if not is_instance_valid(visual_mesh):

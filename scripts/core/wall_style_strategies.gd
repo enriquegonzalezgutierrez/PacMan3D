@@ -5,6 +5,9 @@
 #                architectural styles (pipes, blocks, pillars, circuits). 
 #                Uses nested classes (inner classes) to bypass Godot 4's 
 #                single-class-per-file parser limitation.
+#              - Resource Optimization: Implements lazy-loaded caching for primitive 
+#                geometry meshes and local materials to eliminate redundant 
+#                resource allocations during level grid generation.
 # Author: Enrique González Gutiérrez
 # Email: enrique.gonzalez.gutierrez@gmail.com
 # ==============================================================================
@@ -20,12 +23,17 @@ func build_mesh(_static_body: StaticBody3D, _x: int, _z: int, _cell_size: float,
 # --- BLOCKS WALL STYLE ---
 # ==============================================================================
 class Blocks extends WallStyleStrategy:
+	# Cached mesh resource to share across all blocks
+	var cached_mesh : BoxMesh = null
+
 	func build_mesh(static_body: StaticBody3D, _x: int, _z: int, cell_size: float, wall_height: float, wall_material: StandardMaterial3D, _level_data: Dictionary) -> void:
-		var block_mesh := BoxMesh.new()
-		block_mesh.size = Vector3(cell_size, wall_height, cell_size)
-		
+		# Lazy initialization: instantiate only on the first block generation
+		if not cached_mesh:
+			cached_mesh = BoxMesh.new()
+			cached_mesh.size = Vector3(cell_size, wall_height, cell_size)
+			
 		var block_instance := MeshInstance3D.new()
-		block_instance.mesh = block_mesh
+		block_instance.mesh = cached_mesh
 		block_instance.material_override = wall_material
 		block_instance.position.y = wall_height / 2.0
 		static_body.add_child(block_instance)
@@ -35,32 +43,46 @@ class Blocks extends WallStyleStrategy:
 # --- PILLARS WALL STYLE ---
 # ==============================================================================
 class Pillars extends WallStyleStrategy:
-	# Resolved Warning: Prefixed cell_size with underscore since it's constant-sized
+	# Cached geometries and materials shared across all pillar elements
+	var cached_cylinder : CylinderMesh = null
+	var cached_sphere : SphereMesh = null
+	var cached_glow_material : StandardMaterial3D = null
+
 	func build_mesh(static_body: StaticBody3D, _x: int, _z: int, _cell_size: float, wall_height: float, wall_material: StandardMaterial3D, _level_data: Dictionary) -> void:
-		var cylinder_mesh := CylinderMesh.new()
-		cylinder_mesh.top_radius = 0.4
-		cylinder_mesh.bottom_radius = 0.4
-		cylinder_mesh.height = wall_height
-		cylinder_mesh.radial_segments = 12
-		
+		# Lazy initialization of shared cylinder pillar post
+		if not cached_cylinder:
+			cached_cylinder = CylinderMesh.new()
+			cached_cylinder.top_radius = 0.4
+			cached_cylinder.bottom_radius = 0.4
+			cached_cylinder.height = wall_height
+			cached_cylinder.radial_segments = 12
+			
 		var pillar_instance := MeshInstance3D.new()
-		pillar_instance.mesh = cylinder_mesh
+		pillar_instance.mesh = cached_cylinder
 		pillar_instance.material_override = wall_material
 		pillar_instance.position.y = wall_height / 2.0
 		static_body.add_child(pillar_instance)
 		
-		var sphere_mesh := SphereMesh.new()
-		sphere_mesh.radius = 0.55
-		sphere_mesh.height = 1.1
-		
-		var glowing_material := StandardMaterial3D.new()
-		glowing_material.albedo_color = wall_material.albedo_color
-		glowing_material.emission_enabled = true
-		glowing_material.emission = wall_material.albedo_color * 0.65 
+		# Lazy initialization of shared floating cap sphere
+		if not cached_sphere:
+			cached_sphere = SphereMesh.new()
+			cached_sphere.radius = 0.55
+			cached_sphere.height = 1.1
+			
+		# Lazy initialization of glowing cap material (aligned with active wall color)
+		if not cached_glow_material:
+			cached_glow_material = StandardMaterial3D.new()
+			cached_glow_material.albedo_color = wall_material.albedo_color
+			cached_glow_material.emission_enabled = true
+			cached_glow_material.emission = wall_material.albedo_color * 0.65 
+		elif cached_glow_material.albedo_color != wall_material.albedo_color:
+			# Safety sync in case level color changes dynamically
+			cached_glow_material.albedo_color = wall_material.albedo_color
+			cached_glow_material.emission = wall_material.albedo_color * 0.65
 		
 		var sphere_instance := MeshInstance3D.new()
-		sphere_instance.mesh = sphere_mesh
-		sphere_instance.material_override = glowing_material
+		sphere_instance.mesh = cached_sphere
+		sphere_instance.material_override = cached_glow_material
 		sphere_instance.position.y = wall_height
 		static_body.add_child(sphere_instance)
 
@@ -69,38 +91,57 @@ class Pillars extends WallStyleStrategy:
 # --- CIRCUITS WALL STYLE ---
 # ==============================================================================
 class Circuits extends WallStyleStrategy:
+	# Cached circuit elements to prevent redundant sub-mesh heap allocation
+	var cached_base_mesh : BoxMesh = null
+	var cached_dark_material : StandardMaterial3D = null
+	var cached_track_mesh : BoxMesh = null
+	var cached_track_material : StandardMaterial3D = null
+	var cached_node_mesh : BoxMesh = null
+
 	func build_mesh(static_body: StaticBody3D, _x: int, _z: int, cell_size: float, wall_height: float, wall_material: StandardMaterial3D, _level_data: Dictionary) -> void:
-		var base_mesh := BoxMesh.new()
-		base_mesh.size = Vector3(cell_size, wall_height, cell_size)
-		
-		var dark_mat := StandardMaterial3D.new()
-		dark_mat.albedo_color = Color(0.04, 0.04, 0.06) 
-		dark_mat.roughness = 0.8
-		dark_mat.metallic = 0.3
+		# 1. Base dark carbon blocks cache
+		if not cached_base_mesh:
+			cached_base_mesh = BoxMesh.new()
+			cached_base_mesh.size = Vector3(cell_size, wall_height, cell_size)
+			
+		if not cached_dark_material:
+			cached_dark_material = StandardMaterial3D.new()
+			cached_dark_material.albedo_color = Color(0.04, 0.04, 0.06) 
+			cached_dark_material.roughness = 0.8
+			cached_dark_material.metallic = 0.3
 		
 		var base_instance := MeshInstance3D.new()
-		base_instance.mesh = base_mesh
-		base_instance.material_override = dark_mat
+		base_instance.mesh = cached_base_mesh
+		base_instance.material_override = cached_dark_material
 		base_instance.position.y = wall_height / 2.0
 		static_body.add_child(base_instance)
 		
-		var track_mat := StandardMaterial3D.new()
-		track_mat.albedo_color = wall_material.albedo_color
-		track_mat.emission_enabled = true
-		track_mat.emission = wall_material.albedo_color * 0.8 
-		track_mat.roughness = 0.1
-		
-		var horiz_mesh := BoxMesh.new()
-		horiz_mesh.size = Vector3(cell_size + 0.03, 0.08, cell_size + 0.03) 
+		# 2. Holographic circuit tracks cache
+		if not cached_track_mesh:
+			cached_track_mesh = BoxMesh.new()
+			cached_track_mesh.size = Vector3(cell_size + 0.03, 0.08, cell_size + 0.03) 
+			
+		if not cached_track_material:
+			cached_track_material = StandardMaterial3D.new()
+			cached_track_material.albedo_color = wall_material.albedo_color
+			cached_track_material.emission_enabled = true
+			cached_track_material.emission = wall_material.albedo_color * 0.8 
+			cached_track_material.roughness = 0.1
+		elif cached_track_material.albedo_color != wall_material.albedo_color:
+			# Safety sync in case level color changes dynamically
+			cached_track_material.albedo_color = wall_material.albedo_color
+			cached_track_material.emission = wall_material.albedo_color * 0.8
 		
 		var horiz_line := MeshInstance3D.new()
-		horiz_line.mesh = horiz_mesh
-		horiz_line.material_override = track_mat
+		horiz_line.mesh = cached_track_mesh
+		horiz_line.material_override = cached_track_material
 		horiz_line.position.y = wall_height * 0.65 
 		static_body.add_child(horiz_line)
 		
-		var node_mesh := BoxMesh.new()
-		node_mesh.size = Vector3(0.08, wall_height + 0.02, 0.08) 
+		# 3. Micro-conduit nodes cache
+		if not cached_node_mesh:
+			cached_node_mesh = BoxMesh.new()
+			cached_node_mesh.size = Vector3(0.08, wall_height + 0.02, 0.08) 
 		
 		var corner_offsets : Array[Vector3] = [
 			Vector3(-cell_size/2.0, wall_height/2.0, -cell_size/2.0),
@@ -111,8 +152,8 @@ class Circuits extends WallStyleStrategy:
 		
 		for offset in corner_offsets:
 			var node_line := MeshInstance3D.new()
-			node_line.mesh = node_mesh
-			node_line.material_override = track_mat
+			node_line.mesh = cached_node_mesh
+			node_line.material_override = cached_track_material
 			node_line.position = offset
 			static_body.add_child(node_line)
 
@@ -121,6 +162,9 @@ class Circuits extends WallStyleStrategy:
 # --- PIPES WALL STYLE ---
 # ==============================================================================
 class Pipes extends WallStyleStrategy:
+	# Cached cylinder pipes to share among all modules
+	var cached_pipe_mesh : CylinderMesh = null
+
 	func build_mesh(static_body: StaticBody3D, x: int, z: int, cell_size: float, _wall_height: float, wall_material: StandardMaterial3D, level_data: Dictionary) -> void:
 		var has_horizontal : bool = false
 		var has_vertical : bool = false
@@ -139,15 +183,17 @@ class Pipes extends WallStyleStrategy:
 			has_horizontal = true
 			has_vertical = true
 			
-		var pipe_mesh := CylinderMesh.new()
-		pipe_mesh.top_radius = 0.18 
-		pipe_mesh.bottom_radius = 0.18
-		pipe_mesh.height = cell_size 
-		pipe_mesh.radial_segments = 12 
+		# Lazy initialization of pipe geometry
+		if not cached_pipe_mesh:
+			cached_pipe_mesh = CylinderMesh.new()
+			cached_pipe_mesh.top_radius = 0.18 
+			cached_pipe_mesh.bottom_radius = 0.18
+			cached_pipe_mesh.height = cell_size 
+			cached_pipe_mesh.radial_segments = 12 
 		
 		var create_pipe = func(offset_y: float, is_horiz: bool) -> MeshInstance3D:
 			var pipe_node := MeshInstance3D.new()
-			pipe_node.mesh = pipe_mesh
+			pipe_node.mesh = cached_pipe_mesh
 			pipe_node.material_override = wall_material
 			pipe_node.position.y = offset_y
 			

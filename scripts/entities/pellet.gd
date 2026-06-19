@@ -9,6 +9,8 @@
 #              - DIP Compliance: Added dependency injection to accept a 
 #                pre-cached PackedScene of the 3D model, preventing massive 
 #                I/O disk access operations during runtime grid assembly.
+#              - Performance Telemetry: Integrated class-level static counters 
+#                to log cache status on the first spawn without flooding the logs.
 # Author: Enrique González Gutiérrez
 # Email: enrique.gonzalez.gutierrez@gmail.com
 # ==============================================================================
@@ -20,8 +22,12 @@ signal eaten(is_power: bool)
 
 @export var is_power_pellet : bool = false
 
-# Dependency Injection Placeholder (Injected by LevelBuilder to avoid redundant disk reads)
+# Dependency Injection Placeholder (Injected by LevelBuilder to prevent disk I/O)
 var bottle_scene_cache : PackedScene = null
+
+# Static Telemetry Counters (Optimization Verification)
+static var cache_hits : int = 0
+static var cache_misses : int = 0
 
 # Internal visual component references
 var visual_holder : Node3D
@@ -50,12 +56,22 @@ func _build_pellet_visuals() -> void:
 	# Retrieve the model from the injected memory cache. If none exists, execute a fallback load.
 	if bottle_scene_cache:
 		bottle_mesh = bottle_scene_cache.instantiate()
+		
+		# Telemetry check: log first cache hit
+		Pellet.cache_hits += 1
+		if Pellet.cache_hits == 1:
+			print("[CACHE STATUS] Pellet: First cache HIT verified successfully!")
 	else:
 		var bottle_path := "res://assets/models/items/xoriguer_bottle.fbx"
 		if ResourceLoader.exists(bottle_path):
 			var bottle_scene = load(bottle_path) as PackedScene
 			if bottle_scene:
 				bottle_mesh = bottle_scene.instantiate()
+				
+		# Telemetry check: log first cache miss
+		Pellet.cache_misses += 1
+		if Pellet.cache_misses == 1:
+			print("[CACHE STATUS] Pellet: First cache MISS detected (loading fallback from disk)!")
 			
 	# Defensive Fallback: If FBX is missing, compile a stylized cylinder bottle
 	if not is_instance_valid(bottle_mesh):

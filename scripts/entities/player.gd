@@ -7,6 +7,9 @@
 #                completely without changing any core movement or grid-clamping physics.
 #              - Skeletal Animation Engine: Replaced mathematical sphere chewing 
 #                with high-fidelity skeletal animations (idle, running, jump, falling, death).
+#              - DIP Compliance: Accepts a precompiled AnimationLibrary resource 
+#                from LevelBuilder, bypassing expensive runtime disk loads 
+#                and remapping calculations.
 # Author: Enrique González Gutiérrez
 # Email: enrique.gonzalez.gutierrez@gmail.com
 # ==============================================================================
@@ -28,6 +31,9 @@ const GRAVITY : float = 40.0
 var player_material : StandardMaterial3D
 var munch_stream : AudioStream
 var death_stream : AudioStream
+
+# Precompiled animation library in RAM (SOLID DIP Compliance)
+var precompiled_anim_library : AnimationLibrary = null
 
 # Internal Node Components
 var munch_audio : AudioStreamPlayer3D
@@ -74,8 +80,8 @@ func _ready() -> void:
 	add_to_group("player")
 	_configure_collision_layers()
 	
-	# Assemble visuals using our SRP Builder (SRP Compliance)
-	var visual_components = PlayerVisualBuilder.build_visuals(self, player_material)
+	# Assemble visuals using our SRP Builder, injecting the precompiled library (SOLID DIP)
+	var visual_components = PlayerVisualBuilder.build_visuals(self, player_material, precompiled_anim_library)
 	visual_mesh = visual_components["visual_mesh"]
 	anim_player = visual_components["anim_player"]
 	
@@ -227,10 +233,10 @@ func _update_motion_trail_materials() -> void:
 	elif is_powered_up:
 		motion_trail_material.albedo_color = Color(1.0, 0.45, 0.0)
 		motion_trail_material.emission = Color(1.0, 0.2, 0.0)
-		motion_trail_material.emission_energy_multiplier = 1.2
+		motion_trail_material.emission_energy_multiplier = 0.4
 	else:
 		motion_trail_material.albedo_color = Color(1.0, 1.0, 0.0)
-		motion_trail_material.emission = Color(0.6, 0.6, 0.0)
+		motion_trail_material.emission = Color(0.5, 0.5, 0.0)
 		motion_trail_material.emission_energy_multiplier = 0.8
 
 func _physics_process(delta: float) -> void:

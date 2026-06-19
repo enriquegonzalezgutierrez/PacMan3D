@@ -11,6 +11,8 @@
 #              - DIP Compliance: Added dependency injection to accept a 
 #                pre-cached PackedScene of the 3D ice model, eliminating 
 #                redundant disk reads at runtime during level creation.
+#              - Performance Telemetry: Integrated class-level static counters 
+#                to log cache status on the first spawn without flooding the logs.
 # Author: Enrique González Gutiérrez
 # Email: enrique.gonzalez.gutierrez@gmail.com
 # ==============================================================================
@@ -22,6 +24,10 @@ signal ice_pellet_eaten()
 
 # Dependency Injection Placeholder (Injected by LevelBuilder to prevent disk I/O)
 var ice_scene_cache : PackedScene = null
+
+# Static Telemetry Counters (Optimization Verification)
+static var cache_hits : int = 0
+static var cache_misses : int = 0
 
 # Internal visual component references
 var visual_holder : Node3D
@@ -44,18 +50,28 @@ func _configure_collision_layers() -> void:
 func _build_pellet_visuals() -> void:
 	visual_holder = Node3D.new()
 	var collision_shape := CollisionShape3D.new()
+	var ice_mesh : Node3D = null
 	
 	# --- DIP / CACHING IMPLEMENTATION ---
 	# Retrieve the model from the injected memory cache. If none exists, execute a fallback load.
-	var ice_mesh : Node3D = null
 	if ice_scene_cache:
 		ice_mesh = ice_scene_cache.instantiate()
+		
+		# Telemetry check: log first cache hit
+		IcePellet.cache_hits += 1
+		if IcePellet.cache_hits == 1:
+			print("[CACHE STATUS] IcePellet: First cache HIT verified successfully!")
 	else:
 		var ice_path := "res://assets/models/items/ice/ice.fbx"
 		if ResourceLoader.exists(ice_path):
 			var ice_scene = load(ice_path) as PackedScene
 			if ice_scene:
 				ice_mesh = ice_scene.instantiate()
+				
+		# Telemetry check: log first cache miss
+		IcePellet.cache_misses += 1
+		if IcePellet.cache_misses == 1:
+			print("[CACHE STATUS] IcePellet: First cache MISS detected (loading fallback from disk)!")
 			
 	# Defensive Fallback: If FBX is missing, compile a stylized BoxMesh
 	if not is_instance_valid(ice_mesh):
