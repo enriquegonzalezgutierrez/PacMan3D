@@ -71,7 +71,8 @@ class CyberWindmill extends BaseDecorationStrategy:
 			level_neon_color = parent_node.wall_material.albedo_color
 			
 		# Initialize shared materials
-		_initialize_materials(level_neon_color)
+		if not tower_material:
+			_initialize_materials(level_neon_color)
 			
 		var windmill_root := Node3D.new()
 		windmill_root.position = pos
@@ -159,6 +160,89 @@ class CyberWindmill extends BaseDecorationStrategy:
 		
 		# Add the completed procedural assembly into the tree parent
 		parent_node.add_child(windmill_root)
+
+
+# ==============================================================================
+# --- CONCRETE MONUMENTAL CYBER-TAULA STRATEGY (CIBER-TAULA MEGALÍTICA) ---
+# ==============================================================================
+class CyberTaula extends BaseDecorationStrategy:
+	# Shared structural materials (reused across all compiled instances for performance)
+	var stone_material : StandardMaterial3D = null
+	var circuit_material : StandardMaterial3D = null
+
+	func _initialize_materials() -> void:
+		# 1. Monolithic Stone Material (Dark rough volcanic basalt)
+		stone_material = StandardMaterial3D.new()
+		stone_material.albedo_color = Color(0.12, 0.12, 0.14) 
+		stone_material.roughness = 0.9
+		stone_material.metallic = 0.05
+		
+		# 2. Glowing Circuit Material (High-contrast Neon Magenta)
+		circuit_material = StandardMaterial3D.new()
+		circuit_material.shading_mode = StandardMaterial3D.SHADING_MODE_UNSHADED
+		circuit_material.albedo_color = Color(1.0, 0.0, 0.6) # Intense Magenta
+		circuit_material.emission_enabled = true
+		circuit_material.emission = Color(1.0, 0.0, 0.5) * 1.6
+
+	func build_decoration(parent_node: Node3D, pos: Vector3, rot_y: float) -> void:
+		# Initialize shared materials
+		if not stone_material:
+			_initialize_materials()
+			
+		var taula_root := Node3D.new()
+		taula_root.position = pos
+		taula_root.rotation_degrees.y = rot_y
+		
+		# A. Vertical Stone Pillar (Soporte de piedra de 5 metros de alto)
+		var pillar_mesh := BoxMesh.new()
+		pillar_mesh.size = Vector3(1.25, 5.0, 0.45)
+		
+		var pillar_inst := MeshInstance3D.new()
+		pillar_inst.mesh = pillar_mesh
+		pillar_inst.material_override = stone_material
+		pillar_inst.position.y = 2.5 # Centered vertically
+		taula_root.add_child(pillar_inst)
+		
+		# B. Horizontal Cap Stone (Capitel de piedra en "T")
+		var cap_mesh := BoxMesh.new()
+		cap_mesh.size = Vector3(2.45, 0.55, 1.35)
+		
+		var cap_inst := MeshInstance3D.new()
+		cap_inst.mesh = cap_mesh
+		cap_inst.material_override = stone_material
+		cap_inst.position = Vector3(0.0, 5.2, 0.0) # Sitting exactly on top of the vertical pillar
+		taula_root.add_child(cap_inst)
+		
+		# C. Procedural Neon Data-Conduits (Holographic circuit tracks on stone faces)
+		var circuit_mesh := BoxMesh.new()
+		circuit_mesh.size = Vector3(0.025, 4.4, 0.015) # Thin glowing circuit trace
+		
+		# Left Vertical Neon Trace
+		var left_trace := MeshInstance3D.new()
+		left_trace.mesh = circuit_mesh
+		left_trace.material_override = circuit_material
+		left_trace.position = Vector3(-0.35, 2.2, 0.23) # Slightly offset forward to sit on front surface
+		taula_root.add_child(left_trace)
+		
+		# Right Vertical Neon Trace
+		var right_trace := MeshInstance3D.new()
+		right_trace.mesh = circuit_mesh
+		right_trace.material_override = circuit_material
+		right_trace.position = Vector3(0.35, 2.2, 0.23)
+		taula_root.add_child(right_trace)
+		
+		# Connecting Horizontal Neon Data-Bus Trace
+		var bus_mesh := BoxMesh.new()
+		bus_mesh.size = Vector3(0.725, 0.025, 0.015)
+		
+		var bus_trace := MeshInstance3D.new()
+		bus_trace.mesh = bus_mesh
+		bus_trace.material_override = circuit_material
+		bus_trace.position = Vector3(0.0, 3.8, 0.235)
+		taula_root.add_child(bus_trace)
+		
+		# Add the completed prehistoric cyber-shrine assembly into the tree parent
+		parent_node.add_child(taula_root)
 
 
 # ==============================================================================

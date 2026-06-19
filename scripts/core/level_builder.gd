@@ -26,8 +26,8 @@
 #              - Performance Telemetry: Integrated high-resolution millisecond 
 #                timers to log precisely where initialization overhead resides.
 #              - Procedural Perimeter Decorations (SOLID OCP): Instantiates 
-#                and aligns four symmetric, rotating holographic Cyber-Windmills 
-#                at the outskirts corners, making the taberna environment look alive.
+#                and aligns four symmetric Cyber-Windmills at the corners and 
+#                three monumental prehistoric Cyber-Taulas behind the billboards.
 # Author: Enrique González Gutiérrez
 # Email: enrique.gonzalez.gutierrez@gmail.com
 # ==============================================================================
@@ -333,7 +333,7 @@ func build(level_data: Dictionary) -> void:
 	# --- PROFILE PHASE C: PERIMETER BILLBOARDS & DECORATIONS ---
 	var start_phase_c := Time.get_ticks_msec()
 	_spawn_perimeter_billboards(map_offset_x, map_offset_z)
-	_spawn_perimeter_decorations(map_offset_x, map_offset_z) # Spawns 4 rotating holographic ciber-molinos (SOLID OCP)
+	_spawn_perimeter_decorations(map_offset_x, map_offset_z) # Spawns windmills AND three Cyber-Taula shrines!
 	var duration_c : int = Time.get_ticks_msec() - start_phase_c
 	print("[PROFILE] Phase C (Perimeter Billboards Setup) completed in: ", duration_c, "ms")
 	
@@ -341,7 +341,7 @@ func build(level_data: Dictionary) -> void:
 	var start_phase_d := Time.get_ticks_msec()
 	_merge_and_optimize_visuals()
 	var duration_d : int = Time.get_ticks_msec() - start_phase_d
-	print("[PROFILE] Phase D (Visual & Physical Collision Fusion) completed in: ", duration_d, "ms")
+	print("[PROFILE] Phase D (Visual Mesh Merging Algorithm) completed in: ", duration_d, "ms")
 	
 	# --- ATTACH TO ACTIVE TREE ---
 	# Connect the entire pre-compiled and fully optimized 3D world to the active SceneTree in a single frame
@@ -543,7 +543,7 @@ func _create_billboard_sign(pos: Vector3, rot_y: float) -> void:
 		front_poster.mesh = poster_mesh
 		front_poster.material_override = poster_mat
 		front_poster.position = Vector3(0.0, 3.00, 0.07) 
-		front_poster.add_child(front_poster)
+		billboard_root.add_child(front_poster)
 		
 		var back_poster := MeshInstance3D.new()
 		back_poster.mesh = poster_mesh
@@ -559,23 +559,29 @@ func _create_billboard_sign(pos: Vector3, rot_y: float) -> void:
 	# Attach billboards to the offline root container
 	level_holder.add_child(billboard_root)
 
-# Programmatically instantiates and places 4 symmetric Cyber-Windmills at the cardial outer corners (SOLID OCP)
+# Programmatically instantiates and places 4 symmetric Cyber-Windmills at the corners and 3 Cyber-Taulas behind the billboards (SOLID OCP)
 func _spawn_perimeter_decorations(ox: float, oz: float) -> void:
-	# Align margin proximity (2.8m) to match the backlit billboards (2.6m) for perfect diorama framing
+	# 1. Spawn the four diagonal gigantic Cyber-Windmills (aligned at perfect 2.8m margin)
 	var margin : float = 2.8 
-	var strategy = PerimeterDecorationStrategies.CyberWindmill.new()
+	var windmill = PerimeterDecorationStrategies.CyberWindmill.new()
 	
-	# 1. North-West Corner (facing 45 degrees directly towards the center lane)
-	strategy.build_decoration(level_holder, Vector3(-ox - margin, 0.0, -oz - margin), 45.0)
+	windmill.build_decoration(level_holder, Vector3(-ox - margin, 0.0, -oz - margin), 45.0)
+	windmill.build_decoration(level_holder, Vector3(ox + margin, 0.0, -oz - margin), -45.0)
+	windmill.build_decoration(level_holder, Vector3(-ox - margin, 0.0, oz + margin), 135.0)
+	windmill.build_decoration(level_holder, Vector3(ox + margin, 0.0, oz + margin), -135.0)
 	
-	# 2. North-East Corner (facing -45 degrees)
-	strategy.build_decoration(level_holder, Vector3(ox + margin, 0.0, -oz - margin), -45.0)
+	# --- NEW: Spawn 3 Prehistoric Cyber-Taula Shrines in the cardinal outskirts ---
+	var taula = PerimeterDecorationStrategies.CyberTaula.new()
+	var taula_margin : float = 4.2 # Placed slightly further out behind the billboard posts (2.6m) to form a layered background
 	
-	# 3. South-West Corner (facing 135 degrees)
-	strategy.build_decoration(level_holder, Vector3(-ox - margin, 0.0, oz + margin), 135.0)
+	# North Taula (centered behind North billboard, facing South/Camera)
+	taula.build_decoration(level_holder, Vector3(0.0, 0.0, -oz - taula_margin), 180.0)
 	
-	# 4. South-East Corner (facing -135 degrees)
-	strategy.build_decoration(level_holder, Vector3(ox + margin, 0.0, oz + margin), -135.0)
+	# East Taula (centered behind East billboard, facing West/Player)
+	taula.build_decoration(level_holder, Vector3(ox + taula_margin, 0.0, 0.0), -90.0)
+	
+	# West Taula (centered behind West billboard, facing East/Player)
+	taula.build_decoration(level_holder, Vector3(-ox - taula_margin, 0.0, 0.0), 90.0)
 
 func _create_ghost_house_gate(pos: Vector3) -> void:
 	var static_body := StaticBody3D.new()
