@@ -13,9 +13,6 @@
 #              - Physics Resource Sharing: Reuses a single shared BoxShape3D 
 #                across all generated wall blocks, eliminating hundreds of heap 
 #                allocations during level assembly.
-#              - Fused Trimesh Collision: Compiles a single ConcavePolygonShape3D 
-#                directly from the merged visual geometry faces, reducing static 
-#                physics bodies and shape registrations on Jolt to exactly 1.
 #              - Dynamic Visual Mesh Merging: Groups and compiles all 1,400+ 
 #                individual wall meshes into 1 or 2 single unified ArrayMesh nodes 
 #                in RAM based on active materials, dropping SceneTree overhead 
@@ -333,12 +330,11 @@ func build(level_data: Dictionary) -> void:
 	var duration_c : int = Time.get_ticks_msec() - start_phase_c
 	print("[PROFILE] Phase C (Perimeter Billboards Setup) completed in: ", duration_c, "ms")
 	
-	# --- PROFILE PHASE D: VISUAL & PHYSICAL COLLISION FUSION ---
+	# --- PROFILE PHASE D: VISUAL MESH MERGING ---
 	var start_phase_d := Time.get_ticks_msec()
 	_merge_and_optimize_visuals()
-	_compile_trimesh_collision() # Compiles a single ConcavePolygonShape3D uncoupling the 487 box shape registrations!
 	var duration_d : int = Time.get_ticks_msec() - start_phase_d
-	print("[PROFILE] Phase D (Visual & Physical Collision Fusion) completed in: ", duration_d, "ms")
+	print("[PROFILE] Phase D (Visual Mesh Merging Algorithm) completed in: ", duration_d, "ms")
 	
 	# --- ATTACH TO ACTIVE TREE ---
 	# Connect the entire pre-compiled and fully optimized 3D world to the active SceneTree in a single frame
@@ -407,19 +403,35 @@ func _create_wall(pos: Vector3, x: int, z: int, level_data: Dictionary) -> void:
 	var rendering_style : String = level_data.get("rendering_style", "pipes")
 	var strategy : WallStyleStrategy = wall_strategies.get(rendering_style, wall_strategies["pipes"])
 	
-	# 1. Procedural Visual Assembly
-	# Satisfy strategy StaticBody3D class-type checks (SOLID LSP / Type Safety Compliance)
+	# 1. Visual Node (StaticBody3D to satisfy strategies signature, but placed offline under visuals container)
 	var wall_visual_node := StaticBody3D.new()
 	wall_visual_node.collision_layer = 0
 	wall_visual_node.collision_mask = 0
 	wall_visual_node.position = pos
 	global_wall_visuals_container.add_child(wall_visual_node)
 	
-	# Use the visual node as the local mesh anchor (OCP strategy compatibility)
+	# Draw mesh geometry procedural components
 	strategy.build_mesh(wall_visual_node, x, z, CELL_SIZE, WALL_HEIGHT, wall_material, level_data)
 		
-	# 2. Physics: No Collision Shapes are spawned individually anymore!
-	# All wall shapes are now compiled polimorphically as a single Concave Static Shape at the end.
+	# 2. Physics Node (StaticBody3D placed offline under level_holder)
+	var static_body := StaticBody3D.new()
+	static_body.collision_layer = 1
+	static_body.collision_mask = 0
+	static_body.position = pos
+	
+	# Shared BoxShape3D physics shape assignment (99.8% memory/alloc savings)
+	var collision_shape := CollisionShape3D.new()
+	if shared_wall_shape:
+		collision_shape.shape = shared_wall_shape
+	else:
+		var fallback_shape := BoxShape3D.new()
+		fallback_shape.size = Vector3(CELL_SIZE, 20.0, CELL_SIZE)
+		collision_shape.shape = fallback_shape
+		
+	collision_shape.position.y = 10.0 
+	static_body.add_child(collision_shape)
+	
+	level_holder.add_child(static_body)
 	
 	walls_spawned += 1
 
@@ -852,28 +864,6 @@ func _merge_and_optimize_visuals() -> void:
 		if child != null and child is MeshInstance3D and child.mesh is ArrayMesh:
 			continue # Preserve the newly compiled merged instances!
 		child.queue_free()
-
-# Compiles a single ConcavePolygonShape3D directly from the merged wall visual geometries (SOLID DIP)
-func _compile_trimesh_collision() -> void:
-	if not is_instance_valid(global_wall_visuals_container) or not is_instance_valid(global_wall_physics_body):
-		return
-		
-	# Iterate through the merged MeshInstance3D nodes in the container
-	for child in global_wall_visuals_container.get_children():
-		if child is MeshInstance3D and child.mesh:
-			var mesh : Mesh = child.mesh
-			
-			# Create a highly optimized trimesh static collision shape directly from the merged geometry faces
-			var concave_shape := ConcavePolygonShape3D.new()
-			concave_shape.set_faces(mesh.get_faces())
-			
-			var collision_shape := CollisionShape3D.new()
-			collision_shape.shape = concave_shape
-			# Since global_wall_physics_body is at (0,0,0) and the merged mesh transforms are baked,
-			# the collision matches the visual layout with 100% precision!
-			global_wall_physics_body.add_child(collision_shape)
-			
-	print("[TELEMETRY] Fused trimesh collision shape compiled successfully from merged visual geometry!")
 
 # Recursive helper to gather all mesh instances under the visuals container
 func _find_mesh_instances_recursive(node: Node, result: Array[MeshInstance3D]) -> void:
