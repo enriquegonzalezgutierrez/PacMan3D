@@ -8,6 +8,9 @@
 #              - Giant Scale Up: Increased visual scale to 1.5x.
 #              - Propeller Extractor: Locates the independent blades node recursively.
 #              - Base Thruster Exhaust (VFX): Attaches a color-matched jet stream.
+#              - DIP Compliance: Receives a pre-cached PackedScene representation 
+#                of its specific 3D model, eliminating disk hits during runtime 
+#                instantiation.
 # Author: Enrique González Gutiérrez
 # Email: enrique.gonzalez.gutierrez@gmail.com
 # ==============================================================================
@@ -15,9 +18,10 @@ extends RefCounted
 class_name GhostVisualBuilder
 
 # Assembles the ghost's 3D components and returns the dynamic node references
-static func build_visuals(ghost: CharacterBody3D, strategy: GhostBehavior, original_material: StandardMaterial3D, ghost_type: String) -> Dictionary:
+static func build_visuals(ghost: CharacterBody3D, strategy: GhostBehavior, original_material: StandardMaterial3D, ghost_type: String, preloaded_scene: PackedScene = null) -> Dictionary:
 	var visual_mesh : Node3D = null
 	var collision_shape = CollisionShape3D.new()
+	var model_name : String = ghost_type.to_lower()
 	
 	# Default standard dimensions
 	var radius : float = 0.6
@@ -27,14 +31,16 @@ static func build_visuals(ghost: CharacterBody3D, strategy: GhostBehavior, origi
 		radius = strategy.get_capsule_radius()
 		height = strategy.get_capsule_height()
 		
-	# 1. Programmatically load and instantiate the correct Ciber-Molino FBX model
-	var model_name : String = ghost_type.to_lower()
-	var character_path : String = "res://assets/models/ghosts/" + model_name + "/" + model_name + ".fbx"
-	
-	if ResourceLoader.exists(character_path):
-		var character_scene = load(character_path) as PackedScene
-		if character_scene:
-			visual_mesh = character_scene.instantiate()
+	# --- DIP / CACHING IMPLEMENTATION ---
+	# Instantiate from memory if cache is injected; execute fallback load from disk otherwise
+	if preloaded_scene:
+		visual_mesh = preloaded_scene.instantiate()
+	else:
+		var character_path : String = "res://assets/models/ghosts/" + model_name + "/" + model_name + ".fbx"
+		if ResourceLoader.exists(character_path):
+			var character_scene = load(character_path) as PackedScene
+			if character_scene:
+				visual_mesh = character_scene.instantiate()
 			
 	# Defensive Fallback: If FBX is missing, fallback to a standard low-poly capsule
 	if not is_instance_valid(visual_mesh):
@@ -86,7 +92,7 @@ static func build_visuals(ghost: CharacterBody3D, strategy: GhostBehavior, origi
 	capsule_shape.height = height
 	collision_shape.shape = capsule_shape
 	
-	# Attach components to the active Ghost node
+	# Attach components to the ghost
 	ghost.add_child(visual_mesh)
 	ghost.add_child(collision_shape)
 	
@@ -97,17 +103,16 @@ static func build_visuals(ghost: CharacterBody3D, strategy: GhostBehavior, origi
 		"compiled_material": pbr_material
 	}
 
-# Helper to recursively apply flat materials to nested MeshInstance3D nodes inside the FBX
+# Helper to recursively apply PBR materials to nested MeshInstance3D nodes inside the FBX
 static func _apply_material_recursive(node: Node, material: Material) -> void:
 	if node is MeshInstance3D:
 		node.material_override = material
 	for child in node.get_children():
 		_apply_material_recursive(child, material)
 
-# Recursive helper to locate the independent blades/propeller mesh (Universal approach)
+# Recursive helper to find the blades structure within the mesh
 static func _find_blades_node_recursive(node: Node) -> Node3D:
-	var name_lower = node.name.to_lower()
-	if node is MeshInstance3D and ("1" in node.name or "blade" in name_lower or "propeller" in name_lower or "part" in name_lower):
+	if node is MeshInstance3D and node.name.begins_with("blades"):
 		return node
 	for child in node.get_children():
 		var found = _find_blades_node_recursive(child)

@@ -8,6 +8,9 @@
 #                This completely bypasses Android's DirAccess limitations, 
 #                guaranteeing 100% mobile texture compatibility on exported APKs.
 #              - Scale Up: Scaled massively to 1.4x for high-end diorama visibility.
+#              - DIP Compliance: Added dependency injection to accept a 
+#                pre-cached PackedScene of the 3D ice model, eliminating 
+#                redundant disk reads at runtime during level creation.
 # Author: Enrique González Gutiérrez
 # Email: enrique.gonzalez.gutierrez@gmail.com
 # ==============================================================================
@@ -16,6 +19,9 @@ class_name IcePellet
 
 # Emitted when eaten to let orchestrators freeze active ghosts
 signal ice_pellet_eaten()
+
+# Dependency Injection Placeholder (Injected by LevelBuilder to prevent disk I/O)
+var ice_scene_cache : PackedScene = null
 
 # Internal visual component references
 var visual_holder : Node3D
@@ -39,14 +45,17 @@ func _build_pellet_visuals() -> void:
 	visual_holder = Node3D.new()
 	var collision_shape := CollisionShape3D.new()
 	
-	# 1. Programmatically load and instantiate the user's 3D Ice Cube FBX model
+	# --- DIP / CACHING IMPLEMENTATION ---
+	# Retrieve the model from the injected memory cache. If none exists, execute a fallback load.
 	var ice_mesh : Node3D = null
-	var ice_path := "res://assets/models/items/ice/ice.fbx"
-	
-	if ResourceLoader.exists(ice_path):
-		var ice_scene = load(ice_path) as PackedScene
-		if ice_scene:
-			ice_mesh = ice_scene.instantiate()
+	if ice_scene_cache:
+		ice_mesh = ice_scene_cache.instantiate()
+	else:
+		var ice_path := "res://assets/models/items/ice/ice.fbx"
+		if ResourceLoader.exists(ice_path):
+			var ice_scene = load(ice_path) as PackedScene
+			if ice_scene:
+				ice_mesh = ice_scene.instantiate()
 			
 	# Defensive Fallback: If FBX is missing, compile a stylized BoxMesh
 	if not is_instance_valid(ice_mesh):
@@ -55,7 +64,7 @@ func _build_pellet_visuals() -> void:
 		fallback_mesh.size = Vector3(0.5, 0.5, 0.5)
 		ice_mesh.mesh = fallback_mesh
 		
-	# 2. Configure materials and scales (SRP Compliance)
+	# Configure materials and scales (SRP Compliance)
 	_brighten_imported_materials_recursive(ice_mesh)
 	
 	# Scale up to a massive 1.4x for high-end diorama visibility
@@ -65,7 +74,7 @@ func _build_pellet_visuals() -> void:
 	ice_mesh.rotation_degrees = Vector3(25.0, 45.0, 15.0)
 	visual_holder.add_child(ice_mesh)
 	
-	# 3. Attach the CPUParticles3D of frozen mist / steam rising
+	# Attach the CPUParticles3D of frozen mist / steam rising
 	var mist_emitter := _build_mist_emitter()
 	visual_holder.add_child(mist_emitter)
 	mist_emitter.emitting = true

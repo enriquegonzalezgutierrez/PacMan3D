@@ -9,6 +9,9 @@
 #              - Robot Spin Animation: Spins the single-mesh on Y-axis.
 #              - Facing Orientation Fix (+PI): Steering alignment.
 #              - Positional 3D Audio: Upgraded eaten audio to AudioStreamPlayer3D.
+#              - DIP Compliance: Accepts a cached PackedScene representation 
+#                of its unique 3D model during initialization, preventing 
+#                redundant disk operations.
 # Author: Enrique González Gutiérrez
 # Email: enrique.gonzalez.gutierrez@gmail.com
 # ==============================================================================
@@ -48,6 +51,9 @@ var grid_width : int = 0
 var grid_height : int = 0
 var eaten_stream : AudioStream
 
+# Preloaded model template from cache (SOLID DIP compliance)
+var ghost_scene_cache : PackedScene = null
+
 # Internal Node Components
 var raw_visual_node : Node3D 
 var eaten_audio : AudioStreamPlayer3D
@@ -85,18 +91,20 @@ func initialize(
 	norm_mat: StandardMaterial3D, 
 	fright_mat: StandardMaterial3D, 
 	layout: Array, 
-	width: int, 
-	height: int,
-	eat_stream: AudioStream
+	grid_w: int, 
+	grid_h: int,
+	eat_stream: AudioStream,
+	preloaded_scene: PackedScene = null # Cache Injection
 ) -> void:
 	ghost_type = type
 	behavior_strategy = strategy
 	original_material = norm_mat
 	frightened_material = fright_mat
 	level_layout = layout
-	grid_width = width
-	grid_height = height
+	grid_width = grid_w
+	grid_height = grid_h
 	eaten_stream = eat_stream
+	ghost_scene_cache = preloaded_scene # Store Cache
 
 func _ready() -> void:
 	spawn_position = global_position
@@ -112,8 +120,8 @@ func _ready() -> void:
 	
 	_configure_collision_layers()
 	
-	# Delegate visual construction to the static builder (SRP Compliance)
-	var visual_components = GhostVisualBuilder.build_visuals(self, behavior_strategy, original_material, ghost_type)
+	# Delegate visual construction to the static builder injecting our model cache (SRP Compliance)
+	var visual_components = GhostVisualBuilder.build_visuals(self, behavior_strategy, original_material, ghost_type, ghost_scene_cache)
 	raw_visual_node = visual_components["visual_mesh"]
 	blades_node = visual_components["blades_node"]
 	capsule_height = visual_components["capsule_height"]

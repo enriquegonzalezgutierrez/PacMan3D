@@ -6,6 +6,9 @@
 #                from the 3D meshes. Returns an absolute, high-contrast, pure 
 #                electric yellow color for the 2D map, completely solving the 
 #                issue of textured bottles rendering invisibly on the radar.
+#              - DIP Compliance: Added dependency injection to accept a 
+#                pre-cached PackedScene of the 3D model, preventing massive 
+#                I/O disk access operations during runtime grid assembly.
 # Author: Enrique González Gutiérrez
 # Email: enrique.gonzalez.gutierrez@gmail.com
 # ==============================================================================
@@ -16,6 +19,9 @@ class_name Pellet
 signal eaten(is_power: bool)
 
 @export var is_power_pellet : bool = false
+
+# Dependency Injection Placeholder (Injected by LevelBuilder to avoid redundant disk reads)
+var bottle_scene_cache : PackedScene = null
 
 # Internal visual component references
 var visual_holder : Node3D
@@ -34,25 +40,28 @@ func _configure_collision_layers() -> void:
 	collision_layer = 0 
 	collision_mask = 2  
 
-# Programmatically builds either a glass chupito or the iconic green Xoriguer bottle
+# Programmatically builds either a standard green Xoriguer bottle or a powered version
 func _build_pellet_visuals() -> void:
 	visual_holder = Node3D.new()
 	var collision_shape := CollisionShape3D.new()
-	
-	# 1. Programmatically load and instantiate the user's 3D bottle FBX model
 	var bottle_mesh : Node3D = null
-	var bottle_path := "res://assets/models/items/xoriguer_bottle.fbx"
 	
-	if ResourceLoader.exists(bottle_path):
-		var bottle_scene = load(bottle_path) as PackedScene
-		if bottle_scene:
-			bottle_mesh = bottle_scene.instantiate()
+	# --- DIP / CACHING IMPLEMENTATION ---
+	# Retrieve the model from the injected memory cache. If none exists, execute a fallback load.
+	if bottle_scene_cache:
+		bottle_mesh = bottle_scene_cache.instantiate()
+	else:
+		var bottle_path := "res://assets/models/items/xoriguer_bottle.fbx"
+		if ResourceLoader.exists(bottle_path):
+			var bottle_scene = load(bottle_path) as PackedScene
+			if bottle_scene:
+				bottle_mesh = bottle_scene.instantiate()
 			
 	# Defensive Fallback: If FBX is missing, compile a stylized cylinder bottle
 	if not is_instance_valid(bottle_mesh):
 		bottle_mesh = _create_fallback_cylinder_bottle()
 		
-	# 2. Configure materials and scales depending on Pellet Type (SRP Compliance)
+	# Configure materials and scales depending on Pellet Type (SRP Compliance)
 	if not is_power_pellet:
 		# --- STANDARD PELLET (Textured Real Xoriguer Bottle) ---
 		_brighten_imported_materials_recursive(bottle_mesh)
@@ -194,7 +203,6 @@ func _on_body_entered(body: Node3D) -> void:
 # --- MINIMAP POLYMORPHISM (LSP/OCP COMPLIANCE) ---
 
 func get_minimap_color() -> Color:
-	# Fixed: Returns absolute, vivid radar colors decoupled from the 3D FBX materials.
 	return Color(1.0, 0.8, 0.0) if is_power_pellet else Color(1.0, 1.0, 0.0)
 
 func get_minimap_radius() -> float:

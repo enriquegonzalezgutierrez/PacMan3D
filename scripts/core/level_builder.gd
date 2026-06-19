@@ -7,6 +7,9 @@
 #              - Enum Typo Fix: Corrected the tonemapper constant to Godot 4's 
 #                native 'Environment.TONE_MAPPER_FILMIC', eliminating all parser 
 #                errors and strict-type integer warnings permanently.
+#              - Caching & DIP Compliance: Caches high-density assets (standard 
+#                pellets, ice cubes, lemons, and the four separate ghost models) 
+#                once during construction to avoid redundant runtime disk I/O.
 # Author: Enrique González Gutiérrez
 # Email: enrique.gonzalez.gutierrez@gmail.com
 # ==============================================================================
@@ -15,6 +18,16 @@ class_name LevelBuilder
 
 const CELL_SIZE : float = 2.0
 const WALL_HEIGHT : float = 2.0
+
+# Asset Path Configurations
+const BOTTLE_MODEL_PATH : String = "res://assets/models/items/xoriguer_bottle.fbx"
+const ICE_MODEL_PATH : String = "res://assets/models/items/ice/ice.fbx"
+const LEMON_MODEL_PATH : String = "res://assets/models/items/lemon/lemon.fbx"
+
+const BLINKY_MODEL_PATH : String = "res://assets/models/ghosts/blinky/blinky.fbx"
+const PINKY_MODEL_PATH : String = "res://assets/models/ghosts/pinky/pinky.fbx"
+const INKY_MODEL_PATH : String = "res://assets/models/ghosts/inky/inky.fbx"
+const CLYDE_MODEL_PATH : String = "res://assets/models/ghosts/clyde/clyde.fbx"
 
 # Preloaded Audio Resources (DIP Compliance)
 var waka_audio_stream : AudioStream = preload("res://assets/audio/sfx/waka_waka.mp3")
@@ -26,6 +39,12 @@ var wall_material : StandardMaterial3D
 var player_material : StandardMaterial3D
 var ghost_frightened_material : StandardMaterial3D
 var ghost_materials : Dictionary = {}
+
+# Cached PackedScene resources (DIP compliance to avoid disk-reads during instantiation)
+var cached_bottle_scene : PackedScene = null
+var cached_ice_scene : PackedScene = null
+var cached_lemon_scene : PackedScene = null
+var cached_ghost_scenes : Dictionary = {}
 
 # Strategy Pattern Dictionary for Wall rendering themes (OCP Compliance)
 var wall_strategies : Dictionary = {
@@ -44,6 +63,42 @@ var portals_to_link : Array[Dictionary] = []
 func _init(parent: Node3D) -> void:
 	parent_node = parent
 	_initialize_materials()
+	_preload_mesh_assets()
+
+# Preloads and caches high-density assets to avoid disk operations during loops
+func _preload_mesh_assets() -> void:
+	# Cache Standard Pellet
+	if ResourceLoader.exists(BOTTLE_MODEL_PATH):
+		cached_bottle_scene = load(BOTTLE_MODEL_PATH) as PackedScene
+	else:
+		push_warning("LevelBuilder: Could not find model asset at: " + BOTTLE_MODEL_PATH)
+		
+	# Cache Ice Cube Pellet
+	if ResourceLoader.exists(ICE_MODEL_PATH):
+		cached_ice_scene = load(ICE_MODEL_PATH) as PackedScene
+	else:
+		push_warning("LevelBuilder: Could not find model asset at: " + ICE_MODEL_PATH)
+		
+	# Cache Speed Lemon Pellet
+	if ResourceLoader.exists(LEMON_MODEL_PATH):
+		cached_lemon_scene = load(LEMON_MODEL_PATH) as PackedScene
+	else:
+		push_warning("LevelBuilder: Could not find model asset at: " + LEMON_MODEL_PATH)
+		
+	# Cache Ghost Models (Blinky, Pinky, Inky, Clyde)
+	var ghost_paths := {
+		"Blinky": BLINKY_MODEL_PATH,
+		"Pinky": PINKY_MODEL_PATH,
+		"Inky": INKY_MODEL_PATH,
+		"Clyde": CLYDE_MODEL_PATH
+	}
+	
+	for g_type in ghost_paths:
+		var path : String = ghost_paths[g_type]
+		if ResourceLoader.exists(path):
+			cached_ghost_scenes[g_type] = load(path) as PackedScene
+		else:
+			push_warning("LevelBuilder: Could not find model asset for ghost: " + g_type)
 
 # Compiles and setups materials procedurally
 func _initialize_materials() -> void:
@@ -176,7 +231,6 @@ func build(level_data: Dictionary) -> void:
 		if partner_portal:
 			my_portal.initialize(partner_portal)
 
-	# --- SPACIAL BILLBOARDS GENERATOR ---
 	_spawn_perimeter_billboards(map_offset_x, map_offset_z)
 
 func _setup_world_environment() -> void:
@@ -190,8 +244,6 @@ func _setup_world_environment() -> void:
 	env_res.background_mode = Environment.BG_CLEAR_COLOR
 	env_res.background_color = Color(0.01, 0.01, 0.02, 1.0) 
 	
-	# --- PERFECT NATIVE ENUM ---
-	# Uses the correct Godot 4 enum syntax. No casts needed, 100% warning free.
 	env_res.tonemap_mode = Environment.TONE_MAPPER_FILMIC
 	env_res.tonemap_exposure = 1.08
 	
@@ -460,9 +512,15 @@ func _create_ghost_spawn_pad(pos: Vector3, color: Color) -> void:
 	pad_holder.position.y = 0.01 
 	parent_node.add_child(pad_holder)
 
+# Spawns a pellet on the grid injecting the pre-cached scene asset to prevent runtime disk IO bottlenecks
 func _create_pellet(pos: Vector3, is_power: bool) -> void:
 	var pellet := Pellet.new()
 	pellet.is_power_pellet = is_power
+	
+	# Dependency Injection: Pass the cached standard model downwards (SOLID DIP)
+	if cached_bottle_scene:
+		pellet.bottle_scene_cache = cached_bottle_scene
+		
 	pellet.position = pos
 	pellet.position.y = 0.5
 	
@@ -474,8 +532,14 @@ func _create_pellet(pos: Vector3, is_power: bool) -> void:
 	if GameManager:
 		GameManager.register_pellet()
 
+# Spawns a frosty ice pellet on the grid injecting the pre-cached scene asset
 func _create_ice_pellet(pos: Vector3) -> void:
 	var ice_pellet := IcePellet.new()
+	
+	# Dependency Injection: Pass the cached ice model downwards (SOLID DIP)
+	if cached_ice_scene:
+		ice_pellet.ice_scene_cache = cached_ice_scene
+		
 	ice_pellet.position = pos
 	ice_pellet.position.y = 0.5
 	
@@ -487,8 +551,14 @@ func _create_ice_pellet(pos: Vector3) -> void:
 	if GameManager:
 		GameManager.register_pellet()
 
+# Spawns an electric lemon pellet on the grid injecting the pre-cached scene asset
 func _create_speed_pellet(pos: Vector3) -> void:
 	var speed_pellet := SpeedPellet.new()
+	
+	# Dependency Injection: Pass the cached speed model downwards (SOLID DIP)
+	if cached_lemon_scene:
+		speed_pellet.lemon_scene_cache = cached_lemon_scene
+		
 	speed_pellet.position = pos
 	speed_pellet.position.y = 0.5
 	
@@ -519,6 +589,7 @@ func _spawn_player(pos: Vector3) -> void:
 	var camera := DioramaCamera.new()
 	parent_node.add_child(camera)
 
+# Spawns a ghost on the grid, retrieving the corresponding preloaded 3D model
 func _spawn_ghost(pos: Vector3, level_data: Dictionary) -> void:
 	var ghost := Ghost.new()
 	var ghost_type : String = ghost_types[spawned_ghosts_count % ghost_types.size()]
@@ -548,7 +619,22 @@ func _spawn_ghost(pos: Vector3, level_data: Dictionary) -> void:
 	
 	_create_ghost_spawn_pad(pos, norm_mat.albedo_color)
 	
-	ghost.initialize(ghost_type, strategy, norm_mat, ghost_frightened_material, layout, grid_w, grid_h, ghost_eaten_audio_stream)
+	# Fetch preloaded PackedScene resource from cache (SOLID DIP compliance)
+	var preloaded_scene : PackedScene = cached_ghost_scenes.get(ghost_type, null)
+	
+	# Initialize ghost with pre-loaded cache resource in final slot
+	ghost.initialize(
+		ghost_type, 
+		strategy, 
+		norm_mat, 
+		ghost_frightened_material, 
+		layout, 
+		grid_w, 
+		grid_h, 
+		ghost_eaten_audio_stream,
+		preloaded_scene
+	)
+	
 	ghost.position.y = ghost.get_spawn_height_offset()
 	
 	if parent_node.has_method("_on_ghost_player_caught"):
