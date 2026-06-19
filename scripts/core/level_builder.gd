@@ -16,6 +16,13 @@
 #              - Single-Body Physics Fusion: Merges all 487 physical wall colliders 
 #                into a single compound StaticBody3D, reducing physics registrations 
 #                on Jolt by 99.8% and eliminating startup loading lag.
+#              - Dynamic Visual Mesh Merging: Groups and compiles all 1,400+ 
+#                individual wall meshes into 1 or 2 single unified ArrayMesh nodes 
+#                in RAM based on active materials, dropping SceneTree overhead 
+#                to near-zero.
+#              - Offline Level Assembly: Spawns the entire 3D hierarchy under an 
+#                unparented root Node3D in RAM, adding it to the active tree 
+#                in a single call at the end to prevent main thread stalls.
 #              - Performance Telemetry: Integrated high-resolution millisecond 
 #                timers to log precisely where initialization overhead resides.
 # Author: Enrique González Gutiérrez
@@ -33,6 +40,7 @@ var shared_wall_shape : BoxShape3D = null
 # --- GLOBAL FUSED WALL SYSTEM ---
 var global_wall_physics_body : StaticBody3D = null
 var global_wall_visuals_container : Node3D = null
+var level_holder : Node3D = null
 
 # Asset Path Configurations
 const BOTTLE_MODEL_PATH : String = "res://assets/models/items/xoriguer_bottle.fbx"
@@ -229,7 +237,10 @@ func build(level_data: Dictionary) -> void:
 	if not is_instance_valid(parent_node) or level_data.is_empty():
 		return
 		
-	var start_time : int = Time.get_ticks_msec()
+	var start_total_time : int = Time.get_ticks_msec()
+	
+	# --- PROFILE PHASE A: ENVIRONMENT SETUP ---
+	var start_phase_a := Time.get_ticks_msec()
 	
 	# Reset telemetry counters
 	walls_spawned = 0
@@ -237,16 +248,20 @@ func build(level_data: Dictionary) -> void:
 	ice_spawned = 0
 	speed_spawned = 0
 	
+	# Initialize the offline root container (SceneTree I/O Optimization)
+	level_holder = Node3D.new()
+	level_holder.name = "LevelHolder"
+	
 	# Initialize fused compound containers (Physics & Rendering Optimization)
 	global_wall_physics_body = StaticBody3D.new()
 	global_wall_physics_body.name = "MapWallsPhysics"
 	global_wall_physics_body.collision_layer = 1
 	global_wall_physics_body.collision_mask = 0 # Static solid walls don't need active scanning
-	parent_node.add_child(global_wall_physics_body)
+	level_holder.add_child(global_wall_physics_body)
 	
 	global_wall_visuals_container = Node3D.new()
 	global_wall_visuals_container.name = "MapWallsVisuals"
-	parent_node.add_child(global_wall_visuals_container)
+	level_holder.add_child(global_wall_visuals_container)
 		
 	if level_data.has("wall_color"):
 		var w_color = Color(level_data["wall_color"])
@@ -263,6 +278,12 @@ func build(level_data: Dictionary) -> void:
 	var map_offset_z : float = (float(height) * CELL_SIZE) / 2.0
 	
 	_spawn_flat_dark_floor(width, height)
+	
+	var duration_a : int = Time.get_ticks_msec() - start_phase_a
+	print("[PROFILE] Phase A (Environment & Floor Setup) completed in: ", duration_a, "ms")
+	
+	# --- PROFILE PHASE B: GRID SPAWNING LOOP ---
+	var start_phase_b := Time.get_ticks_msec()
 	
 	var gate_y : int = 12
 	var gate_x : int = int(float(width) / 2.0)
@@ -298,14 +319,32 @@ func build(level_data: Dictionary) -> void:
 
 	for link_info in portals_to_link:
 		var my_portal : Portal = link_info["portal"]
-		var partner_portal = parent_node.get_node_or_null(link_info["partner_name"]) as Portal
+		# Search locally within the offline root container (DIP compliance)
+		var partner_portal = level_holder.get_node_or_null(link_info["partner_name"]) as Portal
 		if partner_portal:
 			my_portal.initialize(partner_portal)
+			
+	var duration_b : int = Time.get_ticks_msec() - start_phase_b
+	print("[PROFILE] Phase B (Grid Entities Spawn Loop) completed in: ", duration_b, "ms")
 
+	# --- PROFILE PHASE C: PERIMETER BILLBOARDS ---
+	var start_phase_c := Time.get_ticks_msec()
 	_spawn_perimeter_billboards(map_offset_x, map_offset_z)
+	var duration_c : int = Time.get_ticks_msec() - start_phase_c
+	print("[PROFILE] Phase C (Perimeter Billboards Setup) completed in: ", duration_c, "ms")
 	
-	var duration : int = Time.get_ticks_msec() - start_time
-	print("[TELEMETRY] 3D Level Assembly completed in: ", duration, "ms")
+	# --- PROFILE PHASE D: VISUAL MESH MERGING ---
+	var start_phase_d := Time.get_ticks_msec()
+	_merge_and_optimize_visuals()
+	var duration_d : int = Time.get_ticks_msec() - start_phase_d
+	print("[PROFILE] Phase D (Visual Mesh Merging Algorithm) completed in: ", duration_d, "ms")
+	
+	# --- ATTACH TO ACTIVE TREE ---
+	# Connect the entire pre-compiled and fully optimized 3D world to the active SceneTree in a single frame
+	parent_node.add_child(level_holder)
+	
+	var total_duration : int = Time.get_ticks_msec() - start_total_time
+	print("[TELEMETRY] Total 3D Level Assembly completed in: ", total_duration, "ms")
 	print("[TELEMETRY] Grid Entities Spawned -> Walls: ", walls_spawned, ", Bottles: ", pellets_spawned, ", Hielo: ", ice_spawned, ", Limones: ", speed_spawned)
 
 func _setup_world_environment() -> void:
@@ -330,7 +369,8 @@ func _setup_world_environment() -> void:
 	env_res.glow_blend_mode = Environment.GLOW_BLEND_MODE_ADDITIVE
 	
 	world_env.environment = env_res
-	parent_node.add_child(world_env)
+	# Attach world environment cleanly to the offline level_holder
+	level_holder.add_child(world_env)
 	
 	RenderingServer.set_default_clear_color(Color(0.01, 0.01, 0.02, 1.0))
 	
@@ -358,7 +398,8 @@ func _spawn_flat_dark_floor(width: int, height: int) -> void:
 	floor_instance.material_override = floor_mat
 	floor_instance.position = Vector3(0.0, -0.05, 0.0) 
 	
-	parent_node.add_child(floor_instance)
+	# Attach flat floor to the offline root container
+	level_holder.add_child(floor_instance)
 
 # Instantiates a fused wall section leveraging compound shapes and modular visuals
 func _create_wall(pos: Vector3, x: int, z: int, level_data: Dictionary) -> void:
@@ -505,7 +546,8 @@ func _create_billboard_sign(pos: Vector3, rot_y: float) -> void:
 	billboard_root.position = pos
 	billboard_root.rotation_degrees.y = rot_y
 	
-	parent_node.add_child(billboard_root)
+	# Attach billboards to the offline root container
+	level_holder.add_child(billboard_root)
 
 func _create_ghost_house_gate(pos: Vector3) -> void:
 	var static_body := StaticBody3D.new()
@@ -537,7 +579,8 @@ func _create_ghost_house_gate(pos: Vector3) -> void:
 	static_body.add_child(mesh_instance)
 	
 	static_body.position = pos
-	parent_node.add_child(static_body)
+	# Attach laser gate to the offline root container
+	level_holder.add_child(static_body)
 
 func _create_ghost_spawn_pad(pos: Vector3, color: Color) -> void:
 	var pad_holder := Node3D.new()
@@ -590,7 +633,8 @@ func _create_ghost_spawn_pad(pos: Vector3, color: Color) -> void:
 	
 	pad_holder.position = pos
 	pad_holder.position.y = 0.01 
-	parent_node.add_child(pad_holder)
+	# Attach spawn pads to the offline root container
+	level_holder.add_child(pad_holder)
 
 # Spawns a pellet on the grid injecting the pre-cached scene asset to prevent runtime disk IO bottlenecks
 func _create_pellet(pos: Vector3, is_power: bool) -> void:
@@ -607,7 +651,8 @@ func _create_pellet(pos: Vector3, is_power: bool) -> void:
 	if parent_node.has_method("_on_pellet_eaten"):
 		pellet.eaten.connect(parent_node._on_pellet_eaten)
 		
-	parent_node.add_child(pellet)
+	# Attach standard pellets to the offline root container
+	level_holder.add_child(pellet)
 	
 	if GameManager:
 		GameManager.register_pellet()
@@ -628,7 +673,8 @@ func _create_ice_pellet(pos: Vector3) -> void:
 	if parent_node.has_method("_on_ice_pellet_eaten"):
 		ice_pellet.ice_pellet_eaten.connect(parent_node._on_ice_pellet_eaten)
 		
-	parent_node.add_child(ice_pellet)
+	# Attach ice pellets to the offline root container
+	level_holder.add_child(ice_pellet)
 	
 	if GameManager:
 		GameManager.register_pellet()
@@ -649,7 +695,8 @@ func _create_speed_pellet(pos: Vector3) -> void:
 	if parent_node.has_method("_on_speed_pellet_eaten"):
 		speed_pellet.speed_pellet_eaten.connect(parent_node._on_speed_pellet_eaten)
 		
-	parent_node.add_child(speed_pellet)
+	# Attach speed lemons to the offline root container
+	level_holder.add_child(speed_pellet)
 	
 	if GameManager:
 		GameManager.register_pellet()
@@ -675,10 +722,12 @@ func _spawn_player(pos: Vector3) -> void:
 	if parent_node.has_method("_on_player_death_completed"):
 		player_instance.death_completed.connect(parent_node._on_player_death_completed)
 		
-	parent_node.add_child(player_instance)
+	# Attach player to the offline root container
+	level_holder.add_child(player_instance)
 	
 	var camera := DioramaCamera.new()
-	parent_node.add_child(camera)
+	# Attach camera to the offline root container
+	level_holder.add_child(camera)
 
 # Spawns a ghost on the grid, retrieving the corresponding preloaded 3D model
 func _spawn_ghost(pos: Vector3, level_data: Dictionary) -> void:
@@ -731,16 +780,91 @@ func _spawn_ghost(pos: Vector3, level_data: Dictionary) -> void:
 	if parent_node.has_method("_on_ghost_player_caught"):
 		ghost.player_caught.connect(parent_node._on_ghost_player_caught)
 		
-	parent_node.add_child(ghost)
+	# Attach ghosts to the offline root container
+	level_holder.add_child(ghost)
 
 func _create_portal(pos: Vector3, my_name: String, partner_name: String) -> void:
 	var portal := Portal.new()
 	portal.name = my_name
 	portal.position = pos
 	portal.position.y = 0.8
-	parent_node.add_child(portal)
+	
+	# Attach portals to the offline root container
+	level_holder.add_child(portal)
 	
 	portals_to_link.append({
 		"portal": portal,
 		"partner_name": partner_name
 	})
+
+# Dynamic mesh merger: fuses all individual wall meshes in memory based on active materials (DIP Compliance)
+func _merge_and_optimize_visuals() -> void:
+	var material_map : Dictionary = {}
+	
+	# Recursive search for all MeshInstance3D nodes in the wall container
+	var mesh_instances : Array[MeshInstance3D] = []
+	_find_mesh_instances_recursive(global_wall_visuals_container, mesh_instances)
+	
+	if mesh_instances.is_empty():
+		return
+		
+	# Extract and group geometry data by Material
+	for mi in mesh_instances:
+		var mesh : Mesh = mi.mesh
+		if not mesh:
+			continue
+			
+		var mat : Material = mi.material_override
+		if not mat:
+			mat = mi.get_active_material(0)
+		if not mat:
+			mat = wall_material # Default fallback
+			
+		# Compute relative transform offset coordinate to parent global spacing bounds
+		# Safe local calculation: multiplies the local coordinates of the visual node and its child mesh
+		var parent_node_3d = mi.get_parent() as Node3D
+		var transform : Transform3D = Transform3D.IDENTITY
+		if parent_node_3d:
+			transform = parent_node_3d.transform * mi.transform
+		else:
+			transform = mi.transform
+		
+		if not material_map.has(mat):
+			material_map[mat] = []
+		material_map[mat].append({
+			"mesh": mesh,
+			"transform": transform
+		})
+		
+	# Compile a single merged MeshInstance3D for each unique Material
+	for mat in material_map:
+		var st := SurfaceTool.new()
+		st.begin(Mesh.PRIMITIVE_TRIANGLES)
+		
+		for item in material_map[mat]:
+			var m : Mesh = item["mesh"]
+			var t : Transform3D = item["transform"]
+			
+			# Append each mesh surface with its relative coordinate transform
+			for s in range(m.get_surface_count()):
+				st.append_from(m, s, t)
+				
+		var merged_mesh : ArrayMesh = st.commit()
+		
+		var merged_instance := MeshInstance3D.new()
+		merged_instance.mesh = merged_mesh
+		merged_instance.material_override = mat
+		global_wall_visuals_container.add_child(merged_instance)
+		
+	# Free all the 1400 individual visual rendering nodes to clean up the SceneTree!
+	for child in global_wall_visuals_container.get_children():
+		if child != null and child is MeshInstance3D and child.mesh is ArrayMesh:
+			continue # Preserve the newly compiled merged instances!
+		child.queue_free()
+
+# Recursive helper to gather all mesh instances under the visuals container
+func _find_mesh_instances_recursive(node: Node, result: Array[MeshInstance3D]) -> void:
+	if node is MeshInstance3D:
+		result.append(node)
+	for child in node.get_children():
+		_find_mesh_instances_recursive(child, result)
