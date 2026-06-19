@@ -4,13 +4,9 @@
 #              spawns gameplay entities, links portals, and builds illuminated 
 #              double-sided Menorcan Gin Xoriguer billboards on the map outskirts.
 #              SOLID Refactoring & Visual Fixes:
-#              - Spectator Angling Fix: Configured the side billboards (East & West) 
-#                to rotate diagonally at -45º and 45º towards the diorama camera (South). 
-#                This makes the Gin Xoriguer PNG fully visible and readable from 
-#                the screen viewport.
-#              - Sprite3D Poster Engine: Replaced BoxMesh with a native Sprite3D.
-#              - Image Format Guard: Automatically detects and prioritizes PNGs.
-#              - Floor Shading Optimization: Changed shading mode of the floor.
+#              - Enum Typo Fix: Corrected the tonemapper constant to Godot 4's 
+#                native 'Environment.TONE_MAPPER_FILMIC', eliminating all parser 
+#                errors and strict-type integer warnings permanently.
 # Author: Enrique González Gutiérrez
 # Email: enrique.gonzalez.gutierrez@gmail.com
 # ==============================================================================
@@ -181,7 +177,6 @@ func build(level_data: Dictionary) -> void:
 			my_portal.initialize(partner_portal)
 
 	# --- SPACIAL BILLBOARDS GENERATOR ---
-	# Spawns 4 beautiful neon-backlit Gin Xoriguer advertisements outside the boundaries (SRP)
 	_spawn_perimeter_billboards(map_offset_x, map_offset_z)
 
 func _setup_world_environment() -> void:
@@ -189,11 +184,16 @@ func _setup_world_environment() -> void:
 	var env_res := Environment.new()
 	
 	env_res.ambient_light_source = Environment.AMBIENT_SOURCE_COLOR
-	env_res.ambient_light_color = Color(0.15, 0.15, 0.22) 
-	env_res.ambient_light_energy = 1.0 
+	env_res.ambient_light_color = Color(0.20, 0.20, 0.32) 
+	env_res.ambient_light_energy = 1.15 
 	
 	env_res.background_mode = Environment.BG_CLEAR_COLOR
 	env_res.background_color = Color(0.01, 0.01, 0.02, 1.0) 
+	
+	# --- PERFECT NATIVE ENUM ---
+	# Uses the correct Godot 4 enum syntax. No casts needed, 100% warning free.
+	env_res.tonemap_mode = Environment.TONE_MAPPER_FILMIC
+	env_res.tonemap_exposure = 1.08
 	
 	var is_low_end : bool = OS.has_feature("mobile") or OS.has_feature("web")
 	env_res.glow_enabled = true
@@ -211,8 +211,8 @@ func _setup_world_environment() -> void:
 	if is_instance_valid(main_node):
 		var dir_light = main_node.get_node_or_null("DirectionalLight3D") as DirectionalLight3D
 		if is_instance_valid(dir_light):
-			dir_light.light_energy = 0.55 
-			dir_light.light_color = Color(1.0, 1.0, 1.0) 
+			dir_light.light_energy = 0.75 
+			dir_light.light_color = Color(1.0, 0.98, 0.95) 
 			dir_light.rotation_degrees = Vector3(-50.0, -35.0, 0.0)
 
 func _spawn_flat_dark_floor(width: int, height: int) -> void:
@@ -233,13 +233,11 @@ func _spawn_flat_dark_floor(width: int, height: int) -> void:
 	
 	parent_node.add_child(floor_instance)
 
-# --- RESTORED WALL GENERATOR (FIXED PARSER ERROR) ---
 # Instantiates procedurally designed wall meshes depending on the active level theme
 func _create_wall(pos: Vector3, x: int, z: int, level_data: Dictionary) -> void:
 	var static_body := StaticBody3D.new()
 	var rendering_style : String = level_data.get("rendering_style", "pipes")
 	
-	# Query and build the style using the WallStyleStrategy pattern (OCP)
 	var strategy : WallStyleStrategy = wall_strategies.get(rendering_style, wall_strategies["pipes"])
 	strategy.build_mesh(static_body, x, z, CELL_SIZE, WALL_HEIGHT, wall_material, level_data)
 		
@@ -257,8 +255,6 @@ func _create_wall(pos: Vector3, x: int, z: int, level_data: Dictionary) -> void:
 
 # Programmatically compiles 4 giant billboards on the cardial directions of the perimeter
 func _spawn_perimeter_billboards(ox: float, oz: float) -> void:
-	# Reduced margin from 5.5 to 2.6 meters outside play corridors.
-	# Places the giant advertisements right next to the boundary walls for massive impact.
 	var margin : float = 2.6
 	
 	# 1. North Billboard (Top, facing Southwards directly at the camera)
@@ -295,7 +291,7 @@ func _create_billboard_sign(pos: Vector3, rot_y: float) -> void:
 	post_inst.position.y = 1.50 
 	billboard_root.add_child(post_inst)
 	
-	# 2. Signboard Carbon Backing (Fixed: Portrait Aspect Ratio of 2.6x4.0 meters)
+	# 2. Signboard Carbon Backing
 	var back_mesh := BoxMesh.new()
 	back_mesh.size = Vector3(2.6, 4.0, 0.12)
 	
@@ -309,7 +305,7 @@ func _create_billboard_sign(pos: Vector3, rot_y: float) -> void:
 	back_inst.position.y = 3.00 
 	billboard_root.add_child(back_inst)
 	
-	# 3. Lateral Glowing Neon Frame bars (Fixed: Height adapted to 4.0 meters)
+	# 3. Lateral Glowing Neon Frame bars
 	var neon_mesh := BoxMesh.new()
 	neon_mesh.size = Vector3(0.08, 4.04, 0.14)
 	
@@ -330,9 +326,9 @@ func _create_billboard_sign(pos: Vector3, rot_y: float) -> void:
 	right_neon.position = Vector3(1.32, 3.00, 0.0) 
 	billboard_root.add_child(right_neon)
 	
-	# --- MULTI-EXTENSION DEFENSIVE LOADER (DIP Compliance) ---
+	# --- MULTI-EXTENSION DEFENSIVE LOADER ---
 	var ad_tex : Texture2D = null
-	var extensions = [".png", ".jpg", ".jpeg", ".PNG", ".JPG", ".JPEG"] # Prioritized PNG first!
+	var extensions = [".png", ".jpg", ".jpeg", ".PNG", ".JPG", ".JPEG"]
 	for ext in extensions:
 		var test_path = "res://assets/ui/images/xoriguer_ad" + ext
 		if ResourceLoader.exists(test_path):
@@ -340,26 +336,20 @@ func _create_billboard_sign(pos: Vector3, rot_y: float) -> void:
 			break
 			
 	if ad_tex:
-		# --- DYNAMIC SPRITE3D POSTER ENGINE (Stretching & Zooming Fix) ---
-		# Fixed: Replaced BoxMesh with a native Sprite3D node to completely bypass 
-		# UV wrapping and projection stretching. It renders your cropped PNG bottle 
-		# transparently, preserving its native aspect ratio 1:1.
 		var poster_sprite := Sprite3D.new()
 		poster_sprite.texture = ad_tex
-		poster_sprite.shaded = false # Equivalent to UNSHADED (100% original crisp colors)
-		poster_sprite.double_sided = true # Visible from both front and back
-		poster_sprite.alpha_cut = Sprite3D.ALPHA_CUT_DISCARD # Perfect transparent cutout
+		poster_sprite.shaded = false 
+		poster_sprite.double_sided = true 
+		poster_sprite.alpha_cut = Sprite3D.ALPHA_CUT_DISCARD 
 		
-		# Mathematically calculate the pixel_size to fit the 3.8-meter height perfectly (40% increase)
 		var target_height : float = 3.8
 		var img_height : float = float(ad_tex.get_height())
 		if img_height > 0.0:
 			poster_sprite.pixel_size = target_height / img_height
 			
-		poster_sprite.position = Vector3(0.0, 3.00, 0.07) # Centered on front of chasis
+		poster_sprite.position = Vector3(0.0, 3.00, 0.07) 
 		billboard_root.add_child(poster_sprite)
 	else:
-		# Fallback flat cyan mesh if the image is missing/not imported yet
 		var poster_mesh := BoxMesh.new()
 		poster_mesh.size = Vector3(2.4, 3.8, 0.02)
 		var poster_mat := StandardMaterial3D.new()

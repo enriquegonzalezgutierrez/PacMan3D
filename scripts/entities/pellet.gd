@@ -1,11 +1,11 @@
 # ==============================================================================
 # Description: Script for the Pellet entity (Area3D). Spawns themed items 
 #              by loading a static 3D FBX model of the Gin Xoriguer bottle.
-#              SOLID Refactoring & Shading Fix:
-#              - Texture Preservation: Removed the flat gold override from the 
-#                large power bottles. Both standard and power bottles now recursively 
-#                call the unshaded dynamic texture loader, fully restoring the 
-#                red cap, green body, and Mahon label on both mobile and PC.
+#              SOLID Refactoring & Minimap Fix:
+#              - Radar Legibility (LSP): Fully decoupled get_minimap_color() 
+#                from the 3D meshes. Returns an absolute, high-contrast, pure 
+#                electric yellow color for the 2D map, completely solving the 
+#                issue of textured bottles rendering invisibly on the radar.
 # Author: Enrique González Gutiérrez
 # Email: enrique.gonzalez.gutierrez@gmail.com
 # ==============================================================================
@@ -68,7 +68,6 @@ func _build_pellet_visuals() -> void:
 		
 	else:
 		# --- POWER PELLET (Large Textured Xoriguer Bottle + Sparks) ---
-		# Fixed: Removed the gold_mat override. Now dynamically skins with real unshaded textures!
 		_brighten_imported_materials_recursive(bottle_mesh)
 		
 		# Scaled up to a massive 1.6x for highly prominent collectible feedback
@@ -191,3 +190,12 @@ func _on_body_entered(body: Node3D) -> void:
 			
 		eaten.emit(is_power_pellet)
 		queue_free()
+
+# --- MINIMAP POLYMORPHISM (LSP/OCP COMPLIANCE) ---
+
+func get_minimap_color() -> Color:
+	# Fixed: Returns absolute, vivid radar colors decoupled from the 3D FBX materials.
+	return Color(1.0, 0.8, 0.0) if is_power_pellet else Color(1.0, 1.0, 0.0)
+
+func get_minimap_radius() -> float:
+	return 3.5 if is_power_pellet else 2.0
