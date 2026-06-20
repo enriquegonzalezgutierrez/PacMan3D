@@ -9,6 +9,9 @@
 #                any physics, sorting, or data packing logic itself.
 #              - DIP Compliance: Submits data and receives state signals through 
 #                abstract public APIs and event bindings.
+#              - Input State Clamping: Tracks game over states explicitly to prevent 
+#                accidental touchscreen taps during victory transitions from 
+#                triggering Partida Reset and level rollbacks.
 # Author: Enrique González Gutiérrez
 # Email: enrique.gonzalez.gutierrez@gmail.com
 # ==============================================================================
@@ -32,14 +35,18 @@ var mobile_controls : VirtualJoystick
 # Platform Context
 var is_mobile : bool = false
 
+# Internal State Tracking to prevent victory transition touch conflicts
+var is_game_over_active : bool = false
+
 func _ready() -> void:
 	# Enforce HUD processing during pause states (Game Over blocks physics but not UI)
 	process_mode = Node.PROCESS_MODE_ALWAYS
 	is_mobile = OS.has_feature("mobile") or OS.has_feature("web")
+	is_game_over_active = false
 	
 	set_anchors_and_offsets_preset(Control.PRESET_FULL_RECT)
 	
-	_build_base_hud_elements()
+	_build_hud_elements()
 	_instantiate_status_overlay()
 	
 	# Connect to global GameManager signals (DIP Compliance)
@@ -63,7 +70,7 @@ func _ready() -> void:
 		_instantiate_main_menu()
 
 # Programmatically constructs the top layout (Score, Record, Lives, Minimap)
-func _build_base_hud_elements() -> void:
+func _build_hud_elements() -> void:
 	# 1. Score Label Setup (Top-Left)
 	score_label = Label.new()
 	score_label.add_theme_font_size_override("font_size", 42)
@@ -196,6 +203,7 @@ func _start_active_gameplay_ui() -> void:
 	high_score_label.visible = true
 	lives_label.visible = true
 	minimap.visible = true
+	is_game_over_active = false
 	
 	_instantiate_mobile_controls()
 	status_overlay.fade_in_from_black()
@@ -223,6 +231,9 @@ func _on_lives_changed(new_lives: int) -> void:
 # --- TOURNAMENT GAME OVER WORKFLOW (SOLID Integration) ---
 
 func _on_game_over() -> void:
+	# Enable game over state to allow inputs
+	is_game_over_active = true
+	
 	# Check if the score qualifies for the local Top 5
 	if GameManager and GameManager.qualifies_for_leaderboard():
 		_instantiate_letter_entry_wheel()
@@ -266,6 +277,9 @@ func _show_tournament_leaderboard_overlay() -> void:
 	get_tree().paused = true # Safely freeze the execution loop now
 
 func _on_victory_transition() -> void:
+	# Ensure the transition is protected from accidental touchscreen inputs
+	is_game_over_active = false
+	
 	var next_level_idx : int = GameManager.current_level + 1
 	var msg = "LEVEL CLEARED!\nPREPARING LEVEL %02d..." % next_level_idx if GameManager.has_next_level() else "VICTORY!\nLOADING FINALE CREDITS..."
 	status_overlay.show_status(msg, false)
@@ -275,15 +289,18 @@ func _input(event: InputEvent) -> void:
 	var is_restart_triggered = false
 	
 	if event is InputEventKey and event.is_pressed():
-		if event.keycode == KEY_R and status_overlay.is_active():
+		# 1. PC: Allow restart only if we are in a true Game Over state (and not in victory transition)
+		if event.keycode == KEY_R and status_overlay.is_active() and is_game_over_active:
 			is_restart_triggered = true
 		elif event.keycode == KEY_N and not status_overlay.is_active():
 			if GameManager: GameManager.victory.emit() # Cheat key
 			
-	elif event is InputEventScreenTouch and event.pressed and status_overlay.is_active():
+	# 2. Android: Tap to restart allowed ONLY when game over state is active
+	elif event is InputEventScreenTouch and event.pressed and status_overlay.is_active() and is_game_over_active:
 		is_restart_triggered = true
 			
 	if is_restart_triggered:
 		get_tree().paused = false
+		is_game_over_active = false
 		if GameManager: GameManager.reset_game()
 		get_tree().reload_current_scene()
