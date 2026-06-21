@@ -31,6 +31,9 @@
 #              - Premium Metallic Shading & Studio Lighting: Configured wall materials 
 #                to act as highly visible brushed satin crome, amplified by 
 #                vibrant core-emissions and studio-grade directional specular highlights.
+#              - Dynamic Flying Decors (SOLID OCP): Instantiates and launches two 
+#                autonomous, metallic FlyingSeagulls crossing the sky above the 
+#                playing corridors with flapping neon-cyan wings and spark trails.
 # Author: Enrique González Gutiérrez
 # Email: enrique.gonzalez.gutierrez@gmail.com
 # ==============================================================================
@@ -347,6 +350,7 @@ func build(level_data: Dictionary) -> void:
 	var start_phase_c := Time.get_ticks_msec()
 	_spawn_perimeter_billboards(map_offset_x, map_offset_z)
 	_spawn_perimeter_decorations(map_offset_x, map_offset_z) # Spawns windmills AND three Cyber-Taula shrines!
+	_spawn_flying_decorations(map_offset_x, map_offset_z) # Spawns two mechanical seagulls crossing the sky! (SOLID OCP)
 	var duration_c : int = Time.get_ticks_msec() - start_phase_c
 	print("[PROFILE] Phase C (Perimeter Billboards Setup) completed in: ", duration_c, "ms")
 	
@@ -604,6 +608,20 @@ func _spawn_perimeter_decorations(ox: float, oz: float) -> void:
 	
 	# West Taula (centered behind West billboard, facing East/Player)
 	taula.build_decoration(level_holder, Vector3(-ox - taula_margin, 0.0, 0.0), 90.0)
+
+# Programmatically instantiates and launches two autonomous FlyingSeagulls crossing the sky diagonal lanes
+func _spawn_flying_decorations(ox: float, oz: float) -> void:
+	# 1. Spawn Seagull 1 (flying diagonally from North-West to South-East)
+	var g1 := FlyingSeagull.new()
+	g1.position = Vector3(-ox, 3.6, -oz)
+	g1.initialize(ox, oz, Vector3(1.0, 0.0, 0.5))
+	level_holder.add_child(g1)
+	
+	# 2. Spawn Seagull 2 (flying diagonally from South-West to North-East, crossing elegantly in the sky!)
+	var g2 := FlyingSeagull.new()
+	g2.position = Vector3(-ox, 3.6, oz)
+	g2.initialize(ox, oz, Vector3(1.0, 0.0, -0.5))
+	level_holder.add_child(g2)
 
 func _create_ghost_house_gate(pos: Vector3) -> void:
 	var static_body := StaticBody3D.new()
