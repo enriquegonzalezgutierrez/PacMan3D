@@ -24,6 +24,7 @@ config/icon="res://icon.svg"
 
 GameManager="*res://scripts/core/game_manager.gd"
 AudioManager="*res://scripts/core/audio_manager.gd"
+VFXPoolManager="*res://scripts/core/vfx_pool_manager.gd"
 
 [display]
 

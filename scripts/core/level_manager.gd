@@ -1,9 +1,12 @@
 # ==============================================================================
 # Description: Parses the level JSON file, feeds the layout data to the global
 #              GameManager, and coordinates gameplay states and signals.
+#              Phase 4 Update (Extreme Performance):
+#              - Connected ghost score and special items floating texts to the 
+#                VFXPoolManager using dynamic root resolution to bypass Godot's 
+#                autoload compiler cache bugs (100% Bulletproof Compile).
 #              Phase 3 Update (AAA Visuals):
-#              - Integrated Screen Glitch VFX calls upon player death to simulate 
-#                a hardware/arcade system crash.
+#              - Screen Glitch VFX integration.
 #              Phase 2 Update (Menorcan Lore Expansion):
 #              - Ensaimada Shield Integration & Mahón Cheese Decoy System.
 # Author: Enrique González Gutiérrez
@@ -11,6 +14,9 @@
 # ==============================================================================
 extends Node3D
 class_name LevelManager
+
+# Map Grid Constants
+const CELL_SIZE : float = 2.0
 
 # Active entities and players tracking
 var player_instance : Player = null
@@ -21,10 +27,16 @@ var level_data : Dictionary = {}
 var map_offset_x : float = 0.0
 var map_offset_z : float = 0.0
 
+# Dynamic Autoload Resolvers (Bypasses Godot compiler cache bugs safely)
+var vfx_pool : Node = null
+
 # Fruit spawning state tracking variables
 const FRUIT_LIFETIME : float = 10.0 # Despawns after 10 seconds if not eaten
 
 func _ready() -> void:
+	# Resolve the global pooler dynamically from the engine root viewport
+	vfx_pool = get_node_or_null("/root/VFXPoolManager")
+	
 	_connect_game_manager_signals()
 	
 	var hud = get_parent().get_node_or_null("HUD") as HUD
@@ -114,21 +126,28 @@ func _load_level_data(file_path: String) -> bool:
 			GameManager.grid_width = width
 			GameManager.grid_height = height
 			
-		var cell_size : float = 2.0
-		map_offset_x = (float(width) * cell_size) / 2.0
-		map_offset_z = (float(height) * cell_size) / 2.0
+		map_offset_x = (float(width) * CELL_SIZE) / 2.0
+		map_offset_z = (float(height) * CELL_SIZE) / 2.0
 		return true
 	return false
 
+# Spawns a floating 3D Label from the RAM pool (Phase 4 Optimization)
 func _spawn_floating_score(pos: Vector3, points: int = 200) -> void:
-	var score_text := FloatingScore3D.new()
-	score_text.text = str(points)
+	var text_val : String = str(points)
+	var color : Color = Color(1.0, 1.0, 1.0) 
 	
 	if points >= 800:
-		score_text.modulate = Color(0.0, 1.0, 1.0) 
+		color = Color(0.0, 1.0, 1.0) 
 		
-	add_child(score_text)
-	score_text.global_position = pos + Vector3(0.0, 1.2, 0.0)
+	if is_instance_valid(vfx_pool):
+		vfx_pool.spawn_floating_score(pos, text_val, color)
+	else:
+		# Dynamic fallback in case Autoload is completely missing
+		var fallback := FloatingScore3D.new()
+		fallback.text = text_val
+		fallback.modulate = color
+		fallback.global_position = pos + Vector3(0.0, 1.2, 0.0)
+		add_child(fallback)
 
 # --- MENORCAN LORE EXPANSION: SPECIAL ITEMS ---
 
@@ -147,30 +166,29 @@ func _spawn_fruit_bonus() -> void:
 	get_tree().create_timer(FRUIT_LIFETIME).timeout.connect(fruit.queue_free)
 	add_child(fruit)
 
+# Process special items utilizing pooled floatings
 func _on_special_item_eaten(points: int, effect: String) -> void:
 	if GameManager:
 		GameManager.add_score(points)
 		
-	var feedback_text := FloatingScore3D.new()
+	var text_val : String = "+%d" % points
+	var color : Color = Color(1.0, 1.0, 0.0) 
 	
 	if effect == "shield":
-		feedback_text.text = "SHIELD!"
-		feedback_text.modulate = Color(0.0, 0.8, 1.0) 
+		text_val = "SHIELD!"
+		color = Color(0.0, 0.8, 1.0) 
 		if is_instance_valid(player_instance):
 			player_instance.activate_shield()
 			
 	elif effect == "decoy":
-		feedback_text.text = "DECOY!"
-		feedback_text.modulate = Color(1.0, 0.6, 0.0) 
+		text_val = "DECOY!"
+		color = Color(1.0, 0.6, 0.0) 
 		_deploy_cheese_decoy()
 		
-	else:
-		feedback_text.text = "+%d" % points
-		feedback_text.modulate = Color(1.0, 1.0, 0.0) 
-		
-	add_child(feedback_text)
+	# Spawn floating feedback directly from our startup RAM pre-allocations
 	if is_instance_valid(player_instance):
-		feedback_text.global_position = player_instance.spawn_position + Vector3(0.0, 1.5, 0.0)
+		if is_instance_valid(vfx_pool):
+			vfx_pool.spawn_floating_score(player_instance.spawn_position, text_val, color)
 
 func _deploy_cheese_decoy() -> void:
 	if not is_instance_valid(player_instance): return
@@ -303,8 +321,6 @@ func _on_ghost_player_caught(is_frightened: bool, catch_position: Vector3) -> vo
 					_trigger_camera_shake(0.7, 0.4) 
 					return 
 			
-			# --- PHASE 3: SCREEN GLITCH VFX CALL ---
-			# Trigger the cyber-crash visual effect on the screen!
 			var hud = get_parent().get_node_or_null("HUD") as HUD
 			if is_instance_valid(hud) and is_instance_valid(hud.status_overlay):
 				hud.status_overlay.trigger_death_glitch()

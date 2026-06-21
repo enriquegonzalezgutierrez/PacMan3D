@@ -2,15 +2,9 @@
 # Description: CharacterBody3D controller for MartínMan (formerly Pac-Man). 
 #              Handles movement inputs, visual mesh rotation, virtual jump 
 #              physics, and runs skeletal animations based on movement velocities.
-#              Phase 2 Update (Menorcan Lore Expansion):
-#              - Holographic Shield (Ensaimada): Added dynamic visual dome 
-#                and invulnerability framing when picking up an Ensaimada.
-#              SOLID Refactoring:
-#              - SRP & LSP Compliance: Swapped the visual rendering engine 
-#                completely without changing any core movement or grid-clamping physics.
-#              - Skeletal Animation Engine: Replaced mathematical sphere chewing 
-#                with high-fidelity skeletal animations.
-#              - DIP Compliance: Accepts a precompiled AnimationLibrary resource.
+#              Phase 4 Update (Extreme Performance):
+#              - Connected particles to VFXPoolManager using dynamic root 
+#                resolution to bypass Godot's autoload compiler cache bugs.
 # Author: Enrique González Gutiérrez
 # Email: enrique.gonzalez.gutierrez@gmail.com
 # ==============================================================================
@@ -156,8 +150,12 @@ func die() -> void:
 	if is_instance_valid(motion_trail):
 		motion_trail.emitting = false
 		
-	# Trigger explosive death particles via builder (SRP Compliance)
-	PlayerVisualBuilder.trigger_death_particles(get_parent(), global_position, player_material)
+	# Resolve the global pooler dynamically to bypass compile caching bugs
+	var vfx_pool = get_node_or_null("/root/VFXPoolManager")
+	if is_instance_valid(vfx_pool):
+		vfx_pool.spawn_death_particles(global_position, player_material.albedo_color)
+	else:
+		PlayerVisualBuilder.trigger_death_particles(get_parent(), global_position, player_material)
 	
 	# Play character death animation
 	_play_animation("death")
@@ -222,11 +220,10 @@ func _deactivate_power_up() -> void:
 
 func activate_shield() -> void:
 	if has_shield:
-		return # Already shielded
+		return 
 		
 	has_shield = true
 	
-	# Procedurally build the translucent cyan energy dome
 	shield_mesh = MeshInstance3D.new()
 	var sphere := SphereMesh.new()
 	sphere.radius = 1.05
@@ -236,7 +233,7 @@ func activate_shield() -> void:
 	var mat := StandardMaterial3D.new()
 	mat.shading_mode = StandardMaterial3D.SHADING_MODE_UNSHADED
 	mat.transparency = BaseMaterial3D.TRANSPARENCY_ALPHA
-	mat.albedo_color = Color(0.0, 0.8, 1.0, 0.35) # Glowing Cyan glass
+	mat.albedo_color = Color(0.0, 0.8, 1.0, 0.35) 
 	mat.emission_enabled = true
 	mat.emission = Color(0.0, 0.5, 1.0)
 	shield_mesh.material_override = mat
@@ -247,37 +244,14 @@ func activate_shield() -> void:
 func pop_shield() -> void:
 	has_shield = false
 	is_recovering = true
-	shield_recovery_timer = 2.0 # 2 seconds of invulnerability frames to escape
+	shield_recovery_timer = 2.0 
 	
 	_destroy_shield()
 	
-	# Trigger glass shatter particles
-	var shatter = CPUParticles3D.new()
-	var piece = BoxMesh.new()
-	piece.size = Vector3(0.1, 0.1, 0.1)
-	var mat = StandardMaterial3D.new()
-	mat.shading_mode = StandardMaterial3D.SHADING_MODE_UNSHADED
-	mat.albedo_color = Color(0.0, 0.8, 1.0)
-	piece.material = mat
-	
-	shatter.mesh = piece
-	shatter.emission_shape = CPUParticles3D.EMISSION_SHAPE_SPHERE
-	shatter.emission_sphere_radius = 1.0
-	shatter.direction = Vector3.UP
-	shatter.spread = 180.0
-	shatter.initial_velocity_min = 4.0
-	shatter.initial_velocity_max = 8.0
-	shatter.gravity = Vector3(0, -9.8, 0)
-	shatter.amount = 24
-	shatter.one_shot = true
-	shatter.explosiveness = 1.0
-	shatter.lifetime = 0.6
-	
-	get_parent().add_child(shatter)
-	shatter.global_position = global_position + Vector3(0, 0.85, 0)
-	shatter.emitting = true
-	
-	get_tree().create_timer(1.0).timeout.connect(shatter.queue_free)
+	# Resolve the global pooler dynamically to bypass compile caching bugs
+	var vfx_pool = get_node_or_null("/root/VFXPoolManager")
+	if is_instance_valid(vfx_pool):
+		vfx_pool.spawn_shield_shatter_particles(global_position + Vector3(0, 0.85, 0))
 
 func _destroy_shield() -> void:
 	if is_instance_valid(shield_mesh):
@@ -344,7 +318,7 @@ func _grid_to_world(grid_pos: Vector2i) -> Vector3:
 	var z = float(grid_pos.y) * CELL_SIZE - offset_z + (CELL_SIZE / 2.0)
 	return Vector3(x, virtual_floor_y, z)
 
-# Checks if a target cell coordinates does not contain a physical wall block (SOLID SRP)
+# Checks if a target cell coordinates does not contain a physical wall block
 func _is_cell_walkable(grid_pos: Vector2i) -> bool:
 	if GameManager == null or GameManager.level_layout.is_empty():
 		return false
@@ -426,12 +400,10 @@ func _physics_process(delta: float) -> void:
 			player_material.albedo_color = Color(1.0, 1.0, 0.0)
 			player_material.emission_enabled = false
 		else:
-			# Fast intense white strobe blink for i-frames
 			var blink = int(shield_recovery_timer * 15.0) % 2 == 0
 			if blink:
-				player_material.albedo_color = Color(1.0, 1.0, 1.0)
-				player_material.emission_enabled = true
-				player_material.emission = Color(0.8, 0.8, 0.8)
+				player_material.albedo_color = Color(1.0, 1.0, 0.0)
+				player_material.emission_enabled = false
 			else:
 				player_material.albedo_color = Color(1.0, 1.0, 0.0)
 				player_material.emission_enabled = false
@@ -445,7 +417,7 @@ func _physics_process(delta: float) -> void:
 	_handle_arcade_input()
 	_process_arcade_movement()
 	
-	# --- PLAY PHYSICS-DRIVEN SKELETAL ANIMATIONS (SRP Compliance) ---
+	# --- PLAY PHYSICS-DRIVEN SKELETAL ANIMATIONS ---
 	_animate_character()
 
 # Evaluates physics state velocities to trigger skeletal Mixamo tracks
