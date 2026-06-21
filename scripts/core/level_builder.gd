@@ -28,6 +28,9 @@
 #              - Procedural Perimeter Decorations (SOLID OCP): Instantiates 
 #                and aligns four symmetric Cyber-Windmills at the corners and 
 #                three monumental prehistoric Cyber-Taulas behind the billboards.
+#              - Premium Metallic Shading & Studio Lighting: Configured wall materials 
+#                to act as highly visible brushed satin crome, amplified by 
+#                vibrant core-emissions and studio-grade directional specular highlights.
 # Author: Enrique González Gutiérrez
 # Email: enrique.gonzalez.gutierrez@gmail.com
 # ==============================================================================
@@ -165,14 +168,23 @@ func _preload_mesh_assets() -> void:
 
 # Compiles and setups materials procedurally
 func _initialize_materials() -> void:
-	# 1. Wall Material (Brushed Satin Cyber-Plastics)
+	# 1. Wall Material (Brushed Satin Cyber-Metal / Chrome)
 	wall_material = StandardMaterial3D.new()
 	wall_material.albedo_color = Color(0.0, 0.0, 1.0) # Default Blue
-	wall_material.roughness = 0.45 
-	wall_material.metallic = 0.12 
-	wall_material.metallic_specular = 0.4 
+	
+	# --- PBR METALLIC OPTIMIZATION (Calibrated for high specular highlights) ---
+	wall_material.metallic = 1.0 # 100% physically accurate metal!
+	wall_material.roughness = 0.34 # Brushed satin surface (diffuses light perfectly, avoiding black spots)
+	wall_material.metallic_specular = 0.6 # Amplified specular shine
+	
+	# Clearcoat lacquer coat for wet metallic reflections
+	wall_material.clearcoat_enabled = true
+	wall_material.clearcoat = 1.0
+	wall_material.clearcoat_roughness = 0.12
+	
+	# Base emission settings
 	wall_material.emission_enabled = true
-	wall_material.emission = Color(0.0, 0.0, 0.15) 
+	wall_material.emission = Color(0.0, 0.0, 0.25) # Internal neon-core glow
 	
 	# 2. Player Material (Glossy Yellow Toy Plastic)
 	player_material = StandardMaterial3D.new()
@@ -265,21 +277,22 @@ func build(level_data: Dictionary) -> void:
 	global_wall_visuals_container = Node3D.new()
 	global_wall_visuals_container.name = "MapWallsVisuals"
 	level_holder.add_child(global_wall_visuals_container)
-		
-	if level_data.has("wall_color"):
-		var w_color = Color(level_data["wall_color"])
-		wall_material.albedo_color = w_color
-		wall_material.emission = w_color * 0.15
-		
-	_setup_world_environment()
-		
+	
+	# --- DECLARATIONS FIRST (Resolves local scope compiler bugs!) ---
 	var layout : Array = level_data.get("layout", [])
 	var width : int = int(level_data.get("grid_width", 0))
 	var height : int = int(level_data.get("grid_height", 0))
 	
 	var map_offset_x : float = (float(width) * CELL_SIZE) / 2.0
 	var map_offset_z : float = (float(height) * CELL_SIZE) / 2.0
-	
+		
+	if level_data.has("wall_color"):
+		var w_color = Color(level_data["wall_color"])
+		wall_material.albedo_color = w_color
+		# --- OPTIMIZATION: Amplified core neon emission on the metal pipes ---
+		wall_material.emission = w_color * 0.35
+		
+	_setup_world_environment()
 	_spawn_flat_dark_floor(width, height)
 	
 	var duration_a : int = Time.get_ticks_msec() - start_phase_a
@@ -355,9 +368,10 @@ func _setup_world_environment() -> void:
 	var world_env := WorldEnvironment.new()
 	var env_res := Environment.new()
 	
+	# --- OPTIMIZATION: Increased ambient light energy to brighten metallic reflections ---
 	env_res.ambient_light_source = Environment.AMBIENT_SOURCE_COLOR
-	env_res.ambient_light_color = Color(0.20, 0.20, 0.32) 
-	env_res.ambient_light_energy = 1.15 
+	env_res.ambient_light_color = Color(0.24, 0.24, 0.36) # Brighter fill color
+	env_res.ambient_light_energy = 1.45 # Amplified ambient bounce
 	
 	env_res.background_mode = Environment.BG_CLEAR_COLOR
 	env_res.background_color = Color(0.01, 0.01, 0.02, 1.0) 
@@ -382,7 +396,8 @@ func _setup_world_environment() -> void:
 	if is_instance_valid(main_node):
 		var dir_light = main_node.get_node_or_null("DirectionalLight3D") as DirectionalLight3D
 		if is_instance_valid(dir_light):
-			dir_light.light_energy = 0.75 
+			# --- OPTIMIZATION: Increased directional light energy to create bright specular highlights on metal curves ---
+			dir_light.light_energy = 1.25 
 			dir_light.light_color = Color(1.0, 0.98, 0.95) 
 			dir_light.rotation_degrees = Vector3(-50.0, -35.0, 0.0)
 
@@ -561,14 +576,21 @@ func _create_billboard_sign(pos: Vector3, rot_y: float) -> void:
 
 # Programmatically instantiates and places 4 symmetric Cyber-Windmills at the corners and 3 Cyber-Taulas behind the billboards (SOLID OCP)
 func _spawn_perimeter_decorations(ox: float, oz: float) -> void:
-	# 1. Spawn the four diagonal gigantic Cyber-Windmills (aligned at perfect 2.8m margin)
+	# Align margin proximity (2.8m) to match the backlit billboards (2.6m) for perfect diorama framing
 	var margin : float = 2.8 
-	var windmill = PerimeterDecorationStrategies.CyberWindmill.new()
+	var strategy = PerimeterDecorationStrategies.CyberWindmill.new()
 	
-	windmill.build_decoration(level_holder, Vector3(-ox - margin, 0.0, -oz - margin), 45.0)
-	windmill.build_decoration(level_holder, Vector3(ox + margin, 0.0, -oz - margin), -45.0)
-	windmill.build_decoration(level_holder, Vector3(-ox - margin, 0.0, oz + margin), 135.0)
-	windmill.build_decoration(level_holder, Vector3(ox + margin, 0.0, oz + margin), -135.0)
+	# 1. North-West Corner (facing 45 degrees directly towards the center lane)
+	strategy.build_decoration(level_holder, Vector3(-ox - margin, 0.0, -oz - margin), 45.0)
+	
+	# 2. North-East Corner (facing -45 degrees)
+	strategy.build_decoration(level_holder, Vector3(ox + margin, 0.0, -oz - margin), -45.0)
+	
+	# 3. South-West Corner (facing 135 degrees)
+	strategy.build_decoration(level_holder, Vector3(-ox - margin, 0.0, oz + margin), 135.0)
+	
+	# 4. South-East Corner (facing -135 degrees)
+	strategy.build_decoration(level_holder, Vector3(ox + margin, 0.0, oz + margin), -135.0)
 	
 	# --- NEW: Spawn 3 Prehistoric Cyber-Taula Shrines in the cardinal outskirts ---
 	var taula = PerimeterDecorationStrategies.CyberTaula.new()

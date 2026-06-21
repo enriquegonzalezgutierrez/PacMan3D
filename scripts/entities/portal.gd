@@ -10,6 +10,9 @@
 #              - HOLOGRAPHIC PORTAL GATEWAY: Programmatically builds a gorgeous 
 #                glowing neon portal arch with an energy curtain, automatically 
 #                aligning its rotation degrees depending on world-axis locations.
+#              - Safe Landing Inward Offset (Platform Compatibility): Teleports 
+#                bodies with a subtle 45cm offset towards the map center (0,0,0) 
+#                to prevent collision overlaps with outer boundary walls on mobile GPUs.
 # Author: Enrique González Gutiérrez
 # Email: enrique.gonzalez.gutierrez@gmail.com
 # ==============================================================================
@@ -126,8 +129,19 @@ func _on_body_entered(body: Node3D) -> void:
 		# Mark the body with the destination portal's object reference
 		body.set_meta("last_portal", partner_portal)
 		
-		# Execute instantaneous teleportation
-		body.global_position = partner_portal.global_position
+		# --- PLATFORM COMPATIBILITY OPTIMIZATION ---
+		# Instead of landing exactly on the map boundary center, compute a safe inward position
+		var destination_pos : Vector3 = partner_portal.global_position
+		
+		# Calculate direction vector pointing towards the safe center of the board (0,0,0)
+		var inward_dir : Vector3 = (Vector3.ZERO - destination_pos).normalized()
+		inward_dir.y = 0.0 # Restrict shift to the horizontal floor plane
+		
+		# Shift the target coordinate 45cm inwards to prevent collision overlaps with outer walls
+		destination_pos += inward_dir * 0.45
+		
+		# Execute instantaneous teleportation to the safe landing coordinate
+		body.global_position = destination_pos
 
 # Callback: Triggers when the body physically leaves the portal area
 func _on_body_exited(body: Node3D) -> void:
