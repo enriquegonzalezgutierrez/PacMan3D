@@ -2,22 +2,15 @@
 # Description: CharacterBody3D controller for MartínMan (formerly Pac-Man). 
 #              Handles movement inputs, visual mesh rotation, virtual jump 
 #              physics, and runs skeletal animations based on movement velocities.
+#              Phase 2 Update (Menorcan Lore Expansion):
+#              - Holographic Shield (Ensaimada): Added dynamic visual dome 
+#                and invulnerability framing when picking up an Ensaimada.
 #              SOLID Refactoring:
 #              - SRP & LSP Compliance: Swapped the visual rendering engine 
 #                completely without changing any core movement or grid-clamping physics.
 #              - Skeletal Animation Engine: Replaced mathematical sphere chewing 
-#                with high-fidelity skeletal animations (idle, running, jump, falling, death).
-#              - DIP Compliance: Accepts a precompiled AnimationLibrary resource 
-#                from LevelBuilder, bypassing expensive runtime disk loads 
-#                and remapping calculations.
-#              - Grid-Guided Arcade Movement: Replaced unstable physics-based test-moves 
-#                with 100% precise matrix grid checks. Includes corner-cutting tolerance 
-#                and automatic lane alignment to guarantee flawless, fluid, and continuous 
-#                movement exactly like the original arcade cabinets.
-#              - Smooth Turning (0ms Jerk Fix): Implements a dot-product crossing 
-#                algorithm. MartínMan now continues moving and only turns at the 
-#                exact micro-frame he crosses the cell center, making the coordinate 
-#                alignment completely invisible to the eye (less than 5cm shift).
+#                with high-fidelity skeletal animations.
+#              - DIP Compliance: Accepts a precompiled AnimationLibrary resource.
 # Author: Enrique González Gutiérrez
 # Email: enrique.gonzalez.gutierrez@gmail.com
 # ==============================================================================
@@ -51,11 +44,17 @@ var death_audio : AudioStreamPlayer3D
 var visual_mesh : Node3D 
 var anim_player : AnimationPlayer
 
-# Invincibility Power State Variables
+# Invincibility Power State Variables (Power Pellet)
 var is_powered_up : bool = false
 var power_timer : float = 0.0
 const POWER_DURATION : float = 7.0 
 var power_particles : CPUParticles3D = null
+
+# Ensaimada Shield State Variables (Phase 2 Update)
+var has_shield : bool = false
+var shield_mesh : MeshInstance3D = null
+var shield_recovery_timer : float = 0.0
+var is_recovering : bool = false
 
 # Speed Overload State Variables
 var is_speed_boosted : bool = false
@@ -110,7 +109,7 @@ func _configure_collision_layers() -> void:
 	collision_layer = 2
 	collision_mask = 1 | 8
 
-# Programmatically constructs the spatial 3D audio players (3D Positional Audio Compliance)
+# Programmatically constructs the spatial 3D audio players
 func _setup_audio() -> void:
 	# 1. Munch Audio Player (Waka-Waka)
 	munch_audio = AudioStreamPlayer3D.new()
@@ -151,6 +150,9 @@ func die() -> void:
 	_deactivate_power_up()
 	_deactivate_speed_boost()
 	
+	if has_shield:
+		_destroy_shield()
+		
 	if is_instance_valid(motion_trail):
 		motion_trail.emitting = false
 		
@@ -186,6 +188,9 @@ func _actual_respawn() -> void:
 		motion_trail.emitting = false
 	
 	is_dead = false
+	is_recovering = false
+	player_material.albedo_color = Color(1.0, 1.0, 0.0)
+	player_material.emission_enabled = false
 
 func get_spawn_height_offset() -> float:
 	return 0.85
@@ -212,6 +217,72 @@ func _deactivate_power_up() -> void:
 	
 	if is_instance_valid(power_particles):
 		power_particles.queue_free()
+
+# --- ENSAIMADA SHIELD SYSTEM (Phase 2 Update) ---
+
+func activate_shield() -> void:
+	if has_shield:
+		return # Already shielded
+		
+	has_shield = true
+	
+	# Procedurally build the translucent cyan energy dome
+	shield_mesh = MeshInstance3D.new()
+	var sphere := SphereMesh.new()
+	sphere.radius = 1.05
+	sphere.height = 2.1
+	shield_mesh.mesh = sphere
+	
+	var mat := StandardMaterial3D.new()
+	mat.shading_mode = StandardMaterial3D.SHADING_MODE_UNSHADED
+	mat.transparency = BaseMaterial3D.TRANSPARENCY_ALPHA
+	mat.albedo_color = Color(0.0, 0.8, 1.0, 0.35) # Glowing Cyan glass
+	mat.emission_enabled = true
+	mat.emission = Color(0.0, 0.5, 1.0)
+	shield_mesh.material_override = mat
+	
+	shield_mesh.position.y = 0.85
+	add_child(shield_mesh)
+
+func pop_shield() -> void:
+	has_shield = false
+	is_recovering = true
+	shield_recovery_timer = 2.0 # 2 seconds of invulnerability frames to escape
+	
+	_destroy_shield()
+	
+	# Trigger glass shatter particles
+	var shatter = CPUParticles3D.new()
+	var piece = BoxMesh.new()
+	piece.size = Vector3(0.1, 0.1, 0.1)
+	var mat = StandardMaterial3D.new()
+	mat.shading_mode = StandardMaterial3D.SHADING_MODE_UNSHADED
+	mat.albedo_color = Color(0.0, 0.8, 1.0)
+	piece.material = mat
+	
+	shatter.mesh = piece
+	shatter.emission_shape = CPUParticles3D.EMISSION_SHAPE_SPHERE
+	shatter.emission_sphere_radius = 1.0
+	shatter.direction = Vector3.UP
+	shatter.spread = 180.0
+	shatter.initial_velocity_min = 4.0
+	shatter.initial_velocity_max = 8.0
+	shatter.gravity = Vector3(0, -9.8, 0)
+	shatter.amount = 24
+	shatter.one_shot = true
+	shatter.explosiveness = 1.0
+	shatter.lifetime = 0.6
+	
+	get_parent().add_child(shatter)
+	shatter.global_position = global_position + Vector3(0, 0.85, 0)
+	shatter.emitting = true
+	
+	get_tree().create_timer(1.0).timeout.connect(shatter.queue_free)
+
+func _destroy_shield() -> void:
+	if is_instance_valid(shield_mesh):
+		shield_mesh.queue_free()
+		shield_mesh = null
 
 # --- SPEED BOOST CYCLE ---
 
@@ -280,18 +351,16 @@ func _is_cell_walkable(grid_pos: Vector2i) -> bool:
 	var gw = GameManager.grid_width
 	var gh = GameManager.grid_height
 	
-	# Wrap around for portal coordinates (safety clamping)
 	var target_x = (grid_pos.x + gw) % gw
 	var target_z = (grid_pos.y + gh) % gh
 	
 	var cell_type = int(GameManager.level_layout[target_z][target_x])
-	return cell_type != 1 # 1 is wall, any other cell type is fully walkable
+	return cell_type != 1 
 
-# Mathematical lane centering alignment to prevent drifting or getting caught on wall corners
+# Mathematical lane centering alignment to prevent drifting
 func _snap_to_lane_center(current_pos: Vector3, direction: Vector3) -> Vector3:
 	var snapped_pos := current_pos
 	
-	# Alignment offsets read dynamically from map boundaries
 	var offset_x : float = 32.0
 	var offset_z : float = 32.0
 	if GameManager and GameManager.grid_width > 0:
@@ -299,12 +368,9 @@ func _snap_to_lane_center(current_pos: Vector3, direction: Vector3) -> Vector3:
 	if GameManager and GameManager.grid_height > 0:
 		offset_z = (float(GameManager.grid_height) * CELL_SIZE) / 2.0
 	
-	# If turning horizontally (LEFT/RIGHT), snap the vertical (Z) coordinate to the nearest cell center
 	if direction.x != 0.0:
 		var g_z = round((current_pos.z + offset_z - (CELL_SIZE / 2.0)) / CELL_SIZE)
 		snapped_pos.z = g_z * CELL_SIZE - offset_z + (CELL_SIZE / 2.0)
-		
-	# If turning vertically (UP/DOWN), snap the horizontal (X) coordinate to the nearest cell center
 	elif direction.z != 0.0:
 		var g_x = round((current_pos.x + offset_x - (CELL_SIZE / 2.0)) / CELL_SIZE)
 		snapped_pos.x = g_x * CELL_SIZE - offset_x + (CELL_SIZE / 2.0)
@@ -332,7 +398,7 @@ func _physics_process(delta: float) -> void:
 		# Trigger the upward jet-thrust spark blast (SRP Compliance)
 		PlayerVisualBuilder.trigger_jump_thrust(get_parent(), global_position)
 
-	# Invincibility process
+	# Invincibility process (Power Pellet)
 	if is_powered_up:
 		power_timer -= delta
 		if power_timer <= 0.0:
@@ -351,6 +417,24 @@ func _physics_process(delta: float) -> void:
 					player_material.emission = Color(1.0, 0.25, 0.0)
 					if is_instance_valid(power_particles):
 						power_particles.emitting = true
+
+	# Recovery Frame process (After Shield breaks)
+	if is_recovering:
+		shield_recovery_timer -= delta
+		if shield_recovery_timer <= 0.0:
+			is_recovering = false
+			player_material.albedo_color = Color(1.0, 1.0, 0.0)
+			player_material.emission_enabled = false
+		else:
+			# Fast intense white strobe blink for i-frames
+			var blink = int(shield_recovery_timer * 15.0) % 2 == 0
+			if blink:
+				player_material.albedo_color = Color(1.0, 1.0, 1.0)
+				player_material.emission_enabled = true
+				player_material.emission = Color(0.8, 0.8, 0.8)
+			else:
+				player_material.albedo_color = Color(1.0, 1.0, 0.0)
+				player_material.emission_enabled = false
 
 	# Speed booster process
 	if is_speed_boosted:
@@ -393,7 +477,6 @@ func _handle_arcade_input() -> void:
 	if input_dir != Vector2.ZERO:
 		var target_dir := Vector3.ZERO
 		
-		# Cardinal filter: discard the weaker axis to prevent diagonal collision traps
 		if abs(input_dir.x) > abs(input_dir.y):
 			target_dir = Vector3(sign(input_dir.x), 0.0, 0.0)
 		else:
@@ -409,59 +492,45 @@ func _process_arcade_movement() -> void:
 		
 	var current_run_speed : float = BOOSTED_SPEED if is_speed_boosted else SPEED
 	
-	# Get current 2D grid position coordinates
 	var curr_grid := _world_to_grid(global_position)
 	var cell_center := _grid_to_world(curr_grid)
 	
-	# --- 1. HANDLE DIRECTION SWITCH (SMOOTH ARCADE TURNING via DOT PRODUCT) ---
 	if next_direction != Vector3.ZERO and next_direction != current_direction:
-		# Check if player requests a 180-degree reverse (always allowed instantly!)
 		if next_direction == -current_direction:
 			current_direction = next_direction
 		else:
-			# Check if the target adjacent cell in next_direction is walkable
 			var target_grid : Vector2i = curr_grid + Vector2i(int(next_direction.x), int(next_direction.z))
 			if _is_cell_walkable(target_grid):
-				# Calculate Dot Product and Distance to evaluate the approach vector
 				var dot_prod : float = (cell_center - global_position).dot(current_direction)
 				var dist_to_center : float = global_position.distance_to(cell_center)
 				
-				# Execute turn only at the exact micro-frame of crossing the cell center (invisible snap)
 				if dot_prod <= 0.0 or dist_to_center < 0.18:
-					global_position = cell_center # Invisible micro-snap (under 5cm)
+					global_position = cell_center 
 					current_direction = next_direction
 			
-	# --- 2. MOVEMENT ENGINE ---
 	if current_direction != Vector3.ZERO:
-		# Check if the next cell in our current direction is blocked by a wall
 		var next_grid : Vector2i = curr_grid + Vector2i(int(current_direction.x), int(current_direction.z))
 		var is_blocked_ahead : bool = not _is_cell_walkable(next_grid)
 		
-		# If blocked ahead, we must stop EXACTLY at the center of the current cell
 		if is_blocked_ahead:
 			var dist_to_center : float = global_position.distance_to(cell_center)
-			# Check if we have reached or slightly passed the center
 			var dot_prod : float = (cell_center - global_position).dot(current_direction)
 			if dot_prod <= 0.0 or dist_to_center < 0.15:
-				global_position = cell_center # Snap exactly to stop
+				global_position = cell_center 
 				velocity = Vector3.ZERO
 				current_direction = Vector3.ZERO
 				next_direction = Vector3.ZERO
 			else:
-				# Keep moving towards the center to stop cleanly
 				var y_vel = velocity.y
 				velocity = current_direction * current_run_speed
 				velocity.y = y_vel
 		else:
-			# Path is completely clear ahead: keep running
 			var y_vel = velocity.y
 			velocity = current_direction * current_run_speed
 			velocity.y = y_vel
 			
-			# Lock non-moving axis to center of current lane to prevent drifting
 			global_position = _snap_to_lane_center(global_position, current_direction)
 			
-		# Smooth cardinal rotation (no diagonals ever!)
 		var target_rotation_y = atan2(-current_direction.x, -current_direction.z) + PI
 		visual_mesh.rotation.y = lerp_angle(visual_mesh.rotation.y, target_rotation_y, 0.25)
 	else:
@@ -474,15 +543,6 @@ func _process_arcade_movement() -> void:
 		motion_trail.emitting = (velocity.length() > 0.1)
 		
 	move_and_slide()
-
-# Helper to retrieve an aligned target coordinate for corner testing
-func _get_aligned_position(current_pos: Vector3, direction: Vector3) -> Vector3:
-	return _snap_to_lane_center(current_pos, direction)
-
-# Aligns non-moving axes to prevent drifting or getting caught on corner boundaries
-func _align_transform_to_lane(current_pos: Vector3, direction: Vector3) -> Vector3:
-	return _snap_to_lane_center(current_pos, direction)
-
 
 # ==============================================================================
 # --- MINIMAP POLYMORPHISM (LSP/OCP COMPLIANCE) ---

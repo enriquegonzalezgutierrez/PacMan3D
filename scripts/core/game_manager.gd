@@ -1,13 +1,14 @@
 # ==============================================================================
 # Description: Global singleton managing game state, score, lives, win/loss
-#              conditions, and event signals. 
+#              conditions, and event signals.
+#              Phase 1 Update (Game Feel):
+#              - Added Ghost Combo System: Tracks consecutive ghost consumptions 
+#                during a power pellet phase, multiplying the reward exponentially 
+#                (200, 400, 800, 1600).
 #              SOLID Refactoring:
 #              - SRP Compliance: Session state management is fully separated 
 #                from data persistence. Delegates all array sorting, binary 
 #                encryption, and leaderboard logic to LeaderboardManager.
-#              - Data Migration: Automatically migrates single high score saves 
-#                from older versions (high_scores.dat) into the new Top 5 
-#                Tournament Leaderboard on startup.
 # Author: Enrique González Gutiérrez
 # Email: enrique.gonzalez.gutierrez@gmail.com
 # ==============================================================================
@@ -30,6 +31,9 @@ var high_score : int = 0
 var lives : int = 3
 var total_pellets : int = 0
 var pellets_eaten : int = 0
+
+# Arcade Combo State
+var ghost_combo_multiplier : int = 0
 
 # Persistent progression tracking
 var current_level : int = 1
@@ -66,6 +70,7 @@ func reset_game() -> void:
 	pellets_eaten = 0
 	current_level = 1 
 	is_game_started = false 
+	ghost_combo_multiplier = 0
 	
 	call_deferred("_emit_initial_signals")
 
@@ -84,11 +89,26 @@ func add_score(points: int) -> void:
 		high_score = score
 		high_score_changed.emit(high_score)
 
+# --- ARCADE GHOST COMBO SYSTEM ---
+
+# Calculates and awards exponential points for eating ghosts (200, 400, 800, 1600)
+func register_ghost_eaten() -> int:
+	# Base score is 200. Left bitshift (<<) multiplies by 2 for each combo level.
+	var awarded_points : int = 200 << ghost_combo_multiplier
+	add_score(awarded_points)
+	
+	# Increment combo for the next ghost, maxing out at 4 ghosts (index 3)
+	if ghost_combo_multiplier < 3:
+		ghost_combo_multiplier += 1
+		
+	return awarded_points
+
 # Handles losing a life, emitting the reset signal, and checking for Game Over
 func lose_life() -> void:
 	lives -= 1
 	lives_changed.emit(lives)
 	
+	ghost_combo_multiplier = 0 # Reset combo on death
 	player_killed.emit()
 	
 	if lives <= 0:
@@ -110,6 +130,7 @@ func pellet_eaten() -> void:
 		victory.emit()
 
 func activate_power_pellet() -> void:
+	ghost_combo_multiplier = 0 # Reset combo tracking for the new power phase
 	power_pellet_activated.emit()
 
 # --- ARCADE DIFFICULTY PROGRESSION MATH ---

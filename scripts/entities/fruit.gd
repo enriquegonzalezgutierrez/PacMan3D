@@ -2,27 +2,26 @@
 # Description: Standalone Fruit bonus item (Area3D). Spawns procedurally based 
 #              on the level and delegates its visual construction to distinct 
 #              FruitDesignStrategy objects.
+#              Phase 2 Update (Menorcan Lore Expansion):
+#              - Added Ensaimada (Shield) and Mahón Cheese (Decoy) items dynamically.
+#              - Extended the 'eaten' signal to pass an effect string.
 #              SOLID Refactoring:
 #              - SRP Compliance: Extracted all 3D mesh compilation and material 
 #                theming into specialized FruitDesignStrategy subclasses. 
-#                The core Fruit class is now solely responsible for physics, 
-#                animations, and radar signals.
-#              - OCP Compliance: Adding a new fruit (e.g. Orange) now only 
-#                requires writing a new design strategy subclass and adding it 
-#                to the dispatch registry, keeping the main class closed to modification.
-#              - LSP Compliance: Implements polymorphic getters matching 
-#                the Minimap telemetry interface.
+#              - OCP Compliance: Adding new fruits (Ensaimada/Cheese) required zero 
+#                changes to the physics or rotation logic, just new strategy blocks.
 # Author: Enrique González Gutiérrez
 # Email: enrique.gonzalez.gutierrez@gmail.com
 # ==============================================================================
 extends Area3D
 class_name Fruit
 
-# Emits the points value awarded upon consumption
-signal eaten(points: int)
+# Emits the points value and the special effect type upon consumption
+signal eaten(points: int, effect: String)
 
 var points_value : int = 500
 var fruit_name : String = "Cherry"
+var effect_type : String = "none"
 
 # Materials
 var primary_material : StandardMaterial3D
@@ -38,10 +37,11 @@ var design_strategies : Dictionary = {
 	"Strawberry": StrawberryDesign.new(),
 	"Peach": PeachDesign.new(),
 	"Apple": AppleDesign.new(),
-	"Key": KeyDesign.new()
+	"Key": KeyDesign.new(),
+	"Ensaimada": EnsaimadaDesign.new(),
+	"Cheese": CheeseDesign.new()
 }
 
-# Resolved name conflict to prevent parser compile crashes
 var current_design : FruitDesignStrategy
 
 func initialize(level_number: int) -> void:
@@ -51,6 +51,7 @@ func initialize(level_number: int) -> void:
 	
 	# Retrieve strategy dynamically from our OCP Registry
 	current_design = design_strategies.get(fruit_name, design_strategies["Cherry"])
+	effect_type = current_design.get_effect_type()
 	
 	_initialize_materials()
 	_build_fruit_visuals()
@@ -62,8 +63,20 @@ func _configure_collision_layers() -> void:
 	collision_layer = 0
 	collision_mask = 2
 
-# Maps levels to names and score weight
+# Maps levels to names and score weight, with a chance for special Menorcan items
 func _determine_fruit_identity(level_number: int) -> void:
+	# Introduce Special Items (40% combined chance to spawn instead of standard fruit)
+	var roll = randf()
+	if roll < 0.20:
+		fruit_name = "Ensaimada"
+		points_value = 1000
+		return
+	elif roll < 0.40:
+		fruit_name = "Cheese"
+		points_value = 1000
+		return
+		
+	# Standard Arcade Fruit Logic
 	match level_number:
 		1:
 			fruit_name = "Cherry"
@@ -124,7 +137,7 @@ func _on_body_entered(body: Node3D) -> void:
 		if body.has_method("play_eat_sound"):
 			body.play_eat_sound()
 			
-		eaten.emit(points_value) 
+		eaten.emit(points_value, effect_type) 
 		queue_free()
 
 
@@ -150,6 +163,88 @@ class FruitDesignStrategy extends RefCounted:
 		pass
 	func get_minimap_color() -> Color:
 		return Color(1.0, 0.0, 0.8)
+	func get_effect_type() -> String:
+		return "none"
+
+
+# --- ENSAIMADA DESIGN (Menorcan Shield) ---
+class EnsaimadaDesign extends FruitDesignStrategy:
+	func configure_materials(primary: StandardMaterial3D, secondary: StandardMaterial3D) -> void:
+		primary.albedo_color = Color(0.95, 0.85, 0.5) # Baked pastry gold
+		primary.roughness = 0.8
+		secondary.albedo_color = Color(1.0, 1.0, 1.0) # Powdered sugar
+		secondary.roughness = 0.9
+		
+	func build_visuals(visual_holder: Node3D, primary: StandardMaterial3D, secondary: StandardMaterial3D) -> void:
+		# Create concentric rings to simulate the spiral pastry dynamically
+		var radii = [0.45, 0.25, 0.08]
+		for i in range(3):
+			var ring_mesh = TorusMesh.new()
+			ring_mesh.outer_radius = radii[i]
+			ring_mesh.inner_radius = radii[i] - 0.15
+			if ring_mesh.inner_radius <= 0: 
+				ring_mesh.inner_radius = 0.02
+			
+			var ring = MeshInstance3D.new()
+			ring.mesh = ring_mesh
+			ring.material_override = primary
+			ring.position.y = 0.3 + (i * 0.08) # Stack them slightly for 3D depth
+			visual_holder.add_child(ring)
+			
+		# Sugar dust topping
+		var sugar_mesh = CylinderMesh.new()
+		sugar_mesh.top_radius = 0.45
+		sugar_mesh.bottom_radius = 0.45
+		sugar_mesh.height = 0.02
+		var sugar = MeshInstance3D.new()
+		sugar.mesh = sugar_mesh
+		sugar.material_override = secondary
+		sugar.position.y = 0.48
+		visual_holder.add_child(sugar)
+		
+	func get_minimap_color() -> Color:
+		return Color(0.9, 0.8, 0.3)
+		
+	func get_effect_type() -> String:
+		return "shield"
+
+
+# --- MAHÓN CHEESE DESIGN (Menorcan Decoy) ---
+class CheeseDesign extends FruitDesignStrategy:
+	func configure_materials(primary: StandardMaterial3D, secondary: StandardMaterial3D) -> void:
+		primary.albedo_color = Color(0.9, 0.4, 0.1) # Orange rind
+		primary.roughness = 0.6
+		secondary.albedo_color = Color(1.0, 0.9, 0.4) # Yellow cheese inside
+		secondary.roughness = 0.7
+		
+	func build_visuals(visual_holder: Node3D, primary: StandardMaterial3D, secondary: StandardMaterial3D) -> void:
+		# Cheese wedge using a PrismMesh rotated to lay flat
+		var wedge_mesh = PrismMesh.new()
+		wedge_mesh.size = Vector3(0.8, 0.6, 0.8)
+		
+		var wedge = MeshInstance3D.new()
+		wedge.mesh = wedge_mesh
+		wedge.material_override = secondary
+		wedge.rotation_degrees.x = -90.0 # Lay it flat
+		wedge.position = Vector3(0.0, 0.4, -0.1)
+		
+		# Orange rind block
+		var rind_mesh = BoxMesh.new()
+		rind_mesh.size = Vector3(0.82, 0.12, 0.82)
+		var rind = MeshInstance3D.new()
+		rind.mesh = rind_mesh
+		rind.material_override = primary
+		rind.position = Vector3(0.0, 0.4, 0.3)
+		rind.rotation_degrees.x = -45.0
+		
+		visual_holder.add_child(wedge)
+		visual_holder.add_child(rind)
+		
+	func get_minimap_color() -> Color:
+		return Color(1.0, 0.6, 0.0)
+		
+	func get_effect_type() -> String:
+		return "decoy"
 
 
 # --- CHERRY DESIGN ---
